@@ -1,13 +1,21 @@
-import { Box, Text } from "@chakra-ui/react";
-import React from "react";
-
+import { Box, Flex } from "@chakra-ui/react";
+import { lazy, Suspense } from "react";
+const Maincomponent = lazy(() => import("./components/Maincomponent"));
+const SideNavigation = lazy(() => import("./components/SideNavigation"));
+const TopNavigations = lazy(() => import("./components/TopNavigations"));
+const EmployeeTracker = lazy(() => import("./components/EmployeeTracker"));
 const App = () => {
   return (
-    <Box fontSize="2em">
-      <Text as="h1" fontWeight={800}>
-        sample
-      </Text>
-      pp
+    <Box>
+      <Maincomponent>
+        <Flex minH="100vh">
+          <SideNavigation />
+          <Box flex="1" p={8}>
+            <TopNavigations />
+            <EmployeeTracker />
+          </Box>
+        </Flex>
+      </Maincomponent>
     </Box>
   );
 };
