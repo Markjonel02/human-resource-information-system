@@ -1,0 +1,17 @@
+{
+  "name": "human-resources-infomation-system",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start:frontend": "npm run dev --prefix Frontend",
+    "start:server": "npm run start --prefix Server",
+    "dev": "concurrently \"npm run start:frontend\" \"npm run start:server\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  }
+}
