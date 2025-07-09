@@ -43,7 +43,7 @@ const MetricCard = ({ title, value, percentageChange, type, icon }) => {
           </StatNumber>
         </Box>
         {icon && (
-          <Icon as={icon} w={8} h={8} color="teal.500" fontSize={"xs"} /> // Using Chakra's Icon component with the passed icon prop
+          <Icon as={icon} w={7} h={7} color="teal.500" fontSize={"xs"} ml={5} /> // Using Chakra's Icon component with the passed icon prop
         )}
       </Flex>
       <StatHelpText>
@@ -108,7 +108,7 @@ const EmployeeTracker = () => {
       {" "}
       {/* Changed from 70% to 50% */}
       {/* Metric Cards */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4} mb={6}>
+      <SimpleGrid columns={{ base: 2, md: 2, lg: 4 }} spacing={4} mb={6}>
         <MetricCard
           title="New Employee"
           value="1012"

@@ -12,7 +12,6 @@ import {
   Drawer,
   DrawerOverlay,
   DrawerContent,
-  DrawerCloseButton,
   IconButton,
   useBreakpointValue,
 } from "@chakra-ui/react";
@@ -36,13 +35,11 @@ const SideNavigation = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
 
-  // Detect screen size (true if mobile)
   const isMobile = useBreakpointValue({ base: true, md: false });
 
-  // Reset collapse on mobile, but allow collapse on desktop
   useEffect(() => {
     if (isMobile) {
-      setIsCollapsed(false); // force expanded on mobile
+      setIsCollapsed(false);
     }
   }, [isMobile]);
 
@@ -65,7 +62,7 @@ const SideNavigation = () => {
   const activeBg = useColorModeValue("purple.50", "purple.900");
   const activeColor = useColorModeValue("purple.700", "purple.300");
 
-  const SidebarContent = ({ forceExpanded = false }) => {
+  const SidebarContent = ({ forceExpanded = false, hideHeader = false }) => {
     const collapsed = forceExpanded ? false : isCollapsed;
 
     return (
@@ -78,23 +75,41 @@ const SideNavigation = () => {
         h="100vh"
         bg="white"
         p="4"
-        shadow="lg"
-        borderRightRadius="xl"
+        borderRightWidth={isMobile ? "0" : "1px"}
+        borderColor="gray.200"
         display="flex"
         flexDirection="column"
         transition="width 0.2s ease"
       >
-        {/* Header */}
-        <Flex
-          align="center"
-          justify={collapsed ? "center" : "space-between"}
-          pb="4"
-          borderBottom="1px"
-          borderColor="gray.200"
-          mb="6"
-        >
-          {!collapsed ? (
-            <HStack spacing="2">
+        {!hideHeader && (
+          <Flex
+            align="center"
+            justify={collapsed ? "center" : "space-between"}
+            pb="4"
+            borderBottom="1px"
+            borderColor="gray.200"
+            mb="6"
+          >
+            {!collapsed ? (
+              <HStack spacing="2">
+                <Flex
+                  w="8"
+                  h="8"
+                  bg="purple.600"
+                  color="white"
+                  align="center"
+                  justify="center"
+                  rounded="full"
+                  fontWeight="bold"
+                  fontSize="sm"
+                >
+                  P
+                </Flex>
+                <Text fontSize="xl" fontWeight="semibold" color="gray.800">
+                  LOGO
+                </Text>
+              </HStack>
+            ) : (
               <Flex
                 w="8"
                 h="8"
@@ -108,39 +123,21 @@ const SideNavigation = () => {
               >
                 P
               </Flex>
-              <Text fontSize="xl" fontWeight="semibold" color="gray.800">
-                LOGO
-              </Text>
-            </HStack>
-          ) : (
-            <Flex
-              w="8"
-              h="8"
-              bg="purple.600"
-              color="white"
-              align="center"
-              justify="center"
-              rounded="full"
-              fontWeight="bold"
-              fontSize="sm"
-            >
-              P
-            </Flex>
-          )}
+            )}
 
-          {/* Collapse button: only visible on desktop */}
-          {!isMobile && (
-            <Icon
-              as={collapsed ? ChevronRight : ChevronLeft}
-              w={5}
-              h={5}
-              color="gray.500"
-              cursor="pointer"
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              ml={collapsed ? "auto" : "0"}
-            />
-          )}
-        </Flex>
+            {!isMobile && (
+              <Icon
+                as={collapsed ? ChevronRight : ChevronLeft}
+                w={5}
+                h={5}
+                color="gray.500"
+                cursor="pointer"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                ml={collapsed ? "auto" : "0"}
+              />
+            )}
+          </Flex>
+        )}
 
         {/* MENU Section */}
         <Box mb="8">
@@ -233,9 +230,8 @@ const SideNavigation = () => {
 
   return (
     <>
-      {/* Hamburger menu for mobile - hidden when drawer is open */}
       {isMobile && !isOpen && (
-        <Box p="4" position="absolute" top="0" bg="white" zIndex="999">
+        <Box position="absolute" p={4} top="0" zIndex="999">
           <IconButton
             icon={<MenuIcon />}
             aria-label="Open Menu"
@@ -245,17 +241,48 @@ const SideNavigation = () => {
         </Box>
       )}
 
-      {/* Drawer on mobile (force expanded) */}
       {isMobile ? (
         <Drawer isOpen={isOpen} placement="left" onClose={onClose}>
           <DrawerOverlay />
-          <DrawerContent>
-            <DrawerCloseButton />
-            <SidebarContent forceExpanded />
+          <DrawerContent p="4" bg="white" w="64">
+            <Flex
+              align="center"
+              justify="space-between"
+              mb="6"
+              pb="4"
+              borderBottom="1px"
+              borderColor="gray.200"
+            >
+              <HStack spacing="2">
+                <Flex
+                  w="8"
+                  h="8"
+                  bg="purple.600"
+                  color="white"
+                  align="center"
+                  justify="center"
+                  rounded="full"
+                  fontWeight="bold"
+                  fontSize="sm"
+                >
+                  P
+                </Flex>
+                <Text fontSize="xl" fontWeight="semibold" color="gray.800">
+                  LOGO
+                </Text>
+              </HStack>
+              <IconButton
+                icon={<ChevronLeft />}
+                aria-label="Close Menu"
+                onClick={onClose}
+                size="sm"
+                variant="ghost"
+              />
+            </Flex>
+            <SidebarContent forceExpanded hideHeader />
           </DrawerContent>
         </Drawer>
       ) : (
-        // Always render SidebarContent on desktop, respect collapse state
         <SidebarContent />
       )}
     </>

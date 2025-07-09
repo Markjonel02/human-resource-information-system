@@ -43,7 +43,7 @@ const App = () => {
 
                 {/* Right-side content */}
                 <Box
-                  width={{ base: "100%", md: "30%" }}
+                  width={{ base: "100%", md: "auto", lg: "30%" }}
                   mt={{ base: 4, lg: 4 }}
                 >
                   <Announcements />

@@ -8,12 +8,12 @@ import {
   InputLeftElement,
   Button,
   IconButton,
-  Spacer,
+  Spacer, // Spacer is not strictly needed with space-between but kept for completeness
   useColorModeValue,
-  Tooltip, // Import Tooltip
+  Tooltip,
 } from "@chakra-ui/react";
 import { SearchIcon, CalendarIcon } from "@chakra-ui/icons";
-import { FaPlus } from "react-icons/fa"; // Using react-icons for the plus icon
+import { FaPlus } from "react-icons/fa";
 
 const TopNavigations = () => {
   const bgColor = useColorModeValue("white", "gray.800");
@@ -24,25 +24,25 @@ const TopNavigations = () => {
   return (
     <Box
       bg={bgColor}
-      px={{ base: 4, md: 6 }} // Less padding on mobile
-      py={{ base: 3, md: 4 }} // Less padding on mobile
+      px={{ base: 4, md: 6 }}
+      py={{ base: 3, md: 4 }}
       borderBottom="1px"
       borderColor="gray.200"
       boxShadow="sm"
     >
       <Flex
         align="center"
-        justify={{ base: "center", md: "space-between" }} // Center on mobile, space-between on desktop
-        flexDirection={{ base: "column", md: "row" }} // Stack on mobile, row on desktop
+        justify={{ base: "space-between", md: "space-between" }}
+        flexDirection={{ base: "row", md: "row" }}
       >
-        {/* Welcome Section */}
-        <Box textAlign={{ base: "center", md: "left" }}>
-          {" "}
-          {/* Center text on mobile */}
+        {/* Welcome Section - Aligned left on desktop, now also left on mobile within its own flex container */}
+        <Box textAlign={{ base: "left", md: "left" }}>
           <Text
             fontSize={{ base: "lg", md: "xl" }}
             fontWeight="bold"
             color={textColor}
+            textAlign="center"
+            ml={{ base: 20, md: 0 }}
           >
             Welcome back,{" "}
             <Text as="span" color="purple.600">
@@ -54,27 +54,25 @@ const TopNavigations = () => {
             color="gray.500"
             display={{ base: "none", md: "block" }}
           >
-            {" "}
-            {/* Hide "Home" on mobile */}
             Home
           </Text>
         </Box>
 
-        {/* Search and Buttons Section - Hidden on mobile */}
-        <Flex
-          align="center"
-          display={{ base: "none", md: "flex" }} // Hide on mobile, show on desktop
-          mt={{ base: 4, md: 0 }} // Add margin top on mobile if it were visible
-        >
-          {/* Search Input */}
-          <InputGroup width="200px" mr={4}>
+        {/* Search and Buttons Section */}
+        <Flex align="center">
+          {/* Search Input - Hidden on mobile */}
+          <InputGroup
+            width="200px"
+            mr={4}
+            display={{ base: "none", md: "block" }}
+          >
             <InputLeftElement pointerEvents="none">
               <SearchIcon color="gray.300" />
             </InputLeftElement>
             <Input type="text" placeholder="Search..." borderRadius="md" />
           </InputGroup>
 
-          {/* Icon Buttons with Tooltips */}
+          {/* Icon Buttons with Tooltips - Hidden on mobile */}
           <Tooltip label="Search" aria-label="Search tooltip">
             <IconButton
               aria-label="Search"
@@ -82,6 +80,7 @@ const TopNavigations = () => {
               variant="outline"
               mr={2}
               borderRadius="md"
+              display={{ base: "none", md: "inline-flex" }}
             />
           </Tooltip>
           <Tooltip label="Calendar" aria-label="Calendar tooltip">
@@ -91,30 +90,37 @@ const TopNavigations = () => {
               variant="outline"
               mr={4}
               borderRadius="md"
+              display={{ base: "none", md: "inline-flex" }}
             />
           </Tooltip>
 
-          {/* Attendance Button */}
+          {/* Attendance Button - Hidden on mobile */}
           <Button
             leftIcon={<CalendarIcon />}
             variant="outline"
             mr={4}
             borderRadius="md"
             colorScheme="gray"
+            display={{ base: "none", md: "inline-flex" }}
           >
             Attendance
           </Button>
 
           {/* Add Employee Button (Responsive) */}
-          <Tooltip label="Add Employee" aria-label="Add Employee tooltip">
+          <Tooltip
+            label="Add Employee"
+            aria-label="Add Employee tooltip"
+            openDelay={500}
+          >
             <Button
               leftIcon={<FaPlus />}
               bg={buttonBgColor}
               color="white"
               _hover={{ bg: buttonHoverBgColor }}
               borderRadius="md"
+              px={{ base: 3, md: 4 }}
             >
-              {/* Text only visible on medium and larger screens */}
+              {/* Text visible only on medium and larger screens */}
               <Text as="span" display={{ base: "none", md: "inline" }}>
                 Add Employee
               </Text>
