@@ -4,15 +4,48 @@ const Maincomponent = lazy(() => import("./components/Maincomponent"));
 const SideNavigation = lazy(() => import("./components/SideNavigation"));
 const TopNavigations = lazy(() => import("./components/TopNavigations"));
 const EmployeeTracker = lazy(() => import("./components/EmployeeTracker"));
+const UpcomingSchcedule = lazy(() => import("./components/UpcomingSchcedule"));
+const Announcements = lazy(() => import("./components/Announcements"));
 const App = () => {
   return (
     <Box>
       <Maincomponent>
         <Flex minH="100vh">
           <SideNavigation />
-          <Box flex="1" p={8}>
+          <Box flex="3" p={4}>
             <TopNavigations />
-            <EmployeeTracker />
+
+            {/* Constrain the scrollable area */}
+            <Box
+              maxH="calc(100vh - 100px)"
+              overflowY="auto"
+              className="scroll"
+              sx={{
+                scrollBehavior: "smooth",
+                "::-webkit-scrollbar": { width: "6px" },
+                "::-webkit-scrollbar-track": { background: "transparent" },
+                "::-webkit-scrollbar-thumb": {
+                  backgroundColor: "rgba(100, 100, 100, 0.4)",
+                  borderRadius: "4px",
+                  display: "none !important",
+                },
+              }}
+            >
+              <Flex direction="row" align="flex-start" gap={6}>
+                {/* Left-side Employee Tracker */}
+                <Box w={{ base: "50%", md: "800px" }}>
+                  <EmployeeTracker />
+                </Box>
+
+                {/* Right-side content fills remaining space */}
+                <Box flex="1">
+                  <Announcements />
+                  <Box mt={4}>
+                    <UpcomingSchcedule />
+                  </Box>
+                </Box>
+              </Flex>
+            </Box>
           </Box>
         </Flex>
       </Maincomponent>

@@ -1,0 +1,38 @@
+/* Smooth scrolling for entire page */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar styling for WebKit browsers */
+::-webkit-scrollbar {
+  width: 6px; /* Makes scrollbar thinner */
+}
+
+::-webkit-scrollbar-track {
+  background: transparent; /* Hides or softens the track */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 100, 100, 0.4); /* Custom thumb color */
+  border-radius: 4px;
+}
+
+/* Firefox-specific tweaks */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 100, 100, 0.4) transparent;
+}
+
+.scroll {
+  overflow-y: auto;
+  scroll-behavior: smooth;
+
+  /* WebKit browsers (Chrome, Safari, Edge) */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+
+  /* Hide scrollbar for WebKit */
+}
+.scroll::-webkit-scrollbar {
+  display: none;
+}

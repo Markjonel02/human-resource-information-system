@@ -43,7 +43,7 @@ const MetricCard = ({ title, value, percentageChange, type, icon }) => {
           </StatNumber>
         </Box>
         {icon && (
-          <Icon as={icon} w={8} h={8} color="teal.500" /> // Using Chakra's Icon component with the passed icon prop
+          <Icon as={icon} w={8} h={8} color="teal.500" fontSize={"xs"} /> // Using Chakra's Icon component with the passed icon prop
         )}
       </Flex>
       <StatHelpText>
@@ -103,116 +103,117 @@ const EmployeeTracker = () => {
 
   return (
     // 3. Wrap the component in ChakraProvider
-    <ChakraProvider>
-      <Box p={4} maxW="80%" ml={4}>
-        {/* Metric Cards */}
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4} mb={6}>
-          <MetricCard
-            title="New Employee"
-            value="1012"
-            percentageChange="30%"
-            type="increase"
-            icon={FaUser}
-          />
-          <MetricCard
-            title="Resign Employee"
-            value="102"
-            percentageChange="22%"
-            type="decrease"
-            icon={FaUserMinus}
-          />
-          <MetricCard
-            title="Employee on Leave"
-            value="23"
-            percentageChange="18%"
-            type="increase"
-            icon={FaCalendarAlt}
-          />
-          <MetricCard
-            title="New Application"
-            value="200"
-            percentageChange="30%"
-            type="decrease"
-            icon={FaFileAlt}
-          />
-        </SimpleGrid>
 
-        {/* Employee Tracker Bar Chart */}
-        <Box
-          height="350px"
-          width="100%"
-          p={4}
-          shadow="sm"
-          border="1px solid"
-          borderColor={chartBorderColor}
-          rounded="md"
-          bg={chartBgColor}
-        >
-          <Flex justifyContent="space-between" alignItems="center" mb={3}>
-            <Heading as="h2" size="md" color={chartTitleColor}>
-              Employee Tracker
-            </Heading>
-            <Text fontSize="sm" color="gray.500">
-              This week ▼
-            </Text>
-          </Flex>
-          <ResponsiveBar
-            data={employeeTrackerData} // Now `employeeTrackerData` is defined
-            keys={["Full-time", "Part-time"]}
-            indexBy="day"
-            margin={{ top: 10, right: 20, bottom: 40, left: 50 }}
-            padding={0.25}
-            valueScale={{ type: "linear" }}
-            indexScale={{ type: "band", round: true }}
-            colors={{ scheme: "set2" }}
-            borderColor={{
-              from: "color",
-              modifiers: [["darker", 1.6]],
-            }}
-            axisTop={null}
-            axisRight={null}
-            axisBottom={{
-              tickSize: 4,
-              tickPadding: 4,
-              legend: "Day",
-              legendPosition: "middle",
-              legendOffset: 28,
-              truncateTickAt: 0,
-            }}
-            axisLeft={{
-              tickSize: 4,
-              tickPadding: 4,
-              legend: "Count",
-              legendPosition: "middle",
-              legendOffset: -35,
-              truncateTickAt: 0,
-            }}
-            labelSkipWidth={10}
-            labelSkipHeight={10}
-            labelTextColor={{
-              from: "color",
-              modifiers: [["darker", 1.4]],
-            }}
-            legends={[
-              {
-                dataFrom: "keys",
-                anchor: "bottom-right",
-                direction: "column",
-                translateX: 100,
-                itemWidth: 80,
-                itemHeight: 18,
-                symbolSize: 16,
-              },
-            ]}
-            role="application"
-            ariaLabel="Employee Tracker Chart"
-            barAriaLabel={(e) =>
-              `${e.id}: ${e.formattedValue} in ${e.indexValue}`
-            }
-          />
-        </Box>
+    <Box pt={4}>
+      {" "}
+      {/* Changed from 70% to 50% */}
+      {/* Metric Cards */}
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4} mb={6}>
+        <MetricCard
+          title="New Employee"
+          value="1012"
+          percentageChange="30%"
+          type="increase"
+          icon={FaUser}
+        />
+        <MetricCard
+          title="Resign Employee"
+          value="102"
+          percentageChange="22%"
+          type="decrease"
+          icon={FaUserMinus}
+        />
+        <MetricCard
+          title="Employee on Leave"
+          value="23"
+          percentageChange="18%"
+          type="increase"
+          icon={FaCalendarAlt}
+        />
+        <MetricCard
+          title="New Application"
+          value="200"
+          percentageChange="30%"
+          type="decrease"
+          icon={FaFileAlt}
+        />
+      </SimpleGrid>
+      {/* Employee Tracker Bar Chart */}
+      <Box
+        height="350px"
+        width="100%"
+        p={4}
+        background="black"
+        shadow="sm"
+        border="1px solid"
+        borderColor={chartBorderColor}
+        rounded="md"
+        bg={chartBgColor}
+      >
+        <Flex justifyContent="space-between" alignItems="center" mb={3}>
+          <Heading as="h2" size="md" color={chartTitleColor}>
+            Employee Tracker
+          </Heading>
+          <Text fontSize="sm" color="gray.500">
+            This week ▼
+          </Text>
+        </Flex>
+        <ResponsiveBar
+          data={employeeTrackerData} // Now `employeeTrackerData` is defined
+          keys={["Full-time", "Part-time"]}
+          indexBy="day"
+          margin={{ top: 10, right: 20, bottom: 40, left: 50 }}
+          padding={0.25}
+          valueScale={{ type: "linear" }}
+          indexScale={{ type: "band", round: true }}
+          colors={{ scheme: "set2" }}
+          borderColor={{
+            from: "color",
+            modifiers: [["darker", 1.6]],
+          }}
+          axisTop={null}
+          axisRight={null}
+          axisBottom={{
+            tickSize: 4,
+            tickPadding: 4,
+            legend: "Day",
+            legendPosition: "middle",
+            legendOffset: 28,
+            truncateTickAt: 0,
+          }}
+          axisLeft={{
+            tickSize: 4,
+            tickPadding: 4,
+            legend: "Count",
+            legendPosition: "middle",
+            legendOffset: -35,
+            truncateTickAt: 0,
+          }}
+          labelSkipWidth={10}
+          labelSkipHeight={10}
+          labelTextColor={{
+            from: "color",
+            modifiers: [["darker", 1.4]],
+          }}
+          legends={[
+            {
+              dataFrom: "keys",
+              anchor: "bottom-right",
+              direction: "column",
+              translateX: 100,
+              itemWidth: 80,
+              itemHeight: 18,
+              symbolSize: 16,
+            },
+          ]}
+          role="application"
+          ariaLabel="Employee Tracker Chart"
+          barAriaLabel={(e) =>
+            `${e.id}: ${e.formattedValue} in ${e.indexValue}`
+          }
+        />
       </Box>
-    </ChakraProvider>
+    </Box>
   );
 };
 
