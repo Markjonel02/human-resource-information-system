@@ -8,6 +8,11 @@ import {
   HStack,
   Spacer,
   useColorModeValue,
+  useDisclosure,
+  Drawer,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerCloseButton,
   IconButton,
   useBreakpointValue,
 } from "@chakra-ui/react";
@@ -25,24 +30,20 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu as MenuIcon,
-  X, // For the mobile close icon
 } from "lucide-react";
 
 const SideNavigation = () => {
-  // State for desktop collapse
   const [isCollapsed, setIsCollapsed] = useState(false);
-  // State for mobile sidebar open/close
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
-  // Detect screen size (true if mobile, md breakpoint and below)
+  // Detect screen size (true if mobile)
   const isMobile = useBreakpointValue({ base: true, md: false });
 
-  // Effect to manage collapse state based on screen size
+  // Reset collapse on mobile, but allow collapse on desktop
   useEffect(() => {
     if (isMobile) {
-      setIsCollapsed(false); // Force expanded on mobile for the mobile sidebar content
+      setIsCollapsed(false); // force expanded on mobile
     }
-    // No need to set isMobileSidebarOpen here, it's controlled by the hamburger icon
   }, [isMobile]);
 
   const menuItems = [
@@ -64,27 +65,16 @@ const SideNavigation = () => {
   const activeBg = useColorModeValue("purple.50", "purple.900");
   const activeColor = useColorModeValue("purple.700", "purple.300");
 
-  // Helper component for section labels
-  const SectionLabel = ({ label, isSidebarCollapsed }) => (
-    <Text
-      fontSize="xs"
-      fontWeight="semibold"
-      color="gray.400"
-      textTransform="uppercase"
-      mb="3"
-      pl="3" // Always left aligned
-      textAlign={isSidebarCollapsed ? "center" : "left"} // Center label when collapsed
-    >
-      {isSidebarCollapsed ? label.charAt(0) : label}{" "}
-      {/* Show first letter when collapsed */}
-    </Text>
-  );
+  const SidebarContent = ({ forceExpanded = false }) => {
+    const collapsed = forceExpanded ? false : isCollapsed;
 
-  // Reusable Sidebar content JSX
-  const SidebarContent = ({ currentCollapsedState, onCloseMobile }) => {
     return (
       <Box
-        w={currentCollapsedState ? "20" : "64"}
+        position="sticky"
+        top="0"
+        left="0"
+        zIndex="1000"
+        w={collapsed ? "20" : "64"}
         h="100vh"
         bg="white"
         p="4"
@@ -92,17 +82,18 @@ const SideNavigation = () => {
         borderRightRadius="xl"
         display="flex"
         flexDirection="column"
+        transition="width 0.2s ease"
       >
         {/* Header */}
         <Flex
           align="center"
-          justify={currentCollapsedState ? "center" : "space-between"}
+          justify={collapsed ? "center" : "space-between"}
           pb="4"
           borderBottom="1px"
           borderColor="gray.200"
           mb="6"
         >
-          {!currentCollapsedState ? (
+          {!collapsed ? (
             <HStack spacing="2">
               <Flex
                 w="8"
@@ -118,7 +109,7 @@ const SideNavigation = () => {
                 P
               </Flex>
               <Text fontSize="xl" fontWeight="semibold" color="gray.800">
-                Pagedone
+                LOGO
               </Text>
             </HStack>
           ) : (
@@ -137,36 +128,34 @@ const SideNavigation = () => {
             </Flex>
           )}
 
-          {/* Toggle button for desktop, Close button for mobile */}
-          {isMobile ? (
+          {/* Collapse button: only visible on desktop */}
+          {!isMobile && (
             <Icon
-              as={X}
-              w={5}
-              h={5}
-              color="gray.500"
-              cursor="pointer"
-              onClick={onCloseMobile}
-              ml="auto"
-            />
-          ) : (
-            <Icon
-              as={currentCollapsedState ? ChevronRight : ChevronLeft}
+              as={collapsed ? ChevronRight : ChevronLeft}
               w={5}
               h={5}
               color="gray.500"
               cursor="pointer"
               onClick={() => setIsCollapsed(!isCollapsed)}
-              ml={currentCollapsedState ? "auto" : "0"}
+              ml={collapsed ? "auto" : "0"}
             />
           )}
         </Flex>
 
         {/* MENU Section */}
         <Box mb="8">
-          <SectionLabel
-            label="Menu"
-            isSidebarCollapsed={currentCollapsedState}
-          />
+          {!collapsed && (
+            <Text
+              fontSize="xs"
+              fontWeight="semibold"
+              color="gray.400"
+              textTransform="uppercase"
+              px="3"
+              mb="3"
+            >
+              MENU
+            </Text>
+          )}
           <VStack spacing="1" align="stretch">
             {menuItems.map((item, idx) => (
               <Flex
@@ -181,16 +170,16 @@ const SideNavigation = () => {
                 fontWeight={item.active ? "medium" : "normal"}
                 _hover={{ bg: useColorModeValue("gray.50", "gray.700") }}
                 transition="all 0.2s"
-                justifyContent={currentCollapsedState ? "center" : "flex-start"}
+                justifyContent={collapsed ? "center" : "flex-start"}
               >
                 <Icon
                   as={item.icon}
                   w={5}
                   h={5}
-                  mr={currentCollapsedState ? "0" : "3"}
+                  mr={collapsed ? "0" : "3"}
                   color={item.active ? "purple.600" : "gray.500"}
                 />
-                {!currentCollapsedState && <Text>{item.label}</Text>}
+                {!collapsed && <Text>{item.label}</Text>}
               </Flex>
             ))}
           </VStack>
@@ -200,10 +189,18 @@ const SideNavigation = () => {
 
         {/* USER Section */}
         <Box mt="auto">
-          <SectionLabel
-            label="User"
-            isSidebarCollapsed={currentCollapsedState}
-          />
+          {!collapsed && (
+            <Text
+              fontSize="xs"
+              fontWeight="semibold"
+              color="gray.400"
+              textTransform="uppercase"
+              px="3"
+              mb="3"
+            >
+              USER
+            </Text>
+          )}
           <VStack spacing="1" align="stretch">
             {userItems.map((item, idx) => (
               <Flex
@@ -216,16 +213,16 @@ const SideNavigation = () => {
                 color="gray.700"
                 _hover={{ bg: useColorModeValue("gray.50", "gray.700") }}
                 transition="all 0.2s"
-                justifyContent={currentCollapsedState ? "center" : "flex-start"}
+                justifyContent={collapsed ? "center" : "flex-start"}
               >
                 <Icon
                   as={item.icon}
                   w={5}
                   h={5}
-                  mr={currentCollapsedState ? "0" : "3"}
+                  mr={collapsed ? "0" : "3"}
                   color="gray.500"
                 />
-                {!currentCollapsedState && <Text>{item.label}</Text>}
+                {!collapsed && <Text>{item.label}</Text>}
               </Flex>
             ))}
           </VStack>
@@ -235,56 +232,33 @@ const SideNavigation = () => {
   };
 
   return (
-    <Box position="relative" minH="100vh" display="flex" width="100%">
-      {" "}
-      {/* This Box will be the relative parent for absolute positioning */}
-      {/* Hamburger menu for mobile, only visible when sidebar is NOT open */}
-      {isMobile && !isMobileSidebarOpen && (
-        <IconButton
-          icon={<MenuIcon />}
-          aria-label="Open Menu"
-          onClick={() => setIsMobileSidebarOpen(true)}
-          position="fixed" // Keep burger fixed so it's always accessible
-          top="4"
-          left="4"
-          zIndex="1001" // Higher than sidebar and overlay
-          variant="outline"
-          rounded="md"
-          shadow="md"
-        />
-      )}
-      {/* Mobile Sidebar (absolute positioned) */}
-      {isMobile && (
-        <Box
-          position="absolute"
-          top="0"
-          left={isMobileSidebarOpen ? "0" : "-64"} // Slide in/out
-          zIndex="1000"
-          transition="left 0.2s ease-in-out"
-          display={isMobileSidebarOpen ? "block" : "none"} // Hide when closed to prevent interaction
-        >
-          <SidebarContent
-            currentCollapsedState={false}
-            onCloseMobile={() => setIsMobileSidebarOpen(false)}
+    <>
+      {/* Hamburger menu for mobile - hidden when drawer is open */}
+      {isMobile && !isOpen && (
+        <Box p="4" position="absolute" top="0" bg="white" zIndex="999">
+          <IconButton
+            icon={<MenuIcon />}
+            aria-label="Open Menu"
+            onClick={onOpen}
+            variant="outline"
           />
         </Box>
       )}
-      {/* Mobile Overlay */}
-      {isMobile && isMobileSidebarOpen && (
-        <Box
-          position="fixed" // Overlay should be fixed to cover the entire viewport
-          top="0"
-          left="0"
-          right="0"
-          bottom="0"
-          bg="blackAlpha.300"
-          zIndex="999" // Between burger and sidebar
-          onClick={() => setIsMobileSidebarOpen(false)}
-        />
+
+      {/* Drawer on mobile (force expanded) */}
+      {isMobile ? (
+        <Drawer isOpen={isOpen} placement="left" onClose={onClose}>
+          <DrawerOverlay />
+          <DrawerContent>
+            <DrawerCloseButton />
+            <SidebarContent forceExpanded />
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        // Always render SidebarContent on desktop, respect collapse state
+        <SidebarContent />
       )}
-      {/* Desktop Sidebar */}
-      {!isMobile && <SidebarContent currentCollapsedState={isCollapsed} />}
-    </Box>
+    </>
   );
 };
 

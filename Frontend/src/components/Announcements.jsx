@@ -57,7 +57,7 @@ const Announcements = () => {
       borderColor={borderColor}
       rounded="md"
       bg={cardBg}
-      width={{ base: "60%", md: "100%" }} // Responsive width
+  // Responsive width
     >
       <Flex mb={4} alignItems="center">
         <Heading as="h2" size="md" color={textColor}>

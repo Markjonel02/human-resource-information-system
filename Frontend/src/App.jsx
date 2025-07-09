@@ -31,14 +31,21 @@ const App = () => {
                 },
               }}
             >
-              <Flex direction="row" align="flex-start" gap={6}>
-                {/* Left-side Employee Tracker */}
-                <Box w={{ base: "50%", md: "800px" }}>
+              <Flex
+                direction={{ base: "column", lg: "row" }}
+                align="flex-start"
+                gap={6}
+              >
+                {/* Employee Tracker always comes first */}
+                <Box w={{ base: "100%", md: "75%" }}>
                   <EmployeeTracker />
                 </Box>
 
-                {/* Right-side content fills remaining space */}
-                <Box flex="1">
+                {/* Right-side content */}
+                <Box
+                  width={{ base: "100%", md: "30%" }}
+                  mt={{ base: 4, lg: 4 }}
+                >
                   <Announcements />
                   <Box mt={4}>
                     <UpcomingSchcedule />
