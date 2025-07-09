@@ -30,10 +30,12 @@ import {
   ChevronRight,
   Menu as MenuIcon,
 } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 
 const SideNavigation = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const location = useLocation();
 
   const isMobile = useBreakpointValue({ base: true, md: false });
 
@@ -44,19 +46,19 @@ const SideNavigation = () => {
   }, [isMobile]);
 
   const menuItems = [
-    { icon: Home, label: "Dashboard", active: true },
-    { icon: Users, label: "Employees" },
-    { icon: CheckSquare, label: "Attendances" },
-    { icon: Calendar, label: "Calendar" },
-    { icon: LogOut, label: "Leaves" },
-    { icon: DollarSign, label: "Payroll" },
-    { icon: FileText, label: "Documents" },
+    { icon: Home, label: "Dashboard", path: "/" },
+    { icon: Users, label: "Employees", path: "/employees" },
+    { icon: CheckSquare, label: "Attendances", path: "/attendances" },
+    { icon: Calendar, label: "Calendar", path: "/calendar" },
+    { icon: LogOut, label: "Leaves", path: "/leaves" },
+    { icon: DollarSign, label: "Payroll", path: "/payroll" },
+    { icon: FileText, label: "Documents", path: "/documents" },
   ];
 
   const userItems = [
-    { icon: Grid, label: "Apps & Integration" },
-    { icon: Settings, label: "Settings" },
-    { icon: Headset, label: "Help & Support" },
+    { icon: Grid, label: "Apps & Integration", path: "/apps" },
+    { icon: Settings, label: "Settings", path: "/settings" },
+    { icon: Headset, label: "Help & Support", path: "/help" },
   ];
 
   const activeBg = useColorModeValue("purple.50", "purple.900");
@@ -155,29 +157,38 @@ const SideNavigation = () => {
           )}
           <VStack spacing="1" align="stretch">
             {menuItems.map((item, idx) => (
-              <Flex
-                key={idx}
-                as="a"
-                href="#"
-                align="center"
-                p="3"
-                rounded="lg"
-                bg={item.active ? activeBg : "transparent"}
-                color={item.active ? activeColor : "gray.700"}
-                fontWeight={item.active ? "medium" : "normal"}
-                _hover={{ bg: useColorModeValue("gray.50", "gray.700") }}
-                transition="all 0.2s"
-                justifyContent={collapsed ? "center" : "flex-start"}
-              >
-                <Icon
-                  as={item.icon}
-                  w={5}
-                  h={5}
-                  mr={collapsed ? "0" : "3"}
-                  color={item.active ? "purple.600" : "gray.500"}
-                />
-                {!collapsed && <Text>{item.label}</Text>}
-              </Flex>
+              <Link key={idx} to={item.path}>
+                <Flex
+                  align="center"
+                  p="3"
+                  rounded="lg"
+                  bg={
+                    location.pathname === item.path ? activeBg : "transparent"
+                  }
+                  color={
+                    location.pathname === item.path ? activeColor : "gray.700"
+                  }
+                  fontWeight={
+                    location.pathname === item.path ? "medium" : "normal"
+                  }
+                  _hover={{ bg: useColorModeValue("gray.50", "gray.700") }}
+                  transition="all 0.2s"
+                  justifyContent={collapsed ? "center" : "flex-start"}
+                >
+                  <Icon
+                    as={item.icon}
+                    w={5}
+                    h={5}
+                    mr={collapsed ? "0" : "3"}
+                    color={
+                      location.pathname === item.path
+                        ? "purple.600"
+                        : "gray.500"
+                    }
+                  />
+                  {!collapsed && <Text>{item.label}</Text>}
+                </Flex>
+              </Link>
             ))}
           </VStack>
         </Box>
@@ -200,27 +211,26 @@ const SideNavigation = () => {
           )}
           <VStack spacing="1" align="stretch">
             {userItems.map((item, idx) => (
-              <Flex
-                key={idx}
-                as="a"
-                href="#"
-                align="center"
-                p="3"
-                rounded="lg"
-                color="gray.700"
-                _hover={{ bg: useColorModeValue("gray.50", "gray.700") }}
-                transition="all 0.2s"
-                justifyContent={collapsed ? "center" : "flex-start"}
-              >
-                <Icon
-                  as={item.icon}
-                  w={5}
-                  h={5}
-                  mr={collapsed ? "0" : "3"}
-                  color="gray.500"
-                />
-                {!collapsed && <Text>{item.label}</Text>}
-              </Flex>
+              <Link key={idx} to={item.path}>
+                <Flex
+                  align="center"
+                  p="3"
+                  rounded="lg"
+                  color="gray.700"
+                  _hover={{ bg: useColorModeValue("gray.50", "gray.700") }}
+                  transition="all 0.2s"
+                  justifyContent={collapsed ? "center" : "flex-start"}
+                >
+                  <Icon
+                    as={item.icon}
+                    w={5}
+                    h={5}
+                    mr={collapsed ? "0" : "3"}
+                    color="gray.500"
+                  />
+                  {!collapsed && <Text>{item.label}</Text>}
+                </Flex>
+              </Link>
             ))}
           </VStack>
         </Box>

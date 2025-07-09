@@ -73,26 +73,6 @@ const TopNavigations = () => {
           </InputGroup>
 
           {/* Icon Buttons with Tooltips - Hidden on mobile */}
-          <Tooltip label="Search" aria-label="Search tooltip">
-            <IconButton
-              aria-label="Search"
-              icon={<SearchIcon />}
-              variant="outline"
-              mr={2}
-              borderRadius="md"
-              display={{ base: "none", md: "inline-flex" }}
-            />
-          </Tooltip>
-          <Tooltip label="Calendar" aria-label="Calendar tooltip">
-            <IconButton
-              aria-label="Calendar"
-              icon={<CalendarIcon />}
-              variant="outline"
-              mr={4}
-              borderRadius="md"
-              display={{ base: "none", md: "inline-flex" }}
-            />
-          </Tooltip>
 
           {/* Attendance Button - Hidden on mobile */}
           <Button
