@@ -10,6 +10,7 @@ const TopNavigations = lazy(() => import("./components/TopNavigations"));
 // Routes
 const Dashboard = lazy(() => import("./routes/Dashboard"));
 const EmployeeStatus = lazy(() => import("./components/EmployeeStatus"));
+const Employees = lazy(() => import("./routes/Employees"));
 /* const Attendances = lazy(() => import("./routes/Attendances"));
 const Calendar = lazy(() => import("./routes/Calendar"));
 const Leaves = lazy(() => import("./routes/Leaves"));
@@ -46,7 +47,7 @@ const App = () => {
               <Suspense fallback={<div>Loading...</div>}>
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
-                  <Route path="/employees" element={<EmployeeStatus />} />
+                  <Route path="/employees" element={<Employees />} />
                   {/*   <Route path="/attendances" element={<Attendances />} />
                     <Route path="/calendar" element={<Calendar />} />
                     <Route path="/leaves" element={<Leaves />} />

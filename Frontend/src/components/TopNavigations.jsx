@@ -14,7 +14,7 @@ import {
 } from "@chakra-ui/react";
 import { SearchIcon, CalendarIcon } from "@chakra-ui/icons";
 import { FaPlus } from "react-icons/fa";
-
+import AddEmployeeButton from "./AddemployeeButton";
 const TopNavigations = () => {
   const bgColor = useColorModeValue("white", "gray.800");
   const textColor = useColorModeValue("gray.700", "white");
@@ -92,19 +92,7 @@ const TopNavigations = () => {
             aria-label="Add Employee tooltip"
             openDelay={500}
           >
-            <Button
-              leftIcon={<FaPlus />}
-              bg={buttonBgColor}
-              color="white"
-              _hover={{ bg: buttonHoverBgColor }}
-              borderRadius="md"
-              px={{ base: 3, md: 4 }}
-            >
-              {/* Text visible only on medium and larger screens */}
-              <Text as="span" display={{ base: "none", md: "inline" }}>
-                Add Employee
-              </Text>
-            </Button>
+            <AddEmployeeButton />
           </Tooltip>
         </Flex>
       </Flex>
