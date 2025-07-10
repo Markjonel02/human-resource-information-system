@@ -1,9 +1,7 @@
-import React from 'react'
+import React from "react";
 
 const DailyTimeRecordCalendar = () => {
-  return (
-    <div>DailyTimeRecordCalendar</div>
-  )
-}
+  return <div>DailyTimeRecordCalendar</div>;
+};
 
-export default DailyTimeRecordCalendar
+export default DailyTimeRecordCalendar;
