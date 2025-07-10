@@ -25,6 +25,19 @@ import {
   HStack,
   useToast, // Import useToast for notifications
   Button, // Import Button for the new actions
+  // Removed Spacer as it's replaced by Box for the line
+  Modal, // Import Modal components for individual actions
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure, // Import useDisclosure for modal control
+  FormControl,
+  FormLabel,
+  Select, // Import Select component
+  // Removed Option import as it's not a Chakra UI component
 } from "@chakra-ui/react";
 import {
   SearchIcon,
@@ -32,6 +45,8 @@ import {
   CalendarIcon,
   Trash2,
   UserX,
+  Edit, // Lucide icon for Edit
+  Eye, // Lucide icon for View
 } from "lucide-react"; // Using lucide-react for new icons
 import AddEmployeeButton from "../components/AddemployeeButton"; // Assuming this path is correct
 
@@ -113,9 +128,30 @@ const Employees = () => {
   const [searchTerm, setSearchTerm] = useState("");
   // State to hold the mutable list of employees
   const [employees, setEmployees] = useState(initialEmployeesData);
-  // State to hold the IDs of selected employees
+  // State to hold the IDs of selected employees for bulk actions
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
   const toast = useToast(); // Initialize useToast
+
+  // Modals for individual row actions
+  const {
+    isOpen: isEditModalOpen,
+    onOpen: onOpenEditModal,
+    onClose: onCloseEditModal,
+  } = useDisclosure();
+  const {
+    isOpen: isViewModalOpen,
+    onOpen: onOpenViewModal,
+    onClose: onCloseViewModal,
+  } = useDisclosure();
+  const {
+    isOpen: isDeleteConfirmModalOpen,
+    onOpen: onOpenDeleteConfirmModal,
+    onClose: onCloseDeleteConfirmModal,
+  } = useDisclosure();
+
+  const [employeeToEdit, setEmployeeToEdit] = useState(null);
+  const [employeeToView, setEmployeeToView] = useState(null);
+  const [employeeToDelete, setEmployeeToDelete] = useState(null);
 
   // Filter employees based on search term
   const filteredEmployees = employees.filter(
@@ -139,7 +175,7 @@ const Employees = () => {
     }
   };
 
-  // Handle individual checkbox change
+  // Handle individual checkbox change for bulk actions
   const handleCheckboxChange = (employeeId) => {
     setSelectedEmployeeIds((prevSelected) =>
       prevSelected.includes(employeeId)
@@ -148,7 +184,7 @@ const Employees = () => {
     );
   };
 
-  // Handle "select all" checkbox change
+  // Handle "select all" checkbox change for bulk actions
   const handleSelectAllChange = (event) => {
     if (event.target.checked) {
       setSelectedEmployeeIds(filteredEmployees.map((employee) => employee.id));
@@ -157,7 +193,7 @@ const Employees = () => {
     }
   };
 
-  // Check if all filtered employees are selected
+  // Check if all filtered employees are selected for bulk actions
   const isAllSelected =
     filteredEmployees.length > 0 &&
     selectedEmployeeIds.length === filteredEmployees.length &&
@@ -165,7 +201,7 @@ const Employees = () => {
       selectedEmployeeIds.includes(employee.id)
     );
 
-  // Handle Delete Selected Employees
+  // Handle Delete Selected Employees (Bulk Action)
   const handleDeleteSelected = () => {
     if (selectedEmployeeIds.length === 0) {
       toast({
@@ -195,7 +231,7 @@ const Employees = () => {
     });
   };
 
-  // Handle Mark Inactive Selected Employees
+  // Handle Mark Inactive Selected Employees (Bulk Action)
   const handleMarkInactiveSelected = () => {
     if (selectedEmployeeIds.length === 0) {
       toast({
@@ -227,6 +263,61 @@ const Employees = () => {
     });
   };
 
+  // --- Individual Row Action Handlers ---
+
+  const handleEditClick = (employee) => {
+    setEmployeeToEdit({ ...employee }); // Create a copy to avoid direct state mutation
+    onOpenEditModal();
+  };
+
+  const handleSaveEditedEmployee = () => {
+    if (employeeToEdit) {
+      setEmployees((prevEmployees) =>
+        prevEmployees.map((emp) =>
+          emp.id === employeeToEdit.id ? employeeToEdit : emp
+        )
+      );
+      toast({
+        title: "Employee Updated!",
+        description: `${employeeToEdit.name}'s details have been updated.`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+        position: "top",
+      });
+      onCloseEditModal();
+      setEmployeeToEdit(null);
+    }
+  };
+
+  const handleViewClick = (employee) => {
+    setEmployeeToView(employee);
+    onOpenViewModal();
+  };
+
+  const handleDeleteIndividualClick = (employee) => {
+    setEmployeeToDelete(employee);
+    onOpenDeleteConfirmModal();
+  };
+
+  const handleConfirmIndividualDelete = () => {
+    if (employeeToDelete) {
+      setEmployees((prevEmployees) =>
+        prevEmployees.filter((emp) => emp.id !== employeeToDelete.id)
+      );
+      toast({
+        title: "Employee Deleted!",
+        description: `${employeeToDelete.name} has been removed.`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+        position: "top",
+      });
+      onCloseDeleteConfirmModal();
+      setEmployeeToDelete(null);
+    }
+  };
+
   return (
     <>
       <Box
@@ -241,7 +332,6 @@ const Employees = () => {
           wrap="wrap"
           display={"flex"}
           justifyContent={"end"}
-          
         >
           <Button
             colorScheme="red"
@@ -266,6 +356,8 @@ const Employees = () => {
             Mark Inactive
           </Button>
         </HStack>
+        {/* Replaced Spacer with Box for the visual line */}
+        <Box borderTop="1px solid" borderColor="blue.200" mb="5" />
         {/* Header Section */}
         <Flex
           direction={{ base: "column", md: "row" }}
@@ -310,7 +402,6 @@ const Employees = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </InputGroup>
-
             {/* Action Buttons */}
           </VStack>{" "}
         </Flex>
@@ -484,9 +575,26 @@ const Employees = () => {
                           colorScheme="gray"
                         />
                         <MenuList>
-                          <MenuItem>Edit</MenuItem>
-                          <MenuItem>View</MenuItem>
-                          <MenuItem>Delete</MenuItem>
+                          <MenuItem
+                            icon={<Edit size={16} />}
+                            onClick={() => handleEditClick(employee)}
+                          >
+                            Edit
+                          </MenuItem>
+                          <MenuItem
+                            icon={<Eye size={16} />}
+                            onClick={() => handleViewClick(employee)}
+                          >
+                            View
+                          </MenuItem>
+                          <MenuItem
+                            icon={<Trash2 size={16} />}
+                            onClick={() =>
+                              handleDeleteIndividualClick(employee)
+                            }
+                          >
+                            Delete
+                          </MenuItem>
                         </MenuList>
                       </Menu>
                     </Td>
@@ -505,6 +613,188 @@ const Employees = () => {
           </Table>
         </Box>
       </Box>
+
+      {/* Edit Employee Modal */}
+      <Modal isOpen={isEditModalOpen} onClose={onCloseEditModal} isCentered>
+        <ModalOverlay />
+        <ModalContent borderRadius="xl" p={4}>
+          <ModalHeader fontSize="2xl" fontWeight="bold">
+            Edit Employee
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            {employeeToEdit && (
+              <VStack spacing={4}>
+                <FormControl>
+                  <FormLabel>Name</FormLabel>
+                  <Input
+                    value={employeeToEdit.name}
+                    onChange={(e) =>
+                      setEmployeeToEdit({
+                        ...employeeToEdit,
+                        name: e.target.value,
+                      })
+                    }
+                    borderRadius="lg"
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Email</FormLabel>
+                  <Input
+                    value={employeeToEdit.email}
+                    onChange={(e) =>
+                      setEmployeeToEdit({
+                        ...employeeToEdit,
+                        email: e.target.value,
+                      })
+                    }
+                    borderRadius="lg"
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Department</FormLabel>
+                  <Input
+                    value={employeeToEdit.department}
+                    onChange={(e) =>
+                      setEmployeeToEdit({
+                        ...employeeToEdit,
+                        department: e.target.value,
+                      })
+                    }
+                    borderRadius="lg"
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Status</FormLabel>
+                  <Select
+                    value={employeeToEdit.status}
+                    onChange={(e) =>
+                      setEmployeeToEdit({
+                        ...employeeToEdit,
+                        status: e.target.value,
+                      })
+                    }
+                    borderRadius="lg"
+                  >
+                    {/* Use standard <option> tags */}
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Onboarding">Onboarding</option>
+                  </Select>
+                </FormControl>
+              </VStack>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="ghost"
+              onClick={onCloseEditModal}
+              borderRadius="lg"
+              mr={3}
+            >
+              Cancel
+            </Button>
+            <Button
+              colorScheme="blue"
+              onClick={handleSaveEditedEmployee}
+              borderRadius="lg"
+            >
+              Save Changes
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* View Employee Modal */}
+      <Modal isOpen={isViewModalOpen} onClose={onCloseViewModal} isCentered>
+        <ModalOverlay />
+        <ModalContent borderRadius="xl" p={4}>
+          <ModalHeader fontSize="2xl" fontWeight="bold">
+            Employee Details
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            {employeeToView && (
+              <VStack align="flex-start" spacing={3}>
+                <HStack>
+                  <Text fontWeight="bold">Name:</Text>
+                  <Text>{employeeToView.name}</Text>
+                </HStack>
+                <HStack>
+                  <Text fontWeight="bold">Email:</Text>
+                  <Text>{employeeToView.email}</Text>
+                </HStack>
+                <HStack>
+                  <Text fontWeight="bold">Department:</Text>
+                  <Text>{employeeToView.department}</Text>
+                </HStack>
+                <HStack>
+                  <Text fontWeight="bold">Join Date:</Text>
+                  <Text>{employeeToView.joinDate}</Text>
+                </HStack>
+                <HStack>
+                  <Text fontWeight="bold">Status:</Text>
+                  <Tag
+                    size="md"
+                    variant="subtle"
+                    colorScheme={getStatusColorScheme(employeeToView.status)}
+                  >
+                    {employeeToView.status}
+                  </Tag>
+                </HStack>
+              </VStack>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button onClick={onCloseViewModal} borderRadius="lg">
+              Close
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteConfirmModalOpen}
+        onClose={onCloseDeleteConfirmModal}
+        isCentered
+      >
+        <ModalOverlay />
+        <ModalContent borderRadius="xl" p={4}>
+          <ModalHeader fontSize="2xl" fontWeight="bold">
+            Confirm Deletion
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            {employeeToDelete && (
+              <Text>
+                Are you sure you want to delete employee{" "}
+                <Text as="span" fontWeight="bold">
+                  {employeeToDelete.name}
+                </Text>
+                ? This action cannot be undone.
+              </Text>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="ghost"
+              onClick={onCloseDeleteConfirmModal}
+              borderRadius="lg"
+              mr={3}
+            >
+              Cancel
+            </Button>
+            <Button
+              colorScheme="red"
+              onClick={handleConfirmIndividualDelete}
+              borderRadius="lg"
+            >
+              Delete
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </>
   );
 };
