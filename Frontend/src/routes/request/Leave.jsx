@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ChakraProvider,
   Box,
@@ -14,7 +14,7 @@ import {
   SimpleGrid,
   Select,
   Checkbox,
-  Modal, // Import Modal components
+  Modal,
   ModalOverlay,
   ModalContent,
   ModalHeader,
@@ -25,17 +25,20 @@ import {
   FormLabel,
   Input,
   Textarea,
-  useDisclosure, // Hook for modal state
-  useToast, // Import useToast for feedback
-  IconButton, // For pagination arrows
+  useDisclosure,
+  useToast,
+  IconButton,
+  Tooltip, // Added Tooltip for better UX on buttons
 } from "@chakra-ui/react";
 import {
   CalendarIcon,
   CheckIcon,
   CloseIcon,
   AddIcon,
-  ArrowBackIcon, // For previous page
-  ArrowForwardIcon, // For next page
+  ArrowBackIcon,
+  ArrowForwardIcon,
+  ChevronLeftIcon, // For first page
+  ChevronRightIcon, // For last page
 } from "@chakra-ui/icons";
 
 // Extend the default Chakra UI theme to include custom colors and components
@@ -116,7 +119,7 @@ const theme = extendTheme({
 });
 
 const LeaveRequestCard = ({
-  id, // Pass id for selection
+  id,
   leaveType,
   days,
   startDate,
@@ -124,11 +127,11 @@ const LeaveRequestCard = ({
   reason,
   approverName,
   approverAvatarUrl,
-  status, // 'Approved', 'Pending', 'Rejected'
+  status,
   onApprove,
   onReject,
-  isSelected, // New prop for selection state
-  onToggleSelect, // New prop for toggling selection
+  isSelected,
+  onToggleSelect,
 }) => {
   const statusColor = {
     Approved: "green",
@@ -136,7 +139,6 @@ const LeaveRequestCard = ({
     Rejected: "red",
   };
 
-  // Determine card specific colors based on leaveType for eye-catching effect
   let cardColorScheme = "other";
   let headerBgColor = "gray.50";
   let daysBoxBg = "blue.50";
@@ -186,17 +188,14 @@ const LeaveRequestCard = ({
       dateTextColor = "ticket.600";
       break;
     default:
-      // Default to a neutral color scheme
       break;
   }
 
-  // Truncate approver name if it's too long
   const truncatedApproverName =
     approverName.length > 15
       ? `${approverName.substring(0, 15)}...`
       : approverName;
 
-  // Truncate reason if it's over 100 characters
   const displayReason =
     reason.length > 50 ? `${reason.substring(0, 50)}...` : reason;
 
@@ -204,23 +203,20 @@ const LeaveRequestCard = ({
     <Box
       p={6}
       borderWidth="1px"
-      borderRadius="xl" // More rounded corners
+      borderRadius="xl"
       overflow="hidden"
-      boxShadow="xl" // Stronger shadow
+      boxShadow="xl"
       bg="white"
-      maxW={{ base: "90%", sm: "350px", md: "380px" }} // Adjusted responsive width
-      mx="auto" // Center the card
+      maxW={{ base: "90%", sm: "350px", md: "380px" }}
+      mx="auto"
       my={4}
-      _hover={{ transform: "translateY(-5px)", boxShadow: "2xl" }} // Hover effect
+      _hover={{ transform: "translateY(-5px)", boxShadow: "2xl" }}
       transition="all 0.3s ease-in-out"
-      position="relative" // For positioning the checkbox
+      position="relative"
     >
-      {/* Header Section */}
       <Flex align="center" mb={2} p={2} bg="lightBlue.100" borderRadius="md">
         <HStack spacing={2} align="center">
-          {" "}
-          {/* HStack for checkbox and title */}
-          {status === "Pending" && ( // Only show checkbox for pending items
+          {status === "Pending" && (
             <Checkbox
               isChecked={isSelected}
               onChange={() => onToggleSelect(id)}
@@ -245,7 +241,6 @@ const LeaveRequestCard = ({
         </Badge>
       </Flex>
 
-      {/* Approver Name and Avatar (moved to top) */}
       <HStack spacing={2} align="center" mb={4} pl={2}>
         <Avatar size="xs" name={approverName} src={approverAvatarUrl} />
         <Text fontSize="xs" fontWeight="medium" color="gray.700">
@@ -253,7 +248,6 @@ const LeaveRequestCard = ({
         </Text>
       </HStack>
 
-      {/* Days/Hours and Date */}
       <Box bg={daysBoxBg} p={4} borderRadius="lg" mb={4}>
         <Text
           fontSize="3xl"
@@ -271,22 +265,16 @@ const LeaveRequestCard = ({
         </Flex>
       </Box>
 
-      {/* Reason */}
       <Box mb={4}>
         <Text fontSize="sm" fontWeight="semibold" mb={1} color="gray.700">
           Reason
         </Text>
-        <Text
-          fontSize="sm"
-          color="gray.600"
-          noOfLines={3} // Keep noOfLines for responsiveness and initial display
-        >
+        <Text fontSize="sm" color="gray.600" noOfLines={3}>
           {displayReason}
         </Text>
       </Box>
 
-      {/* Action Buttons at bottom right */}
-      <Flex justifyContent="space-between" alignItems="flex-end" pt={2}>
+      <Flex justifyContent="space-between" alignItems="flex-end" pt={2} gap={6}>
         <Text fontSize="sm" fontWeight="semibold" color="gray.700">
           Actions
         </Text>
@@ -322,22 +310,17 @@ const LeaveRequestCard = ({
 };
 
 const Leave = () => {
-  // State for filtering
   const [filterStatus, setFilterStatus] = useState("All");
-  // State for selected requests
   const [selectedRequestIds, setSelectedRequestIds] = useState([]);
-  // State for "Select All" checkbox
   const [isSelectAllChecked, setIsSelectAllChecked] = useState(false);
 
-  // Modal state for adding new leave
   const {
     isOpen: isAddModalOpen,
     onOpen: onAddModalOpen,
     onClose: onAddModalClose,
   } = useDisclosure();
-  // Removed state and disclosure for reason modal
 
-  const toast = useToast(); // Initialize useToast
+  const toast = useToast();
   const [newLeaveData, setNewLeaveData] = useState({
     leaveType: "",
     days: "",
@@ -348,15 +331,13 @@ const Leave = () => {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(6); // Default 6 items per page
+  const [itemsPerPage, setItemsPerPage] = useState(6);
 
-  // Example data for various leave requests
   const [leaveRequests, setLeaveRequests] = useState([
-    // Use state for leave requests to allow status updates
     {
       id: 1,
       leaveType: "Sick leave request",
-      days: "2 Days", // Ensure consistent format
+      days: "2 Days",
       startDate: "March 27",
       endDate: "March 28 2018",
       reason:
@@ -368,19 +349,19 @@ const Leave = () => {
     {
       id: 2,
       leaveType: "Excuse request",
-      days: "2.5 Hours", // Ensure consistent format
+      days: "2.5 Hours",
       startDate: "March 27",
       endDate: "2018",
       reason:
         "Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.",
-      approverName: "Aman Aggarwal Long Name Here", // Long name example
+      approverName: "Aman Aggarwal Long Name Here",
       approverAvatarUrl: "https://placehold.co/40x40/6633FF/FFFFFF?text=AA",
       status: "Approved",
     },
     {
       id: 3,
       leaveType: "Business Trip Request",
-      days: "3 Days", // Ensure consistent format
+      days: "3 Days",
       startDate: "March 27",
       endDate: "March 28 2018",
       reason:
@@ -392,7 +373,7 @@ const Leave = () => {
     {
       id: 4,
       leaveType: "Loan request",
-      days: "5000.00", // Example for loan amount, no "Days" suffix
+      days: "5000.00",
       startDate: "March 31",
       endDate: "2018",
       reason:
@@ -404,7 +385,7 @@ const Leave = () => {
     {
       id: 5,
       leaveType: "Ticket Request",
-      days: "2 Tickets", // Example for tickets, custom suffix
+      days: "2 Tickets",
       startDate: "March 27",
       endDate: "March 28 2018",
       reason:
@@ -416,7 +397,7 @@ const Leave = () => {
     {
       id: 6,
       leaveType: "Vacation leave",
-      days: "7 Days", // Ensure consistent format
+      days: "7 Days",
       startDate: "April 10",
       endDate: "April 17 2025",
       reason:
@@ -469,6 +450,28 @@ const Leave = () => {
       approverAvatarUrl: "https://placehold.co/40x40/FF6633/FFFFFF?text=SG",
       status: "Pending",
     },
+    {
+      id: 11,
+      leaveType: "Sick leave request",
+      days: "3 Days",
+      startDate: "August 15",
+      endDate: "August 17 2025",
+      reason: "Recovering from minor surgery.",
+      approverName: "Michael Blue",
+      approverAvatarUrl: "https://placehold.co/40x40/8A2BE2/FFFFFF?text=MB",
+      status: "Pending",
+    },
+    {
+      id: 12,
+      leaveType: "Excuse request",
+      days: "8 Hours",
+      startDate: "September 1",
+      endDate: "September 1 2025",
+      reason: "Attending a sibling's graduation.",
+      approverName: "Olivia Red",
+      approverAvatarUrl: "https://placehold.co/40x40/DC143C/FFFFFF?text=OR",
+      status: "Approved",
+    },
   ]);
 
   // Filter the requests based on the selected status
@@ -484,31 +487,39 @@ const Leave = () => {
     indexOfLastItem
   );
 
-  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredRequests.length / itemsPerPage)
+  ); // Ensure at least 1 page
+
+  // Adjust current page if it's out of bounds after filtering or item count change
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    } else if (currentPage === 0 && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [currentPage, totalPages]);
 
   const paginate = (pageNumber) => {
     setCurrentPage(pageNumber);
-    // When changing pages, clear selected requests and uncheck "Select All"
     setSelectedRequestIds([]);
     setIsSelectAllChecked(false);
   };
 
   const handleItemsPerPageChange = (e) => {
     setItemsPerPage(Number(e.target.value));
-    setCurrentPage(1); // Reset to first page when items per page changes
-    setSelectedRequestIds([]); // Clear selections
-    setIsSelectAllChecked(false); // Uncheck select all
+    setCurrentPage(1); // Reset to first page
+    setSelectedRequestIds([]);
+    setIsSelectAllChecked(false);
   };
 
   const handleApprove = (id) => {
-    console.log(`Approve clicked for request ID: ${id}`);
-    // Update the status of the specific request
     setLeaveRequests((prevRequests) =>
       prevRequests.map((req) =>
         req.id === id ? { ...req, status: "Approved" } : req
       )
     );
-    // Remove from selected if it was selected
     setSelectedRequestIds((prev) =>
       prev.filter((selectedId) => selectedId !== id)
     );
@@ -522,14 +533,11 @@ const Leave = () => {
   };
 
   const handleReject = (id) => {
-    console.log(`Reject clicked for request ID: ${id}`);
-    // Update the status of the specific request
     setLeaveRequests((prevRequests) =>
       prevRequests.map((req) =>
         req.id === id ? { ...req, status: "Rejected" } : req
       )
     );
-    // Remove from selected if it was selected
     setSelectedRequestIds((prev) =>
       prev.filter((selectedId) => selectedId !== id)
     );
@@ -551,7 +559,6 @@ const Leave = () => {
   };
 
   const handleAddLeaveSubmit = () => {
-    // Basic validation
     if (
       !newLeaveData.leaveType ||
       !newLeaveData.days ||
@@ -569,21 +576,18 @@ const Leave = () => {
       return;
     }
 
-    console.log("New Leave Data:", newLeaveData);
     const newId =
       leaveRequests.length > 0
         ? Math.max(...leaveRequests.map((req) => req.id)) + 1
         : 1;
 
     let formattedDays = newLeaveData.days;
-    // Apply formatting based on leave type for consistent display
     if (newLeaveData.leaveType.includes("Hours")) {
       formattedDays = `${newLeaveData.days} Hours`;
     } else if (
       newLeaveData.leaveType.includes("request") ||
       newLeaveData.leaveType.includes("leave")
     ) {
-      // Exclude 'Loan request' from getting 'Days' suffix if it's meant to be an amount
       if (
         newLeaveData.leaveType !== "Loan request" &&
         newLeaveData.leaveType !== "Ticket Request"
@@ -597,24 +601,23 @@ const Leave = () => {
     const newRequest = {
       id: newId,
       leaveType: newLeaveData.leaveType,
-      days: formattedDays, // Use the formatted days
+      days: formattedDays,
       startDate: newLeaveData.startDate,
       endDate: newLeaveData.endDate,
       reason: newLeaveData.reason,
-      approverName: "New Applicant", // Default for new requests
-      approverAvatarUrl: "https://placehold.co/40x40/000000/FFFFFF?text=NA", // Default avatar
-      status: "Pending", // New requests are pending by default
+      approverName: "New Applicant",
+      approverAvatarUrl: "https://placehold.co/40x40/000000/FFFFFF?text=NA",
+      status: "Pending",
     };
     setLeaveRequests((prevRequests) => [...prevRequests, newRequest]);
     setNewLeaveData({
-      // Reset form
       leaveType: "",
       days: "",
       startDate: "",
       endDate: "",
       reason: "",
     });
-    onAddModalClose(); // Close the modal
+    onAddModalClose();
     toast({
       title: "Leave Request Added",
       description: "Your new leave request has been submitted.",
@@ -631,7 +634,6 @@ const Leave = () => {
         ? prevSelected.filter((selectedId) => selectedId !== id)
         : [...prevSelected, id];
 
-      // Check if all *currently filtered and displayed* pending requests are now selected
       const pendingRequestIdsOnPage = currentItems
         .filter((req) => req.status === "Pending")
         .map((req) => req.id);
@@ -655,20 +657,17 @@ const Leave = () => {
     if (
       selectedRequestIds.length === pendingRequestIdsOnPage.length &&
       pendingRequestIdsOnPage.length > 0 &&
-      isSelectAllChecked // Only deselect all if it's currently checked and all on page are selected
+      isSelectAllChecked
     ) {
-      // If all pending on current page are currently selected, deselect them
       setSelectedRequestIds([]);
       setIsSelectAllChecked(false);
     } else {
-      // Select all pending requests on the current page
       setSelectedRequestIds(pendingRequestIdsOnPage);
       setIsSelectAllChecked(true);
     }
   };
 
   const handleApproveSelected = () => {
-    console.log("Approving selected requests:", selectedRequestIds);
     setLeaveRequests((prevRequests) =>
       prevRequests.map((req) =>
         selectedRequestIds.includes(req.id)
@@ -676,8 +675,8 @@ const Leave = () => {
           : req
       )
     );
-    setSelectedRequestIds([]); // Clear selection after action
-    setIsSelectAllChecked(false); // Uncheck select all
+    setSelectedRequestIds([]);
+    setIsSelectAllChecked(false);
     toast({
       title: "Requests Approved",
       description: "Selected leave requests have been approved.",
@@ -688,7 +687,6 @@ const Leave = () => {
   };
 
   const handleRejectSelected = () => {
-    console.log("Rejecting selected requests:", selectedRequestIds);
     setLeaveRequests((prevRequests) =>
       prevRequests.map((req) =>
         selectedRequestIds.includes(req.id)
@@ -696,8 +694,8 @@ const Leave = () => {
           : req
       )
     );
-    setSelectedRequestIds([]); // Clear selection after action
-    setIsSelectAllChecked(false); // Uncheck select all
+    setSelectedRequestIds([]);
+    setIsSelectAllChecked(false);
     toast({
       title: "Requests Rejected",
       description: "Selected leave requests have been rejected.",
@@ -716,31 +714,29 @@ const Leave = () => {
         p={8}
         width="100%"
         spacing={6}
-        bg="gray.50" // Added a light gray background for better contrast
+        bg="gray.50"
       >
-        {/* Top bar with Add Leave button and Sorting Option */}
+        {/* Top Controls: Add Leave, Bulk Actions, Filter */}
         <Flex
           width="100%"
           maxW="1200px"
           justifyContent="space-between"
           alignItems="center"
           mb={4}
-          direction={{ base: "column", md: "row" }} // Stack vertically on small screens
-          gap={4} // Add gap between items when stacked
+          direction={{ base: "column", md: "row" }}
+          gap={4}
         >
           <HStack spacing={4} wrap="wrap" justify="center">
-            {/* Wrap buttons on smaller screens */}
             <Button
               colorScheme="blue"
               leftIcon={<AddIcon />}
-              onClick={onAddModalOpen} // Open modal on click
+              onClick={onAddModalOpen}
               borderRadius="md"
               boxShadow="md"
               _hover={{ transform: "translateY(-2px)", boxShadow: "lg" }}
             >
               Add Leave
             </Button>
-            {/* Select All Checkbox */}
             <Checkbox
               isChecked={isSelectAllChecked}
               onChange={handleSelectAll}
@@ -749,13 +745,12 @@ const Leave = () => {
               isDisabled={
                 currentItems.filter((req) => req.status === "Pending")
                   .length === 0
-              } // Disable if no pending requests on current page
+              }
             >
               Select All Pending (Current Page)
             </Checkbox>
           </HStack>
           <HStack spacing={4} wrap="wrap" justify="center">
-            {/* Wrap buttons on smaller screens */}
             {selectedRequestIds.length > 0 && (
               <>
                 <Button
@@ -776,7 +771,7 @@ const Leave = () => {
                   isDisabled={selectedRequestIds.length === 0}
                   boxShadow="md"
                   _hover={{ bg: "red.600", transform: "scale(1.05)" }}
-                  _active={{ bg: "red.700", transform: "scale(0.95)" }}
+                  _active={{ bg: "red.900", transform: "scale(0.95)" }} // Darker red on active
                 >
                   Reject Selected ({selectedRequestIds.length})
                 </Button>
@@ -788,9 +783,9 @@ const Leave = () => {
               value={filterStatus}
               onChange={(e) => {
                 setFilterStatus(e.target.value);
-                setCurrentPage(1); // Reset to first page on filter change
-                setSelectedRequestIds([]); // Clear selections on filter change
-                setIsSelectAllChecked(false); // Uncheck select all
+                setCurrentPage(1);
+                setSelectedRequestIds([]);
+                setIsSelectAllChecked(false);
               }}
               borderRadius="md"
               boxShadow="sm"
@@ -802,8 +797,9 @@ const Leave = () => {
             </Select>
           </HStack>
         </Flex>
-
-        {/* Pagination Controls */}
+        {/* --- */}
+        ## Pagination Controls
+        {/* --- */}
         <Flex
           width="100%"
           maxW="1200px"
@@ -812,16 +808,23 @@ const Leave = () => {
           mb={6}
           direction={{ base: "column", sm: "row" }}
           gap={3}
+          p={3}
+          bg="white"
+          borderRadius="lg"
+          boxShadow="md"
         >
+          {/* Items per page selector */}
           <HStack spacing={2}>
-            <Text fontSize="sm" color="gray.600">
+            <Text fontSize="sm" color="gray.600" whiteSpace="nowrap">
               Items per page:
             </Text>
             <Select
               value={itemsPerPage}
               onChange={handleItemsPerPageChange}
-              width="80px"
+              width="90px"
               borderRadius="md"
+              size="sm"
+              fontWeight="semibold"
             >
               <option value={3}>3</option>
               <option value={6}>6</option>
@@ -830,44 +833,87 @@ const Leave = () => {
             </Select>
           </HStack>
 
-          <HStack spacing={2}>
-            <IconButton
-              icon={<ArrowBackIcon />}
-              onClick={() => paginate(currentPage - 1)}
-              isDisabled={currentPage === 1}
-              aria-label="Previous Page"
-              size="sm"
-              borderRadius="full"
-              boxShadow="md"
-            />
-            {Array.from({ length: totalPages }, (_, i) => (
-              <Button
-                key={i + 1}
-                onClick={() => paginate(i + 1)}
-                colorScheme={currentPage === i + 1 ? "blue" : "gray"}
-                variant={currentPage === i + 1 ? "solid" : "outline"}
+          {/* Page navigation buttons */}
+          <HStack spacing={1}>
+            <Tooltip label="First Page" hasArrow>
+              <IconButton
+                icon={<ChevronLeftIcon />}
+                onClick={() => paginate(1)}
+                isDisabled={currentPage === 1 || totalPages === 0}
+                aria-label="First Page"
                 size="sm"
                 borderRadius="full"
                 boxShadow="sm"
+                _hover={{ bg: "blue.100" }}
+              />
+            </Tooltip>
+            <Tooltip label="Previous Page" hasArrow>
+              <IconButton
+                icon={<ArrowBackIcon />}
+                onClick={() => paginate(currentPage - 1)}
+                isDisabled={currentPage === 1 || totalPages === 0}
+                aria-label="Previous Page"
+                size="sm"
+                borderRadius="full"
+                boxShadow="sm"
+                _hover={{ bg: "blue.100" }}
+              />
+            </Tooltip>
+
+            {/* Render page numbers dynamically */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <Button
+                key={page}
+                onClick={() => paginate(page)}
+                colorScheme={currentPage === page ? "blue" : "gray"}
+                variant={currentPage === page ? "solid" : "ghost"}
+                size="sm"
+                borderRadius="full"
+                minW="32px" // Ensure consistent width
+                px={0} // Remove padding to center number
+                fontWeight="bold"
+                boxShadow={currentPage === page ? "md" : "none"}
+                _hover={currentPage !== page ? { bg: "blue.50" } : {}}
               >
-                {i + 1}
+                {page}
               </Button>
             ))}
-            <IconButton
-              icon={<ArrowForwardIcon />}
-              onClick={() => paginate(currentPage + 1)}
-              isDisabled={currentPage === totalPages || totalPages === 0}
-              aria-label="Next Page"
-              size="sm"
-              borderRadius="full"
-              boxShadow="md"
-            />
+
+            <Tooltip label="Next Page" hasArrow>
+              <IconButton
+                icon={<ArrowForwardIcon />}
+                onClick={() => paginate(currentPage + 1)}
+                isDisabled={currentPage === totalPages || totalPages === 0}
+                aria-label="Next Page"
+                size="sm"
+                borderRadius="full"
+                boxShadow="sm"
+                _hover={{ bg: "blue.100" }}
+              />
+            </Tooltip>
+            <Tooltip label="Last Page" hasArrow>
+              <IconButton
+                icon={<ChevronRightIcon />}
+                onClick={() => paginate(totalPages)}
+                isDisabled={currentPage === totalPages || totalPages === 0}
+                aria-label="Last Page"
+                size="sm"
+                borderRadius="full"
+                boxShadow="sm"
+                _hover={{ bg: "blue.100" }}
+              />
+            </Tooltip>
           </HStack>
-          <Text fontSize="sm" color="gray.600">
-            Page {currentPage} of {totalPages === 0 ? 1 : totalPages}
+
+          <Text fontSize="sm" color="gray.600" whiteSpace="nowrap">
+            Showing {filteredRequests.length > 0 ? indexOfFirstItem + 1 : 0} -{" "}
+            {Math.min(indexOfLastItem, filteredRequests.length)} of{" "}
+            {filteredRequests.length} requests
           </Text>
         </Flex>
-
+        {/* --- */}
+        ## Leave Request Cards
+        {/* --- */}
         <SimpleGrid
           columns={{ base: 1, md: 2, lg: 3 }}
           spacing={8}
@@ -878,24 +924,30 @@ const Leave = () => {
             currentItems.map((request) => (
               <LeaveRequestCard
                 key={request.id}
-                id={request.id} // Pass ID to the card
+                id={request.id}
                 {...request}
                 onApprove={() => handleApprove(request.id)}
                 onReject={() => handleReject(request.id)}
-                isSelected={selectedRequestIds.includes(request.id)} // Pass selection state
-                onToggleSelect={handleToggleSelect} // Pass toggle handler
-                // Removed onReasonClick prop
+                isSelected={selectedRequestIds.includes(request.id)}
+                onToggleSelect={handleToggleSelect}
               />
             ))
           ) : (
-            <Text colSpan={3} textAlign="center" fontSize="lg" color="gray.500">
-              No leave requests found for the current filter.
+            <Text
+              colSpan={3}
+              textAlign="center"
+              fontSize="lg"
+              color="gray.500"
+              py={10}
+            >
+              No leave requests found for the current filter or page. 😔
             </Text>
           )}
         </SimpleGrid>
       </VStack>
-
-      {/* Add Leave Modal */}
+      {/* --- */}
+      ## Add New Leave Request Modal
+      {/* --- */}
       <Modal isOpen={isAddModalOpen} onClose={onAddModalClose}>
         <ModalOverlay />
         <ModalContent borderRadius="lg" boxShadow="2xl">
@@ -929,7 +981,7 @@ const Leave = () => {
                 <FormLabel>Days/Hours</FormLabel>
                 <Input
                   name="days"
-                  type="text" // Can be number or text for "2.5 hours"
+                  type="text"
                   placeholder="e.g., 2 or 2.5"
                   value={newLeaveData.days}
                   onChange={handleNewLeaveChange}
@@ -938,11 +990,7 @@ const Leave = () => {
               </FormControl>
 
               <HStack width="100%" flexWrap="wrap">
-                {" "}
-                {/* FlexWrap for date inputs */}
                 <FormControl isRequired flex="1">
-                  {" "}
-                  {/* flex="1" to share space */}
                   <FormLabel>Start Date</FormLabel>
                   <Input
                     name="startDate"
@@ -953,8 +1001,6 @@ const Leave = () => {
                   />
                 </FormControl>
                 <FormControl isRequired flex="1">
-                  {" "}
-                  {/* flex="1" to share space */}
                   <FormLabel>End Date</FormLabel>
                   <Input
                     name="endDate"
