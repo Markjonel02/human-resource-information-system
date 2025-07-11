@@ -14,6 +14,7 @@ import {
   DrawerContent,
   IconButton,
   useBreakpointValue,
+  Tooltip, // Import Tooltip
 } from "@chakra-ui/react";
 import {
   Home,
@@ -158,36 +159,73 @@ const SideNavigation = () => {
           <VStack spacing="1" align="stretch">
             {menuItems.map((item, idx) => (
               <Link key={idx} to={item.path}>
-                <Flex
-                  align="center"
-                  p="3"
-                  rounded="lg"
-                  bg={
-                    location.pathname === item.path ? activeBg : "transparent"
-                  }
-                  color={
-                    location.pathname === item.path ? activeColor : "gray.700"
-                  }
-                  fontWeight={
-                    location.pathname === item.path ? "medium" : "normal"
-                  }
-                  _hover={{ bg: useColorModeValue("gray.50", "gray.700") }}
-                  transition="all 0.2s"
-                  justifyContent={collapsed ? "center" : "flex-start"}
-                >
-                  <Icon
-                    as={item.icon}
-                    w={5}
-                    h={5}
-                    mr={collapsed ? "0" : "3"}
-                    color={
-                      location.pathname === item.path
-                        ? "purple.600"
-                        : "gray.500"
+                {collapsed ? (
+                  <Tooltip label={item.label} placement="right">
+                    <Flex
+                      align="center"
+                      p="3"
+                      rounded="lg"
+                      bg={
+                        location.pathname === item.path
+                          ? activeBg
+                          : "transparent"
+                      }
+                      color={
+                        location.pathname === item.path
+                          ? activeColor
+                          : "gray.700"
+                      }
+                      fontWeight={
+                        location.pathname === item.path ? "medium" : "normal"
+                      }
+                      _hover={{ bg: useColorModeValue("gray.50", "gray.700") }}
+                      transition="all 0.2s"
+                      justifyContent="center" // Centered for collapsed
+                    >
+                      <Icon
+                        as={item.icon}
+                        w={5}
+                        h={5}
+                        color={
+                          location.pathname === item.path
+                            ? "purple.600"
+                            : "gray.500"
+                        }
+                      />
+                    </Flex>
+                  </Tooltip>
+                ) : (
+                  <Flex
+                    align="center"
+                    p="3"
+                    rounded="lg"
+                    bg={
+                      location.pathname === item.path ? activeBg : "transparent"
                     }
-                  />
-                  {!collapsed && <Text>{item.label}</Text>}
-                </Flex>
+                    color={
+                      location.pathname === item.path ? activeColor : "gray.700"
+                    }
+                    fontWeight={
+                      location.pathname === item.path ? "medium" : "normal"
+                    }
+                    _hover={{ bg: useColorModeValue("gray.50", "gray.700") }}
+                    transition="all 0.2s"
+                    justifyContent="flex-start"
+                  >
+                    <Icon
+                      as={item.icon}
+                      w={5}
+                      h={5}
+                      mr="3"
+                      color={
+                        location.pathname === item.path
+                          ? "purple.600"
+                          : "gray.500"
+                      }
+                    />
+                    <Text>{item.label}</Text>
+                  </Flex>
+                )}
               </Link>
             ))}
           </VStack>
@@ -212,24 +250,34 @@ const SideNavigation = () => {
           <VStack spacing="1" align="stretch">
             {userItems.map((item, idx) => (
               <Link key={idx} to={item.path}>
-                <Flex
-                  align="center"
-                  p="3"
-                  rounded="lg"
-                  color="gray.700"
-                  _hover={{ bg: useColorModeValue("gray.50", "gray.700") }}
-                  transition="all 0.2s"
-                  justifyContent={collapsed ? "center" : "flex-start"}
-                >
-                  <Icon
-                    as={item.icon}
-                    w={5}
-                    h={5}
-                    mr={collapsed ? "0" : "3"}
-                    color="gray.500"
-                  />
-                  {!collapsed && <Text>{item.label}</Text>}
-                </Flex>
+                {collapsed ? (
+                  <Tooltip label={item.label} placement="right">
+                    <Flex
+                      align="center"
+                      p="3"
+                      rounded="lg"
+                      color="gray.700"
+                      _hover={{ bg: useColorModeValue("gray.50", "gray.700") }}
+                      transition="all 0.2s"
+                      justifyContent="center" // Centered for collapsed
+                    >
+                      <Icon as={item.icon} w={5} h={5} color="gray.500" />
+                    </Flex>
+                  </Tooltip>
+                ) : (
+                  <Flex
+                    align="center"
+                    p="3"
+                    rounded="lg"
+                    color="gray.700"
+                    _hover={{ bg: useColorModeValue("gray.50", "gray.700") }}
+                    transition="all 0.2s"
+                    justifyContent="flex-start"
+                  >
+                    <Icon as={item.icon} w={5} h={5} mr="3" color="gray.500" />
+                    <Text>{item.label}</Text>
+                  </Flex>
+                )}
               </Link>
             ))}
           </VStack>
