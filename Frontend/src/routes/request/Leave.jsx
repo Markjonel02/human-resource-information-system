@@ -14,7 +14,7 @@ import {
   SimpleGrid,
   Select,
   Checkbox,
-  Modal, // Import Modal components
+  Modal,
   ModalOverlay,
   ModalContent,
   ModalHeader,
@@ -25,7 +25,8 @@ import {
   FormLabel,
   Input,
   Textarea,
-  useDisclosure, // Hook for modal state
+  useDisclosure,
+  useToast,
 } from "@chakra-ui/react";
 import { CalendarIcon, CheckIcon, CloseIcon, AddIcon } from "@chakra-ui/icons";
 
@@ -120,6 +121,7 @@ const LeaveRequestCard = ({
   onReject,
   isSelected, // New prop for selection state
   onToggleSelect, // New prop for toggling selection
+  onCardClick, // New prop for card click handler
 }) => {
   const statusColor = {
     Approved: "green",
@@ -187,6 +189,10 @@ const LeaveRequestCard = ({
       ? `${approverName.substring(0, 15)}...`
       : approverName;
 
+  // Truncate reason text if it's too long
+  const displayReason =
+    reason.length > 100 ? `${reason.substring(0, 100)}...` : reason;
+
   return (
     <Box
       p={6}
@@ -198,9 +204,25 @@ const LeaveRequestCard = ({
       maxW={{ base: "90%", sm: "350px", md: "380px" }} // Adjusted responsive width
       mx="auto" // Center the card
       my={4}
-      _hover={{ transform: "translateY(-5px)", boxShadow: "2xl" }} // Hover effect
+      _hover={{
+        transform: "translateY(-5px)",
+        boxShadow: "2xl",
+        cursor: "pointer",
+      }} // Hover effect and cursor
       transition="all 0.3s ease-in-out"
-      position="relative" // For positioning the checkbox
+      onClick={() =>
+        onCardClick({
+          id,
+          leaveType,
+          days,
+          startDate,
+          endDate,
+          reason,
+          approverName,
+          approverAvatarUrl,
+          status,
+        })
+      } // Pass all card data on click
     >
       {/* Header Section */}
       <Flex align="center" mb={2} p={2} bg="lightBlue.100" borderRadius="md">
@@ -210,7 +232,10 @@ const LeaveRequestCard = ({
           {status === "Pending" && ( // Only show checkbox for pending items
             <Checkbox
               isChecked={isSelected}
-              onChange={() => onToggleSelect(id)}
+              onChange={(e) => {
+                e.stopPropagation();
+                onToggleSelect(id);
+              }} // Stop propagation to prevent card click
               colorScheme="blue"
               size="md"
             />
@@ -264,7 +289,7 @@ const LeaveRequestCard = ({
           Reason
         </Text>
         <Text fontSize="sm" color="gray.600" noOfLines={3}>
-          {reason}
+          {displayReason} {/* Use truncated reason */}
         </Text>
       </Box>
 
@@ -277,7 +302,10 @@ const LeaveRequestCard = ({
           <Button
             colorScheme="green"
             size="sm"
-            onClick={onApprove}
+            onClick={(e) => {
+              e.stopPropagation();
+              onApprove();
+            }} // Stop propagation
             leftIcon={<CheckIcon />}
             isDisabled={status !== "Pending"}
             boxShadow="md"
@@ -289,7 +317,10 @@ const LeaveRequestCard = ({
           <Button
             colorScheme="red"
             size="sm"
-            onClick={onReject}
+            onClick={(e) => {
+              e.stopPropagation();
+              onReject();
+            }} // Stop propagation
             leftIcon={<CloseIcon />}
             isDisabled={status !== "Pending"}
             boxShadow="md"
@@ -312,8 +343,13 @@ const Leave = () => {
   // State for "Select All" checkbox
   const [isSelectAllChecked, setIsSelectAllChecked] = useState(false);
 
-  // Modal state
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  // Modal state for Add Leave
+  const {
+    isOpen: isAddModalOpen,
+    onOpen: onAddModalOpen,
+    onClose: onAddModalClose,
+  } = useDisclosure();
+  const toast = useToast(); // Initialize useToast
   const [newLeaveData, setNewLeaveData] = useState({
     leaveType: "",
     days: "",
@@ -321,6 +357,14 @@ const Leave = () => {
     endDate: "",
     reason: "",
   });
+
+  // Modal state for viewing card details
+  const {
+    isOpen: isDetailsModalOpen,
+    onOpen: onDetailsModalOpen,
+    onClose: onDetailsModalClose,
+  } = useDisclosure();
+  const [currentCardDetails, setCurrentCardDetails] = useState(null); // State to hold details of the clicked card
 
   // Example data for various leave requests
   const [leaveRequests, setLeaveRequests] = useState([
@@ -433,24 +477,42 @@ const Leave = () => {
   };
 
   const handleAddLeaveSubmit = () => {
+    // Basic validation
+    if (
+      !newLeaveData.leaveType ||
+      !newLeaveData.days ||
+      !newLeaveData.startDate ||
+      !newLeaveData.endDate ||
+      !newLeaveData.reason
+    ) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
     console.log("New Leave Data:", newLeaveData);
     const newId = Math.max(...leaveRequests.map((req) => req.id)) + 1;
 
     let formattedDays = newLeaveData.days;
     // Apply formatting based on leave type for consistent display
-    if (newLeaveData.leaveType.includes("Hours")) {
+    if (newLeaveData.leaveType.toLowerCase().includes("hours")) {
       formattedDays = `${newLeaveData.days} Hours`;
     } else if (
-      newLeaveData.leaveType.includes("request") ||
-      newLeaveData.leaveType.includes("leave")
+      newLeaveData.leaveType.toLowerCase().includes("request") ||
+      newLeaveData.leaveType.toLowerCase().includes("leave")
     ) {
       // Exclude 'Loan request' from getting 'Days' suffix if it's meant to be an amount
       if (
-        newLeaveData.leaveType !== "Loan request" &&
-        newLeaveData.leaveType !== "Ticket Request"
+        newLeaveData.leaveType.toLowerCase() !== "loan request" &&
+        newLeaveData.leaveType.toLowerCase() !== "ticket request"
       ) {
         formattedDays = `${newLeaveData.days} Days`;
-      } else if (newLeaveData.leaveType === "Ticket Request") {
+      } else if (newLeaveData.leaveType.toLowerCase() === "ticket request") {
         formattedDays = `${newLeaveData.days} Tickets`;
       }
     }
@@ -475,7 +537,14 @@ const Leave = () => {
       endDate: "",
       reason: "",
     });
-    onClose(); // Close the modal
+    onAddModalClose(); // Close the modal
+    toast({
+      title: "Leave Request Added",
+      description: "Your new leave request has been submitted.",
+      status: "success",
+      duration: 3000,
+      isClosable: true,
+    });
   };
 
   const handleToggleSelect = (id) => {
@@ -528,6 +597,13 @@ const Leave = () => {
     );
     setSelectedRequestIds([]); // Clear selection after action
     setIsSelectAllChecked(false); // Uncheck select all
+    toast({
+      title: "Requests Approved",
+      description: "Selected leave requests have been approved.",
+      status: "success",
+      duration: 3000,
+      isClosable: true,
+    });
   };
 
   const handleRejectSelected = () => {
@@ -541,6 +617,18 @@ const Leave = () => {
     );
     setSelectedRequestIds([]); // Clear selection after action
     setIsSelectAllChecked(false); // Uncheck select all
+    toast({
+      title: "Requests Rejected",
+      description: "Selected leave requests have been rejected.",
+      status: "success",
+      duration: 3000,
+      isClosable: true,
+    });
+  };
+
+  const handleCardClick = (cardData) => {
+    setCurrentCardDetails(cardData);
+    onDetailsModalOpen();
   };
 
   return (
@@ -566,7 +654,7 @@ const Leave = () => {
             <Button
               colorScheme="blue"
               leftIcon={<AddIcon />}
-              onClick={onOpen} // Open modal on click
+              onClick={onAddModalOpen} // Open Add Leave modal on click
               borderRadius="md"
               boxShadow="md"
               _hover={{ transform: "translateY(-2px)", boxShadow: "lg" }}
@@ -645,13 +733,14 @@ const Leave = () => {
               onReject={() => handleReject(request.id)}
               isSelected={selectedRequestIds.includes(request.id)} // Pass selection state
               onToggleSelect={handleToggleSelect} // Pass toggle handler
+              onCardClick={handleCardClick} // Pass card click handler
             />
           ))}
         </SimpleGrid>
       </VStack>
 
-      {/* Add Leave Modal */}
-      <Modal isOpen={isOpen} onClose={onClose}>
+      {/* Add New Leave Modal */}
+      <Modal isOpen={isAddModalOpen} onClose={onAddModalClose}>
         <ModalOverlay />
         <ModalContent borderRadius="lg" boxShadow="2xl">
           <ModalHeader bg="blue.500" color="white" borderTopRadius="lg">
@@ -738,12 +827,84 @@ const Leave = () => {
               Submit
             </Button>
             <Button
-              onClick={onClose}
+              onClick={onAddModalClose}
               borderRadius="md"
               colorScheme="gray"
               variant="ghost"
             >
               Cancel
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* View Details Modal */}
+      <Modal
+        isOpen={isDetailsModalOpen}
+        onClose={onDetailsModalClose}
+        isCentered
+      >
+        <ModalOverlay />
+        <ModalContent borderRadius="lg" boxShadow="2xl">
+          <ModalHeader bg="blue.500" color="white" borderTopRadius="lg">
+            {currentCardDetails?.leaveType || "Leave Details"}
+          </ModalHeader>
+          <ModalCloseButton color="white" />
+          <ModalBody pb={6}>
+            {currentCardDetails && (
+              <VStack align="flex-start" spacing={3}>
+                <Text>
+                  <Text as="span" fontWeight="semibold">
+                    Status:
+                  </Text>{" "}
+                  <Badge
+                    colorScheme={statusColor[currentCardDetails.status]}
+                    textTransform="capitalize"
+                  >
+                    {currentCardDetails.status}
+                  </Badge>
+                </Text>
+                <Text>
+                  <Text as="span" fontWeight="semibold">
+                    Days/Hours:
+                  </Text>{" "}
+                  {currentCardDetails.days}
+                </Text>
+                <Text>
+                  <Text as="span" fontWeight="semibold">
+                    Dates:
+                  </Text>{" "}
+                  {currentCardDetails.startDate} - {currentCardDetails.endDate}
+                </Text>
+                <Text>
+                  <Text as="span" fontWeight="semibold">
+                    Approver:
+                  </Text>{" "}
+                  <HStack spacing={2}>
+                    <Avatar
+                      size="xs"
+                      name={currentCardDetails.approverName}
+                      src={currentCardDetails.approverAvatarUrl}
+                    />
+                    <Text>{currentCardDetails.approverName}</Text>
+                  </HStack>
+                </Text>
+                <Text>
+                  <Text as="span" fontWeight="semibold">
+                    Reason:
+                  </Text>{" "}
+                  {currentCardDetails.reason} {/* Full reason here */}
+                </Text>
+              </VStack>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              onClick={onDetailsModalClose}
+              borderRadius="md"
+              colorScheme="blue"
+            >
+              Close
             </Button>
           </ModalFooter>
         </ModalContent>
