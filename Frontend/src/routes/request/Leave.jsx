@@ -13,9 +13,21 @@ import {
   extendTheme,
   SimpleGrid,
   Select,
-  Checkbox, // Import Checkbox for multi-selection
+  Checkbox,
+  Modal, // Import Modal components
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
+  FormControl,
+  FormLabel,
+  Input,
+  Textarea,
+  useDisclosure, // Hook for modal state
 } from "@chakra-ui/react";
-import { CalendarIcon, CheckIcon, CloseIcon, AddIcon } from "@chakra-ui/icons"; // Import AddIcon
+import { CalendarIcon, CheckIcon, CloseIcon, AddIcon } from "@chakra-ui/icons";
 
 // Extend the default Chakra UI theme to include custom colors and components
 const theme = extendTheme({
@@ -190,22 +202,23 @@ const LeaveRequestCard = ({
       transition="all 0.3s ease-in-out"
       position="relative" // For positioning the checkbox
     >
-      {/* Checkbox for multi-selection */}
-      <Checkbox
-        position="absolute"
-        top={4}
-        left={4}
-        isChecked={isSelected}
-        onChange={() => onToggleSelect(id)}
-        colorScheme="blue"
-        size="lg"
-      />
-
       {/* Header Section */}
       <Flex align="center" mb={2} p={2} bg="lightBlue.100" borderRadius="md">
-        <Text fontSize="md" fontWeight="semibold" color="black">
-          {leaveType}
-        </Text>
+        <HStack spacing={2} align="center">
+          {" "}
+          {/* HStack for checkbox and title */}
+          {status === "Pending" && ( // Only show checkbox for pending items
+            <Checkbox
+              isChecked={isSelected}
+              onChange={() => onToggleSelect(id)}
+              colorScheme="blue"
+              size="md"
+            />
+          )}
+          <Text fontSize="md" fontWeight="semibold" color="black">
+            {leaveType}
+          </Text>
+        </HStack>
         <Spacer />
         <Badge
           px={3}
@@ -235,7 +248,7 @@ const LeaveRequestCard = ({
           color={daysTextColor}
           mb={1}
         >
-          {days} {leaveType.includes("Hours") ? "Hours" : "Days"}
+          {days}
         </Text>
         <Flex align="center">
           <CalendarIcon color={calendarIconColor} mr={2} />
@@ -296,6 +309,18 @@ const Leave = () => {
   const [filterStatus, setFilterStatus] = useState("All");
   // State for selected requests
   const [selectedRequestIds, setSelectedRequestIds] = useState([]);
+  // State for "Select All" checkbox
+  const [isSelectAllChecked, setIsSelectAllChecked] = useState(false);
+
+  // Modal state
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [newLeaveData, setNewLeaveData] = useState({
+    leaveType: "",
+    days: "",
+    startDate: "",
+    endDate: "",
+    reason: "",
+  });
 
   // Example data for various leave requests
   const [leaveRequests, setLeaveRequests] = useState([
@@ -303,7 +328,7 @@ const Leave = () => {
     {
       id: 1,
       leaveType: "Sick leave request",
-      days: "2",
+      days: "2 Days", // Ensure consistent format
       startDate: "March 27",
       endDate: "March 28 2018",
       reason:
@@ -315,7 +340,7 @@ const Leave = () => {
     {
       id: 2,
       leaveType: "Excuse request",
-      days: "2.5",
+      days: "2.5 Hours", // Ensure consistent format
       startDate: "March 27",
       endDate: "2018",
       reason:
@@ -327,7 +352,7 @@ const Leave = () => {
     {
       id: 3,
       leaveType: "Business Trip Request",
-      days: "3",
+      days: "3 Days", // Ensure consistent format
       startDate: "March 27",
       endDate: "March 28 2018",
       reason:
@@ -339,7 +364,7 @@ const Leave = () => {
     {
       id: 4,
       leaveType: "Loan request",
-      days: "5000.00", // Example for loan amount
+      days: "5000.00", // Example for loan amount, no "Days" suffix
       startDate: "March 31",
       endDate: "2018",
       reason:
@@ -351,7 +376,7 @@ const Leave = () => {
     {
       id: 5,
       leaveType: "Ticket Request",
-      days: "2",
+      days: "2 Tickets", // Example for tickets, custom suffix
       startDate: "March 27",
       endDate: "March 28 2018",
       reason:
@@ -363,7 +388,7 @@ const Leave = () => {
     {
       id: 6,
       leaveType: "Vacation leave",
-      days: "7",
+      days: "7 Days", // Ensure consistent format
       startDate: "April 10",
       endDate: "April 17 2025",
       reason:
@@ -399,17 +424,97 @@ const Leave = () => {
     );
   };
 
-  const handleAddLeave = () => {
-    console.log("Add Leave button clicked!");
-    // In a real app, this would open a form or modal to add a new leave request
+  const handleNewLeaveChange = (e) => {
+    const { name, value } = e.target;
+    setNewLeaveData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  const handleAddLeaveSubmit = () => {
+    console.log("New Leave Data:", newLeaveData);
+    const newId = Math.max(...leaveRequests.map((req) => req.id)) + 1;
+
+    let formattedDays = newLeaveData.days;
+    // Apply formatting based on leave type for consistent display
+    if (newLeaveData.leaveType.includes("Hours")) {
+      formattedDays = `${newLeaveData.days} Hours`;
+    } else if (
+      newLeaveData.leaveType.includes("request") ||
+      newLeaveData.leaveType.includes("leave")
+    ) {
+      // Exclude 'Loan request' from getting 'Days' suffix if it's meant to be an amount
+      if (
+        newLeaveData.leaveType !== "Loan request" &&
+        newLeaveData.leaveType !== "Ticket Request"
+      ) {
+        formattedDays = `${newLeaveData.days} Days`;
+      } else if (newLeaveData.leaveType === "Ticket Request") {
+        formattedDays = `${newLeaveData.days} Tickets`;
+      }
+    }
+
+    const newRequest = {
+      id: newId,
+      leaveType: newLeaveData.leaveType,
+      days: formattedDays, // Use the formatted days
+      startDate: newLeaveData.startDate,
+      endDate: newLeaveData.endDate,
+      reason: newLeaveData.reason,
+      approverName: "New Applicant", // Default for new requests
+      approverAvatarUrl: "https://placehold.co/40x40/000000/FFFFFF?text=NA", // Default avatar
+      status: "Pending", // New requests are pending by default
+    };
+    setLeaveRequests((prevRequests) => [...prevRequests, newRequest]);
+    setNewLeaveData({
+      // Reset form
+      leaveType: "",
+      days: "",
+      startDate: "",
+      endDate: "",
+      reason: "",
+    });
+    onClose(); // Close the modal
   };
 
   const handleToggleSelect = (id) => {
-    setSelectedRequestIds((prevSelected) =>
-      prevSelected.includes(id)
+    setSelectedRequestIds((prevSelected) => {
+      const newSelected = prevSelected.includes(id)
         ? prevSelected.filter((selectedId) => selectedId !== id)
-        : [...prevSelected, id]
-    );
+        : [...prevSelected, id];
+
+      // Check if all pending requests are now selected
+      const pendingRequestIds = filteredRequests
+        .filter((req) => req.status === "Pending")
+        .map((req) => req.id);
+
+      const allPendingSelected =
+        pendingRequestIds.length > 0 &&
+        pendingRequestIds.every((pendingId) => newSelected.includes(pendingId));
+
+      setIsSelectAllChecked(allPendingSelected);
+      return newSelected;
+    });
+  };
+
+  const handleSelectAll = () => {
+    const pendingRequestIds = filteredRequests
+      .filter((req) => req.status === "Pending")
+      .map((req) => req.id);
+
+    if (
+      selectedRequestIds.length === pendingRequestIds.length &&
+      pendingRequestIds.length > 0
+    ) {
+      // If all pending are currently selected, deselect all
+      setSelectedRequestIds([]);
+      setIsSelectAllChecked(false);
+    } else {
+      // Select all pending requests
+      setSelectedRequestIds(pendingRequestIds);
+      setIsSelectAllChecked(true);
+    }
   };
 
   const handleApproveSelected = () => {
@@ -422,6 +527,7 @@ const Leave = () => {
       )
     );
     setSelectedRequestIds([]); // Clear selection after action
+    setIsSelectAllChecked(false); // Uncheck select all
   };
 
   const handleRejectSelected = () => {
@@ -434,6 +540,7 @@ const Leave = () => {
       )
     );
     setSelectedRequestIds([]); // Clear selection after action
+    setIsSelectAllChecked(false); // Uncheck select all
   };
 
   return (
@@ -445,6 +552,7 @@ const Leave = () => {
         p={8}
         width="100%"
         spacing={6}
+        // Removed bg="gray.50"
       >
         {/* Top bar with Add Leave button and Sorting Option */}
         <Flex
@@ -454,16 +562,31 @@ const Leave = () => {
           alignItems="center"
           mb={4}
         >
-          <Button
-            colorScheme="blue"
-            leftIcon={<AddIcon />}
-            onClick={handleAddLeave}
-            borderRadius="md"
-            boxShadow="md"
-            _hover={{ transform: "translateY(-2px)", boxShadow: "lg" }}
-          >
-            Add Leave
-          </Button>
+          <HStack spacing={4}>
+            <Button
+              colorScheme="blue"
+              leftIcon={<AddIcon />}
+              onClick={onOpen} // Open modal on click
+              borderRadius="md"
+              boxShadow="md"
+              _hover={{ transform: "translateY(-2px)", boxShadow: "lg" }}
+            >
+              Add Leave
+            </Button>
+            {/* Select All Checkbox */}
+            <Checkbox
+              isChecked={isSelectAllChecked}
+              onChange={handleSelectAll}
+              colorScheme="blue"
+              size="lg"
+              isDisabled={
+                filteredRequests.filter((req) => req.status === "Pending")
+                  .length === 0
+              } // Disable if no pending requests
+            >
+              Select All Pending
+            </Checkbox>
+          </HStack>
           <HStack spacing={4}>
             {selectedRequestIds.length > 0 && (
               <>
@@ -526,6 +649,105 @@ const Leave = () => {
           ))}
         </SimpleGrid>
       </VStack>
+
+      {/* Add Leave Modal */}
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <ModalOverlay />
+        <ModalContent borderRadius="lg" boxShadow="2xl">
+          <ModalHeader bg="blue.500" color="white" borderTopRadius="lg">
+            Add New Leave Request
+          </ModalHeader>
+          <ModalCloseButton color="white" />
+          <ModalBody pb={6}>
+            <VStack spacing={4}>
+              <FormControl isRequired>
+                <FormLabel>Leave Type</FormLabel>
+                <Select
+                  name="leaveType"
+                  placeholder="Select leave type"
+                  value={newLeaveData.leaveType}
+                  onChange={handleNewLeaveChange}
+                  borderRadius="md"
+                >
+                  <option value="Sick leave request">Sick leave request</option>
+                  <option value="Excuse request">Excuse request</option>
+                  <option value="Business Trip Request">
+                    Business Trip Request
+                  </option>
+                  <option value="Loan request">Loan request</option>
+                  <option value="Ticket Request">Ticket Request</option>
+                  <option value="Vacation leave">Vacation leave</option>
+                </Select>
+              </FormControl>
+
+              <FormControl isRequired>
+                <FormLabel>Days/Hours</FormLabel>
+                <Input
+                  name="days"
+                  type="text" // Can be number or text for "2.5 hours"
+                  placeholder="e.g., 2 or 2.5"
+                  value={newLeaveData.days}
+                  onChange={handleNewLeaveChange}
+                  borderRadius="md"
+                />
+              </FormControl>
+
+              <HStack width="100%">
+                <FormControl isRequired>
+                  <FormLabel>Start Date</FormLabel>
+                  <Input
+                    name="startDate"
+                    type="date"
+                    value={newLeaveData.startDate}
+                    onChange={handleNewLeaveChange}
+                    borderRadius="md"
+                  />
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>End Date</FormLabel>
+                  <Input
+                    name="endDate"
+                    type="date"
+                    value={newLeaveData.endDate}
+                    onChange={handleNewLeaveChange}
+                    borderRadius="md"
+                  />
+                </FormControl>
+              </HStack>
+
+              <FormControl isRequired>
+                <FormLabel>Reason</FormLabel>
+                <Textarea
+                  name="reason"
+                  placeholder="Enter reason for leave"
+                  value={newLeaveData.reason}
+                  onChange={handleNewLeaveChange}
+                  borderRadius="md"
+                />
+              </FormControl>
+            </VStack>
+          </ModalBody>
+
+          <ModalFooter>
+            <Button
+              colorScheme="blue"
+              mr={3}
+              onClick={handleAddLeaveSubmit}
+              borderRadius="md"
+            >
+              Submit
+            </Button>
+            <Button
+              onClick={onClose}
+              borderRadius="md"
+              colorScheme="gray"
+              variant="ghost"
+            >
+              Cancel
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </ChakraProvider>
   );
 };
