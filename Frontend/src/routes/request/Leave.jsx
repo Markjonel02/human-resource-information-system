@@ -14,7 +14,7 @@ import {
   SimpleGrid,
   Select,
   Checkbox,
-  Modal,
+  Modal, // Import Modal components
   ModalOverlay,
   ModalContent,
   ModalHeader,
@@ -25,10 +25,18 @@ import {
   FormLabel,
   Input,
   Textarea,
-  useDisclosure,
-  useToast,
+  useDisclosure, // Hook for modal state
+  useToast, // Import useToast for feedback
+  IconButton, // For pagination arrows
 } from "@chakra-ui/react";
-import { CalendarIcon, CheckIcon, CloseIcon, AddIcon } from "@chakra-ui/icons";
+import {
+  CalendarIcon,
+  CheckIcon,
+  CloseIcon,
+  AddIcon,
+  ArrowBackIcon, // For previous page
+  ArrowForwardIcon, // For next page
+} from "@chakra-ui/icons";
 
 // Extend the default Chakra UI theme to include custom colors and components
 const theme = extendTheme({
@@ -121,7 +129,6 @@ const LeaveRequestCard = ({
   onReject,
   isSelected, // New prop for selection state
   onToggleSelect, // New prop for toggling selection
-  onCardClick, // New prop for card click handler
 }) => {
   const statusColor = {
     Approved: "green",
@@ -189,9 +196,9 @@ const LeaveRequestCard = ({
       ? `${approverName.substring(0, 15)}...`
       : approverName;
 
-  // Truncate reason text if it's too long
+  // Truncate reason if it's over 100 characters
   const displayReason =
-    reason.length > 100 ? `${reason.substring(0, 100)}...` : reason;
+    reason.length > 50 ? `${reason.substring(0, 50)}...` : reason;
 
   return (
     <Box
@@ -204,25 +211,9 @@ const LeaveRequestCard = ({
       maxW={{ base: "90%", sm: "350px", md: "380px" }} // Adjusted responsive width
       mx="auto" // Center the card
       my={4}
-      _hover={{
-        transform: "translateY(-5px)",
-        boxShadow: "2xl",
-        cursor: "pointer",
-      }} // Hover effect and cursor
+      _hover={{ transform: "translateY(-5px)", boxShadow: "2xl" }} // Hover effect
       transition="all 0.3s ease-in-out"
-      onClick={() =>
-        onCardClick({
-          id,
-          leaveType,
-          days,
-          startDate,
-          endDate,
-          reason,
-          approverName,
-          approverAvatarUrl,
-          status,
-        })
-      } // Pass all card data on click
+      position="relative" // For positioning the checkbox
     >
       {/* Header Section */}
       <Flex align="center" mb={2} p={2} bg="lightBlue.100" borderRadius="md">
@@ -232,10 +223,7 @@ const LeaveRequestCard = ({
           {status === "Pending" && ( // Only show checkbox for pending items
             <Checkbox
               isChecked={isSelected}
-              onChange={(e) => {
-                e.stopPropagation();
-                onToggleSelect(id);
-              }} // Stop propagation to prevent card click
+              onChange={() => onToggleSelect(id)}
               colorScheme="blue"
               size="md"
             />
@@ -288,8 +276,12 @@ const LeaveRequestCard = ({
         <Text fontSize="sm" fontWeight="semibold" mb={1} color="gray.700">
           Reason
         </Text>
-        <Text fontSize="sm" color="gray.600" noOfLines={3}>
-          {displayReason} {/* Use truncated reason */}
+        <Text
+          fontSize="sm"
+          color="gray.600"
+          noOfLines={3} // Keep noOfLines for responsiveness and initial display
+        >
+          {displayReason}
         </Text>
       </Box>
 
@@ -302,10 +294,7 @@ const LeaveRequestCard = ({
           <Button
             colorScheme="green"
             size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onApprove();
-            }} // Stop propagation
+            onClick={onApprove}
             leftIcon={<CheckIcon />}
             isDisabled={status !== "Pending"}
             boxShadow="md"
@@ -317,10 +306,7 @@ const LeaveRequestCard = ({
           <Button
             colorScheme="red"
             size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onReject();
-            }} // Stop propagation
+            onClick={onReject}
             leftIcon={<CloseIcon />}
             isDisabled={status !== "Pending"}
             boxShadow="md"
@@ -343,12 +329,14 @@ const Leave = () => {
   // State for "Select All" checkbox
   const [isSelectAllChecked, setIsSelectAllChecked] = useState(false);
 
-  // Modal state for Add Leave
+  // Modal state for adding new leave
   const {
     isOpen: isAddModalOpen,
     onOpen: onAddModalOpen,
     onClose: onAddModalClose,
   } = useDisclosure();
+  // Removed state and disclosure for reason modal
+
   const toast = useToast(); // Initialize useToast
   const [newLeaveData, setNewLeaveData] = useState({
     leaveType: "",
@@ -358,13 +346,9 @@ const Leave = () => {
     reason: "",
   });
 
-  // Modal state for viewing card details
-  const {
-    isOpen: isDetailsModalOpen,
-    onOpen: onDetailsModalOpen,
-    onClose: onDetailsModalClose,
-  } = useDisclosure();
-  const [currentCardDetails, setCurrentCardDetails] = useState(null); // State to hold details of the clicked card
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(6); // Default 6 items per page
 
   // Example data for various leave requests
   const [leaveRequests, setLeaveRequests] = useState([
@@ -436,9 +420,53 @@ const Leave = () => {
       startDate: "April 10",
       endDate: "April 17 2025",
       reason:
-        "Planning a relaxing trip to the mountains to unwind and recharge.",
+        "Planning a relaxing trip to the mountains to unwind and recharge. This is a longer reason to test the truncation functionality and ensure the modal displays the full text correctly.",
       approverName: "Jane Doe",
       approverAvatarUrl: "https://placehold.co/40x40/33FFCC/FFFFFF?text=JD",
+      status: "Pending",
+    },
+    {
+      id: 7,
+      leaveType: "Sick leave request",
+      days: "1 Day",
+      startDate: "May 1",
+      endDate: "May 1 2025",
+      reason: "Feeling unwell, need a day to recover.",
+      approverName: "John Smith",
+      approverAvatarUrl: "https://placehold.co/40x40/FFCC33/FFFFFF?text=JS",
+      status: "Approved",
+    },
+    {
+      id: 8,
+      leaveType: "Business Trip Request",
+      days: "4 Days",
+      startDate: "June 10",
+      endDate: "June 13 2025",
+      reason: "Attending annual industry conference in New York.",
+      approverName: "Emily White",
+      approverAvatarUrl: "https://placehold.co/40x40/CC33FF/FFFFFF?text=EW",
+      status: "Pending",
+    },
+    {
+      id: 9,
+      leaveType: "Excuse request",
+      days: "4 Hours",
+      startDate: "July 5",
+      endDate: "July 5 2025",
+      reason: "Urgent personal appointment.",
+      approverName: "David Brown",
+      approverAvatarUrl: "https://placehold.co/40x40/3399FF/FFFFFF?text=DB",
+      status: "Rejected",
+    },
+    {
+      id: 10,
+      leaveType: "Vacation leave",
+      days: "5 Days",
+      startDate: "August 1",
+      endDate: "August 5 2025",
+      reason: "Family vacation to the beach.",
+      approverName: "Sarah Green",
+      approverAvatarUrl: "https://placehold.co/40x40/FF6633/FFFFFF?text=SG",
       status: "Pending",
     },
   ]);
@@ -448,6 +476,30 @@ const Leave = () => {
     (request) => filterStatus === "All" || request.status === filterStatus
   );
 
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredRequests.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
+
+  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
+
+  const paginate = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    // When changing pages, clear selected requests and uncheck "Select All"
+    setSelectedRequestIds([]);
+    setIsSelectAllChecked(false);
+  };
+
+  const handleItemsPerPageChange = (e) => {
+    setItemsPerPage(Number(e.target.value));
+    setCurrentPage(1); // Reset to first page when items per page changes
+    setSelectedRequestIds([]); // Clear selections
+    setIsSelectAllChecked(false); // Uncheck select all
+  };
+
   const handleApprove = (id) => {
     console.log(`Approve clicked for request ID: ${id}`);
     // Update the status of the specific request
@@ -456,6 +508,17 @@ const Leave = () => {
         req.id === id ? { ...req, status: "Approved" } : req
       )
     );
+    // Remove from selected if it was selected
+    setSelectedRequestIds((prev) =>
+      prev.filter((selectedId) => selectedId !== id)
+    );
+    toast({
+      title: "Request Approved",
+      description: "The leave request has been approved.",
+      status: "success",
+      duration: 3000,
+      isClosable: true,
+    });
   };
 
   const handleReject = (id) => {
@@ -466,6 +529,17 @@ const Leave = () => {
         req.id === id ? { ...req, status: "Rejected" } : req
       )
     );
+    // Remove from selected if it was selected
+    setSelectedRequestIds((prev) =>
+      prev.filter((selectedId) => selectedId !== id)
+    );
+    toast({
+      title: "Request Rejected",
+      description: "The leave request has been rejected.",
+      status: "error",
+      duration: 3000,
+      isClosable: true,
+    });
   };
 
   const handleNewLeaveChange = (e) => {
@@ -496,23 +570,26 @@ const Leave = () => {
     }
 
     console.log("New Leave Data:", newLeaveData);
-    const newId = Math.max(...leaveRequests.map((req) => req.id)) + 1;
+    const newId =
+      leaveRequests.length > 0
+        ? Math.max(...leaveRequests.map((req) => req.id)) + 1
+        : 1;
 
     let formattedDays = newLeaveData.days;
     // Apply formatting based on leave type for consistent display
-    if (newLeaveData.leaveType.toLowerCase().includes("hours")) {
+    if (newLeaveData.leaveType.includes("Hours")) {
       formattedDays = `${newLeaveData.days} Hours`;
     } else if (
-      newLeaveData.leaveType.toLowerCase().includes("request") ||
-      newLeaveData.leaveType.toLowerCase().includes("leave")
+      newLeaveData.leaveType.includes("request") ||
+      newLeaveData.leaveType.includes("leave")
     ) {
       // Exclude 'Loan request' from getting 'Days' suffix if it's meant to be an amount
       if (
-        newLeaveData.leaveType.toLowerCase() !== "loan request" &&
-        newLeaveData.leaveType.toLowerCase() !== "ticket request"
+        newLeaveData.leaveType !== "Loan request" &&
+        newLeaveData.leaveType !== "Ticket Request"
       ) {
         formattedDays = `${newLeaveData.days} Days`;
-      } else if (newLeaveData.leaveType.toLowerCase() === "ticket request") {
+      } else if (newLeaveData.leaveType === "Ticket Request") {
         formattedDays = `${newLeaveData.days} Tickets`;
       }
     }
@@ -545,6 +622,7 @@ const Leave = () => {
       duration: 3000,
       isClosable: true,
     });
+    setCurrentPage(1); // Go to the first page to see the new request
   };
 
   const handleToggleSelect = (id) => {
@@ -553,35 +631,38 @@ const Leave = () => {
         ? prevSelected.filter((selectedId) => selectedId !== id)
         : [...prevSelected, id];
 
-      // Check if all pending requests are now selected
-      const pendingRequestIds = filteredRequests
+      // Check if all *currently filtered and displayed* pending requests are now selected
+      const pendingRequestIdsOnPage = currentItems
         .filter((req) => req.status === "Pending")
         .map((req) => req.id);
 
-      const allPendingSelected =
-        pendingRequestIds.length > 0 &&
-        pendingRequestIds.every((pendingId) => newSelected.includes(pendingId));
+      const allPendingSelectedOnPage =
+        pendingRequestIdsOnPage.length > 0 &&
+        pendingRequestIdsOnPage.every((pendingId) =>
+          newSelected.includes(pendingId)
+        );
 
-      setIsSelectAllChecked(allPendingSelected);
+      setIsSelectAllChecked(allPendingSelectedOnPage);
       return newSelected;
     });
   };
 
   const handleSelectAll = () => {
-    const pendingRequestIds = filteredRequests
+    const pendingRequestIdsOnPage = currentItems
       .filter((req) => req.status === "Pending")
       .map((req) => req.id);
 
     if (
-      selectedRequestIds.length === pendingRequestIds.length &&
-      pendingRequestIds.length > 0
+      selectedRequestIds.length === pendingRequestIdsOnPage.length &&
+      pendingRequestIdsOnPage.length > 0 &&
+      isSelectAllChecked // Only deselect all if it's currently checked and all on page are selected
     ) {
-      // If all pending are currently selected, deselect all
+      // If all pending on current page are currently selected, deselect them
       setSelectedRequestIds([]);
       setIsSelectAllChecked(false);
     } else {
-      // Select all pending requests
-      setSelectedRequestIds(pendingRequestIds);
+      // Select all pending requests on the current page
+      setSelectedRequestIds(pendingRequestIdsOnPage);
       setIsSelectAllChecked(true);
     }
   };
@@ -626,11 +707,6 @@ const Leave = () => {
     });
   };
 
-  const handleCardClick = (cardData) => {
-    setCurrentCardDetails(cardData);
-    onDetailsModalOpen();
-  };
-
   return (
     <ChakraProvider theme={theme}>
       <VStack
@@ -640,7 +716,7 @@ const Leave = () => {
         p={8}
         width="100%"
         spacing={6}
-        // Removed bg="gray.50"
+        bg="gray.50" // Added a light gray background for better contrast
       >
         {/* Top bar with Add Leave button and Sorting Option */}
         <Flex
@@ -649,12 +725,15 @@ const Leave = () => {
           justifyContent="space-between"
           alignItems="center"
           mb={4}
+          direction={{ base: "column", md: "row" }} // Stack vertically on small screens
+          gap={4} // Add gap between items when stacked
         >
-          <HStack spacing={4}>
+          <HStack spacing={4} wrap="wrap" justify="center">
+            {/* Wrap buttons on smaller screens */}
             <Button
               colorScheme="blue"
               leftIcon={<AddIcon />}
-              onClick={onAddModalOpen} // Open Add Leave modal on click
+              onClick={onAddModalOpen} // Open modal on click
               borderRadius="md"
               boxShadow="md"
               _hover={{ transform: "translateY(-2px)", boxShadow: "lg" }}
@@ -668,14 +747,15 @@ const Leave = () => {
               colorScheme="blue"
               size="lg"
               isDisabled={
-                filteredRequests.filter((req) => req.status === "Pending")
+                currentItems.filter((req) => req.status === "Pending")
                   .length === 0
-              } // Disable if no pending requests
+              } // Disable if no pending requests on current page
             >
-              Select All Pending
+              Select All Pending (Current Page)
             </Checkbox>
           </HStack>
-          <HStack spacing={4}>
+          <HStack spacing={4} wrap="wrap" justify="center">
+            {/* Wrap buttons on smaller screens */}
             {selectedRequestIds.length > 0 && (
               <>
                 <Button
@@ -706,7 +786,12 @@ const Leave = () => {
               placeholder="Filter by Status"
               width={{ base: "100%", sm: "200px" }}
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setCurrentPage(1); // Reset to first page on filter change
+                setSelectedRequestIds([]); // Clear selections on filter change
+                setIsSelectAllChecked(false); // Uncheck select all
+              }}
               borderRadius="md"
               boxShadow="sm"
             >
@@ -718,28 +803,99 @@ const Leave = () => {
           </HStack>
         </Flex>
 
+        {/* Pagination Controls */}
+        <Flex
+          width="100%"
+          maxW="1200px"
+          justifyContent="space-between"
+          alignItems="center"
+          mb={6}
+          direction={{ base: "column", sm: "row" }}
+          gap={3}
+        >
+          <HStack spacing={2}>
+            <Text fontSize="sm" color="gray.600">
+              Items per page:
+            </Text>
+            <Select
+              value={itemsPerPage}
+              onChange={handleItemsPerPageChange}
+              width="80px"
+              borderRadius="md"
+            >
+              <option value={3}>3</option>
+              <option value={6}>6</option>
+              <option value={9}>9</option>
+              <option value={12}>12</option>
+            </Select>
+          </HStack>
+
+          <HStack spacing={2}>
+            <IconButton
+              icon={<ArrowBackIcon />}
+              onClick={() => paginate(currentPage - 1)}
+              isDisabled={currentPage === 1}
+              aria-label="Previous Page"
+              size="sm"
+              borderRadius="full"
+              boxShadow="md"
+            />
+            {Array.from({ length: totalPages }, (_, i) => (
+              <Button
+                key={i + 1}
+                onClick={() => paginate(i + 1)}
+                colorScheme={currentPage === i + 1 ? "blue" : "gray"}
+                variant={currentPage === i + 1 ? "solid" : "outline"}
+                size="sm"
+                borderRadius="full"
+                boxShadow="sm"
+              >
+                {i + 1}
+              </Button>
+            ))}
+            <IconButton
+              icon={<ArrowForwardIcon />}
+              onClick={() => paginate(currentPage + 1)}
+              isDisabled={currentPage === totalPages || totalPages === 0}
+              aria-label="Next Page"
+              size="sm"
+              borderRadius="full"
+              boxShadow="md"
+            />
+          </HStack>
+          <Text fontSize="sm" color="gray.600">
+            Page {currentPage} of {totalPages === 0 ? 1 : totalPages}
+          </Text>
+        </Flex>
+
         <SimpleGrid
-          columns={{ base: 1, sm: 2, md: 3 }}
+          columns={{ base: 1, md: 2, lg: 3 }}
           spacing={8}
           width="100%"
           maxW="1200px"
         >
-          {filteredRequests.map((request) => (
-            <LeaveRequestCard
-              key={request.id}
-              id={request.id} // Pass ID to the card
-              {...request}
-              onApprove={() => handleApprove(request.id)}
-              onReject={() => handleReject(request.id)}
-              isSelected={selectedRequestIds.includes(request.id)} // Pass selection state
-              onToggleSelect={handleToggleSelect} // Pass toggle handler
-              onCardClick={handleCardClick} // Pass card click handler
-            />
-          ))}
+          {currentItems.length > 0 ? (
+            currentItems.map((request) => (
+              <LeaveRequestCard
+                key={request.id}
+                id={request.id} // Pass ID to the card
+                {...request}
+                onApprove={() => handleApprove(request.id)}
+                onReject={() => handleReject(request.id)}
+                isSelected={selectedRequestIds.includes(request.id)} // Pass selection state
+                onToggleSelect={handleToggleSelect} // Pass toggle handler
+                // Removed onReasonClick prop
+              />
+            ))
+          ) : (
+            <Text colSpan={3} textAlign="center" fontSize="lg" color="gray.500">
+              No leave requests found for the current filter.
+            </Text>
+          )}
         </SimpleGrid>
       </VStack>
 
-      {/* Add New Leave Modal */}
+      {/* Add Leave Modal */}
       <Modal isOpen={isAddModalOpen} onClose={onAddModalClose}>
         <ModalOverlay />
         <ModalContent borderRadius="lg" boxShadow="2xl">
@@ -781,8 +937,12 @@ const Leave = () => {
                 />
               </FormControl>
 
-              <HStack width="100%">
-                <FormControl isRequired>
+              <HStack width="100%" flexWrap="wrap">
+                {" "}
+                {/* FlexWrap for date inputs */}
+                <FormControl isRequired flex="1">
+                  {" "}
+                  {/* flex="1" to share space */}
                   <FormLabel>Start Date</FormLabel>
                   <Input
                     name="startDate"
@@ -792,7 +952,9 @@ const Leave = () => {
                     borderRadius="md"
                   />
                 </FormControl>
-                <FormControl isRequired>
+                <FormControl isRequired flex="1">
+                  {" "}
+                  {/* flex="1" to share space */}
                   <FormLabel>End Date</FormLabel>
                   <Input
                     name="endDate"
@@ -833,78 +995,6 @@ const Leave = () => {
               variant="ghost"
             >
               Cancel
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* View Details Modal */}
-      <Modal
-        isOpen={isDetailsModalOpen}
-        onClose={onDetailsModalClose}
-        isCentered
-      >
-        <ModalOverlay />
-        <ModalContent borderRadius="lg" boxShadow="2xl">
-          <ModalHeader bg="blue.500" color="white" borderTopRadius="lg">
-            {currentCardDetails?.leaveType || "Leave Details"}
-          </ModalHeader>
-          <ModalCloseButton color="white" />
-          <ModalBody pb={6}>
-            {currentCardDetails && (
-              <VStack align="flex-start" spacing={3}>
-                <Text>
-                  <Text as="span" fontWeight="semibold">
-                    Status:
-                  </Text>{" "}
-                  <Badge
-                    colorScheme={statusColor[currentCardDetails.status]}
-                    textTransform="capitalize"
-                  >
-                    {currentCardDetails.status}
-                  </Badge>
-                </Text>
-                <Text>
-                  <Text as="span" fontWeight="semibold">
-                    Days/Hours:
-                  </Text>{" "}
-                  {currentCardDetails.days}
-                </Text>
-                <Text>
-                  <Text as="span" fontWeight="semibold">
-                    Dates:
-                  </Text>{" "}
-                  {currentCardDetails.startDate} - {currentCardDetails.endDate}
-                </Text>
-                <Text>
-                  <Text as="span" fontWeight="semibold">
-                    Approver:
-                  </Text>{" "}
-                  <HStack spacing={2}>
-                    <Avatar
-                      size="xs"
-                      name={currentCardDetails.approverName}
-                      src={currentCardDetails.approverAvatarUrl}
-                    />
-                    <Text>{currentCardDetails.approverName}</Text>
-                  </HStack>
-                </Text>
-                <Text>
-                  <Text as="span" fontWeight="semibold">
-                    Reason:
-                  </Text>{" "}
-                  {currentCardDetails.reason} {/* Full reason here */}
-                </Text>
-              </VStack>
-            )}
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              onClick={onDetailsModalClose}
-              borderRadius="md"
-              colorScheme="blue"
-            >
-              Close
             </Button>
           </ModalFooter>
         </ModalContent>
