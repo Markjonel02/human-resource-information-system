@@ -1044,14 +1044,14 @@ const Leave = () => {
                   onChange={handleNewLeaveChange}
                   borderRadius="md"
                 >
-                  <option value="Sick leave request">Sick leave request</option>
-                  <option value="Excuse request">Excuse request</option>
-                  <option value="Business Trip Request">
-                    Business Trip Request
+                  <option value="Sick leave request">Sick leave </option>
+                  <option value="Excuse Request">Excuse </option>
+                  <option value="Business Trip Request">Business Trip</option>
+                  <option value="M/P Leave  Request">M/P Leave </option>
+                  <option value="Bereavement leave Request">
+                    Bereavement leave
                   </option>
-                  <option value="Loan request">Loan request</option>
-                  <option value="Ticket Request">Ticket Request</option>
-                  <option value="Vacation leave">Vacation leave</option>
+                  <option value="Vacation leave Request">Vacation leave</option>
                 </Select>
               </FormControl>
 

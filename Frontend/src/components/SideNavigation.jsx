@@ -38,7 +38,7 @@ const SideNavigation = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const location = useLocation();
 
-  const isMobile = useBreakpointValue({ base: true, md: false });
+  const isMobile = useBreakpointValue({ base: true, md: true, lg: false });
 
   useEffect(() => {
     if (isMobile) {
