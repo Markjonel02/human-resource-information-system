@@ -13,10 +13,11 @@ const EmployeeStatus = lazy(() => import("./components/EmployeeStatus"));
 const Employees = lazy(() => import("./routes/Employees"));
 const Attendances = lazy(() => import("./routes/monitoring/Attendances"));
 const Calendar = lazy(() => import("./routes/Calendar"));
-const Leaves = lazy(() => import("./routes/request/Leave"));
-/*const Payroll = lazy(() => import("./routes/Payroll"));
+const Request = lazy(() => import("./routes/request/Request"));
+const Payroll = lazy(() => import("./routes/payroll/Payroll"));
 const Documents = lazy(() => import("./routes/Documents"));
-const AppsAndIntegration = lazy(() => import("./routes/AppsAndIntegration"));
+const Monitoring = lazy(() => import("./routes/Monitoring"));
+/*const AppsAndIntegration = lazy(() => import("./routes/AppsAndIntegration"));
 const Settings = lazy(() => import("./routes/Settings"));
 const HelpAndSupport = lazy(() => import("./routes/HelpAndSupport")); */
 
@@ -50,10 +51,11 @@ const App = () => {
                   <Route path="/employees" element={<Employees />} />
                   <Route path="/attendances" element={<Attendances />} />
                   <Route path="/calendar" element={<Calendar />} />
-                  <Route path="/leaves" element={<Leaves />} />
-                  {/*  <Route path="/payroll" element={<Payroll />} />
-                    <Route path="/documents" element={<Documents />} />
-                    <Route path="/apps" element={<AppsAndIntegration />} />
+                  <Route path="/request" element={<Request />} />
+                  <Route path="/payroll" element={<Payroll />} />
+                  <Route path="/documents" element={<Documents />} />
+                  <Route path="/monitoring" element={<Monitoring />} />
+                  {/*  <Route path="/apps" element={<AppsAndIntegration />} />
                     <Route path="/settings" element={<Settings />} />
                     <Route path="/help" element={<HelpAndSupport />} /> */}
                 </Routes>

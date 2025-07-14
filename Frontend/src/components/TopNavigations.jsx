@@ -75,16 +75,6 @@ const TopNavigations = () => {
           {/* Icon Buttons with Tooltips - Hidden on mobile */}
 
           {/* Attendance Button - Hidden on mobile */}
-          <Button
-            leftIcon={<CalendarIcon />}
-            variant="outline"
-            mr={4}
-            borderRadius="md"
-            colorScheme="gray"
-            display={{ base: "none", md: "inline-flex" }}
-          >
-            Attendance
-          </Button>
 
           {/* Add Employee Button (Responsive) */}
           <Tooltip

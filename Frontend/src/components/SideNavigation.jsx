@@ -14,7 +14,8 @@ import {
   DrawerContent,
   IconButton,
   useBreakpointValue,
-  Tooltip, // Import Tooltip
+  Tooltip,
+  Avatar, // Import Avatar for user picture
 } from "@chakra-ui/react";
 import {
   Home,
@@ -24,21 +25,21 @@ import {
   LogOut,
   DollarSign,
   FileText,
-  Grid,
   Settings,
-  Headset,
   ChevronLeft,
   ChevronRight,
   Menu as MenuIcon,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { AiOutlineMonitor } from "react-icons/ai";
+import { MdOutlineRequestPage } from "react-icons/md";
 
 const SideNavigation = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const location = useLocation();
 
-  const isMobile = useBreakpointValue({ base: true, md: false });
+  const isMobile = useBreakpointValue({ base: true, md: true, lg: false });
 
   useEffect(() => {
     if (isMobile) {
@@ -51,16 +52,19 @@ const SideNavigation = () => {
     { icon: Users, label: "Employees", path: "/employees" },
     { icon: CheckSquare, label: "Attendances", path: "/attendances" },
     { icon: Calendar, label: "Calendar", path: "/calendar" },
-    { icon: LogOut, label: "Leaves", path: "/leaves" },
+    { icon: MdOutlineRequestPage, label: "Request", path: "/request" },
     { icon: DollarSign, label: "Payroll", path: "/payroll" },
     { icon: FileText, label: "Documents", path: "/documents" },
+    { icon: AiOutlineMonitor, label: "Monitoring", path: "/monitoring" },
   ];
 
-  const userItems = [
-    { icon: Grid, label: "Apps & Integration", path: "/apps" },
-    { icon: Settings, label: "Settings", path: "/settings" },
-    { icon: Headset, label: "Help & Support", path: "/help" },
-  ];
+  const userItems = [{ icon: Settings, label: "Settings", path: "/settings" }];
+
+  // Placeholder for logged-in user data
+  const loggedInUser = {
+    name: "John Doe",
+    avatarUrl: "https://bit.ly/dan-abramov", // Replace with actual avatar URL
+  };
 
   const activeBg = useColorModeValue("purple.50", "purple.900");
   const activeColor = useColorModeValue("purple.700", "purple.300");
@@ -233,8 +237,33 @@ const SideNavigation = () => {
 
         <Spacer />
 
-        {/* USER Section */}
-        <Box mt="auto">
+        {/* LOGGED IN USER Section */}
+        <Box mt="auto" mb="6">
+          <Flex
+            align="center"
+            p="3"
+            rounded="lg"
+            bg={useColorModeValue("gray.50", "gray.700")}
+            color="gray.700"
+            _hover={{ bg: useColorModeValue("gray.100", "gray.600") }}
+            transition="all 0.2s"
+            justifyContent={collapsed ? "center" : "flex-start"}
+          >
+            {collapsed ? (
+              <Tooltip label={loggedInUser.name} placement="right">
+                <Avatar size="sm" src={loggedInUser.avatarUrl} />
+              </Tooltip>
+            ) : (
+              <>
+                <Avatar size="sm" src={loggedInUser.avatarUrl} mr="3" />
+                <Text fontWeight="medium">{loggedInUser.name}</Text>
+              </>
+            )}
+          </Flex>
+        </Box>
+
+        {/* USER Section (Settings & Logout) */}
+        <Box>
           {!collapsed && (
             <Text
               fontSize="xs"
@@ -280,6 +309,39 @@ const SideNavigation = () => {
                 )}
               </Link>
             ))}
+            {/* Logout Button */}
+            {collapsed ? (
+              <Tooltip label="Logout" placement="right">
+                <Flex
+                  align="center"
+                  p="3"
+                  rounded="lg"
+                  color="gray.700"
+                  _hover={{ bg: useColorModeValue("red.50", "red.900") }}
+                  transition="all 0.2s"
+                  justifyContent="center"
+                  onClick={() => console.log("Logout clicked")} // Add logout logic here
+                  cursor="pointer"
+                >
+                  <Icon as={LogOut} w={5} h={5} color="gray.500" />
+                </Flex>
+              </Tooltip>
+            ) : (
+              <Flex
+                align="center"
+                p="3"
+                rounded="lg"
+                color="gray.700"
+                _hover={{ bg: useColorModeValue("red.50", "red.900") }}
+                transition="all 0.2s"
+                justifyContent="flex-start"
+                onClick={() => console.log("Logout clicked")} // Add logout logic here
+                cursor="pointer"
+              >
+                <Icon as={LogOut} w={5} h={5} mr="3" color="gray.500" />
+                <Text>Logout</Text>
+              </Flex>
+            )}
           </VStack>
         </Box>
       </Box>

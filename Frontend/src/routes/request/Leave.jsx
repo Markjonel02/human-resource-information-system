@@ -28,7 +28,7 @@ import {
   useDisclosure,
   useToast,
   IconButton,
-  Tooltip, // Added Tooltip for better UX on buttons
+  Tooltip,
 } from "@chakra-ui/react";
 import {
   CalendarIcon,
@@ -37,8 +37,8 @@ import {
   AddIcon,
   ArrowBackIcon,
   ArrowForwardIcon,
-  ChevronLeftIcon, // For first page
-  ChevronRightIcon, // For last page
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from "@chakra-ui/icons";
 
 // Extend the default Chakra UI theme to include custom colors and components
@@ -81,12 +81,18 @@ const theme = extendTheme({
       50: "#F7FAFC",
       500: "#718096", // Gray
     },
-    // Custom light blue for titles
+    // Custom light blue for titles and now pagination
     lightBlue: {
       50: "#E0F7FA", // Very light blue for background
       100: "#B2EBF2", // Lighter blue for background
-      500: "#81D4FA", // A light blue shade (original for text)
-      700: "#00BCD4", // A slightly darker blue for text if needed
+      200: "#81D4FA", // Even lighter blue
+      300: "#4FC3F7", // Light blue
+      400: "#29B6F6", // Slightly darker light blue
+      500: "#03A9F4", // Medium light blue (Material Design Light Blue 500)
+      600: "#039BE5", // A bit darker
+      700: "#0288D1", // Darker blue for background (Material Design Light Blue 700)
+      800: "#0277BD", // Even darker
+      900: "#01579B", // Darkest
     },
   },
   components: {
@@ -214,21 +220,33 @@ const LeaveRequestCard = ({
       transition="all 0.3s ease-in-out"
       position="relative"
     >
-      <Flex align="center" mb={2} p={2} bg="lightBlue.100" borderRadius="md">
+      <Flex
+        align="center"
+        mb={2}
+        p={2}
+        borderRadius="md"
+        justifyContent="space-between"
+        bg="lightBlue.50"
+      >
         <HStack spacing={2} align="center">
           {status === "Pending" && (
             <Checkbox
               isChecked={isSelected}
               onChange={() => onToggleSelect(id)}
               colorScheme="blue"
+              borderColor="blue.500"
               size="md"
             />
           )}
-          <Text fontSize="md" fontWeight="semibold" color="black">
-            {leaveType}
-          </Text>
+          <Box
+            p={2}
+            borderRadius="md" // Added borderRadius for the light blue background box
+          >
+            <Text fontSize="md" fontWeight="semibold" color="black">
+              {leaveType}
+            </Text>
+          </Box>
         </HStack>
-        <Spacer />
         <Badge
           px={3}
           py={1}
@@ -274,7 +292,12 @@ const LeaveRequestCard = ({
         </Text>
       </Box>
 
-      <Flex justifyContent="space-between" alignItems="flex-end" pt={2} gap={6}>
+      <Flex
+        justifyContent="space-between"
+        alignItems="flex-end"
+        pt={2}
+        gap={500}
+      >
         <Text fontSize="sm" fontWeight="semibold" color="gray.700">
           Actions
         </Text>
@@ -338,8 +361,8 @@ const Leave = () => {
       id: 1,
       leaveType: "Sick leave request",
       days: "2 Days",
-      startDate: "March 27",
-      endDate: "March 28 2018",
+      startDate: "2018-03-27",
+      endDate: "2018-03-28",
       reason:
         "Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.",
       approverName: "Aman Aggarwal",
@@ -350,8 +373,8 @@ const Leave = () => {
       id: 2,
       leaveType: "Excuse request",
       days: "2.5 Hours",
-      startDate: "March 27",
-      endDate: "2018",
+      startDate: "2018-03-27",
+      endDate: "2018-03-27",
       reason:
         "Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.",
       approverName: "Aman Aggarwal Long Name Here",
@@ -362,8 +385,8 @@ const Leave = () => {
       id: 3,
       leaveType: "Business Trip Request",
       days: "3 Days",
-      startDate: "March 27",
-      endDate: "March 28 2018",
+      startDate: "2018-03-27",
+      endDate: "2018-03-29",
       reason:
         "Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.",
       approverName: "Aman Aggarwal",
@@ -374,8 +397,8 @@ const Leave = () => {
       id: 4,
       leaveType: "Loan request",
       days: "5000.00",
-      startDate: "March 31",
-      endDate: "2018",
+      startDate: "2018-03-31",
+      endDate: "2018-03-31",
       reason:
         "Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.",
       approverName: "Aman Aggarwal",
@@ -386,8 +409,8 @@ const Leave = () => {
       id: 5,
       leaveType: "Ticket Request",
       days: "2 Tickets",
-      startDate: "March 27",
-      endDate: "March 28 2018",
+      startDate: "2018-03-27",
+      endDate: "2018-03-28",
       reason:
         "Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.",
       approverName: "Aman Aggarwal",
@@ -398,8 +421,8 @@ const Leave = () => {
       id: 6,
       leaveType: "Vacation leave",
       days: "7 Days",
-      startDate: "April 10",
-      endDate: "April 17 2025",
+      startDate: "2025-04-10",
+      endDate: "2025-04-17",
       reason:
         "Planning a relaxing trip to the mountains to unwind and recharge. This is a longer reason to test the truncation functionality and ensure the modal displays the full text correctly.",
       approverName: "Jane Doe",
@@ -410,8 +433,8 @@ const Leave = () => {
       id: 7,
       leaveType: "Sick leave request",
       days: "1 Day",
-      startDate: "May 1",
-      endDate: "May 1 2025",
+      startDate: "2025-05-01",
+      endDate: "2025-05-01",
       reason: "Feeling unwell, need a day to recover.",
       approverName: "John Smith",
       approverAvatarUrl: "https://placehold.co/40x40/FFCC33/FFFFFF?text=JS",
@@ -421,8 +444,8 @@ const Leave = () => {
       id: 8,
       leaveType: "Business Trip Request",
       days: "4 Days",
-      startDate: "June 10",
-      endDate: "June 13 2025",
+      startDate: "2025-06-10",
+      endDate: "2025-06-13",
       reason: "Attending annual industry conference in New York.",
       approverName: "Emily White",
       approverAvatarUrl: "https://placehold.co/40x40/CC33FF/FFFFFF?text=EW",
@@ -432,8 +455,8 @@ const Leave = () => {
       id: 9,
       leaveType: "Excuse request",
       days: "4 Hours",
-      startDate: "July 5",
-      endDate: "July 5 2025",
+      startDate: "2025-07-05",
+      endDate: "2025-07-05",
       reason: "Urgent personal appointment.",
       approverName: "David Brown",
       approverAvatarUrl: "https://placehold.co/40x40/3399FF/FFFFFF?text=DB",
@@ -443,8 +466,8 @@ const Leave = () => {
       id: 10,
       leaveType: "Vacation leave",
       days: "5 Days",
-      startDate: "August 1",
-      endDate: "August 5 2025",
+      startDate: "2025-08-01",
+      endDate: "2025-08-05",
       reason: "Family vacation to the beach.",
       approverName: "Sarah Green",
       approverAvatarUrl: "https://placehold.co/40x40/FF6633/FFFFFF?text=SG",
@@ -454,8 +477,8 @@ const Leave = () => {
       id: 11,
       leaveType: "Sick leave request",
       days: "3 Days",
-      startDate: "August 15",
-      endDate: "August 17 2025",
+      startDate: "2025-08-15",
+      endDate: "2025-08-17",
       reason: "Recovering from minor surgery.",
       approverName: "Michael Blue",
       approverAvatarUrl: "https://placehold.co/40x40/8A2BE2/FFFFFF?text=MB",
@@ -465,8 +488,8 @@ const Leave = () => {
       id: 12,
       leaveType: "Excuse request",
       days: "8 Hours",
-      startDate: "September 1",
-      endDate: "September 1 2025",
+      startDate: "2025-09-01",
+      endDate: "2025-09-01",
       reason: "Attending a sibling's graduation.",
       approverName: "Olivia Red",
       approverAvatarUrl: "https://placehold.co/40x40/DC143C/FFFFFF?text=OR",
@@ -582,6 +605,24 @@ const Leave = () => {
         : 1;
 
     let formattedDays = newLeaveData.days;
+    // Format dates to a more readable string like "Month Day Year" if they are valid date inputs
+    const formatDate = (dateString) => {
+      try {
+        const date = new Date(dateString);
+        // Example: "March 27, 2018"
+        return date.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        });
+      } catch (e) {
+        return dateString; // Return as is if invalid date
+      }
+    };
+
+    const formattedStartDate = formatDate(newLeaveData.startDate);
+    const formattedEndDate = formatDate(newLeaveData.endDate);
+
     if (newLeaveData.leaveType.includes("Hours")) {
       formattedDays = `${newLeaveData.days} Hours`;
     } else if (
@@ -602,8 +643,8 @@ const Leave = () => {
       id: newId,
       leaveType: newLeaveData.leaveType,
       days: formattedDays,
-      startDate: newLeaveData.startDate,
-      endDate: newLeaveData.endDate,
+      startDate: formattedStartDate, // Use formatted date
+      endDate: formattedEndDate, // Use formatted date
       reason: newLeaveData.reason,
       approverName: "New Applicant",
       approverAvatarUrl: "https://placehold.co/40x40/000000/FFFFFF?text=NA",
@@ -699,7 +740,7 @@ const Leave = () => {
     toast({
       title: "Requests Rejected",
       description: "Selected leave requests have been rejected.",
-      status: "success",
+      status: "error",
       duration: 3000,
       isClosable: true,
     });
@@ -771,14 +812,13 @@ const Leave = () => {
                   isDisabled={selectedRequestIds.length === 0}
                   boxShadow="md"
                   _hover={{ bg: "red.600", transform: "scale(1.05)" }}
-                  _active={{ bg: "red.900", transform: "scale(0.95)" }} // Darker red on active
+                  _active={{ bg: "red.900", transform: "scale(0.95)" }}
                 >
                   Reject Selected ({selectedRequestIds.length})
                 </Button>
               </>
             )}
             <Select
-              placeholder="Filter by Status"
               width={{ base: "100%", sm: "200px" }}
               value={filterStatus}
               onChange={(e) => {
@@ -797,126 +837,10 @@ const Leave = () => {
             </Select>
           </HStack>
         </Flex>
-        {/* --- */}
-        ## Pagination Controls
-        {/* --- */}
-        <Flex
-          width="100%"
-          maxW="1200px"
-          justifyContent="space-between"
-          alignItems="center"
-          mb={6}
-          direction={{ base: "column", sm: "row" }}
-          gap={3}
-          p={3}
-          bg="white"
-          borderRadius="lg"
-          boxShadow="md"
-        >
-          {/* Items per page selector */}
-          <HStack spacing={2}>
-            <Text fontSize="sm" color="gray.600" whiteSpace="nowrap">
-              Items per page:
-            </Text>
-            <Select
-              value={itemsPerPage}
-              onChange={handleItemsPerPageChange}
-              width="90px"
-              borderRadius="md"
-              size="sm"
-              fontWeight="semibold"
-            >
-              <option value={3}>3</option>
-              <option value={6}>6</option>
-              <option value={9}>9</option>
-              <option value={12}>12</option>
-            </Select>
-          </HStack>
-
-          {/* Page navigation buttons */}
-          <HStack spacing={1}>
-            <Tooltip label="First Page" hasArrow>
-              <IconButton
-                icon={<ChevronLeftIcon />}
-                onClick={() => paginate(1)}
-                isDisabled={currentPage === 1 || totalPages === 0}
-                aria-label="First Page"
-                size="sm"
-                borderRadius="full"
-                boxShadow="sm"
-                _hover={{ bg: "blue.100" }}
-              />
-            </Tooltip>
-            <Tooltip label="Previous Page" hasArrow>
-              <IconButton
-                icon={<ArrowBackIcon />}
-                onClick={() => paginate(currentPage - 1)}
-                isDisabled={currentPage === 1 || totalPages === 0}
-                aria-label="Previous Page"
-                size="sm"
-                borderRadius="full"
-                boxShadow="sm"
-                _hover={{ bg: "blue.100" }}
-              />
-            </Tooltip>
-
-            {/* Render page numbers dynamically */}
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <Button
-                key={page}
-                onClick={() => paginate(page)}
-                colorScheme={currentPage === page ? "blue" : "gray"}
-                variant={currentPage === page ? "solid" : "ghost"}
-                size="sm"
-                borderRadius="full"
-                minW="32px" // Ensure consistent width
-                px={0} // Remove padding to center number
-                fontWeight="bold"
-                boxShadow={currentPage === page ? "md" : "none"}
-                _hover={currentPage !== page ? { bg: "blue.50" } : {}}
-              >
-                {page}
-              </Button>
-            ))}
-
-            <Tooltip label="Next Page" hasArrow>
-              <IconButton
-                icon={<ArrowForwardIcon />}
-                onClick={() => paginate(currentPage + 1)}
-                isDisabled={currentPage === totalPages || totalPages === 0}
-                aria-label="Next Page"
-                size="sm"
-                borderRadius="full"
-                boxShadow="sm"
-                _hover={{ bg: "blue.100" }}
-              />
-            </Tooltip>
-            <Tooltip label="Last Page" hasArrow>
-              <IconButton
-                icon={<ChevronRightIcon />}
-                onClick={() => paginate(totalPages)}
-                isDisabled={currentPage === totalPages || totalPages === 0}
-                aria-label="Last Page"
-                size="sm"
-                borderRadius="full"
-                boxShadow="sm"
-                _hover={{ bg: "blue.100" }}
-              />
-            </Tooltip>
-          </HStack>
-
-          <Text fontSize="sm" color="gray.600" whiteSpace="nowrap">
-            Showing {filteredRequests.length > 0 ? indexOfFirstItem + 1 : 0} -{" "}
-            {Math.min(indexOfLastItem, filteredRequests.length)} of{" "}
-            {filteredRequests.length} requests
-          </Text>
-        </Flex>
-        {/* --- */}
-        ## Leave Request Cards
-        {/* --- */}
+        --- ## Leave Request Cards
         <SimpleGrid
           columns={{ base: 1, md: 2, lg: 3 }}
-          spacing={8}
+          spacing={{ base: 5, md: 8 }}
           width="100%"
           maxW="1200px"
         >
@@ -928,7 +852,11 @@ const Leave = () => {
                 {...request}
                 onApprove={() => handleApprove(request.id)}
                 onReject={() => handleReject(request.id)}
-                isSelected={selectedRequestIds.includes(request.id)}
+                isSelected={
+                  request.status === "Pending"
+                    ? selectedRequestIds.includes(request.id)
+                    : false
+                }
                 onToggleSelect={handleToggleSelect}
               />
             ))
@@ -944,14 +872,164 @@ const Leave = () => {
             </Text>
           )}
         </SimpleGrid>
+        --- ## Pagination Controls
+        <Flex
+          width="100%"
+          maxW="1200px"
+          justifyContent="space-between"
+          alignItems="center"
+          mt={8}
+          p={4}
+          // Removed bg, borderRadius, and boxShadow for a flat look
+          direction={{ base: "column", md: "row" }}
+          gap={3}
+          borderTop="1px solid" // Added a subtle top border for definition
+          borderColor="gray.200" // Light gray border
+        >
+          {/* Items per page selector */}
+          <HStack spacing={2}>
+            <Text
+              fontSize={{ base: "xs", md: "sm" }}
+              color="gray.600"
+              whiteSpace="nowrap"
+            >
+              {" "}
+              {/* Changed text color to darker gray */}
+              Items per page:
+            </Text>
+            <Select
+              value={itemsPerPage}
+              onChange={handleItemsPerPageChange}
+              width={{ base: "70px", md: "90px" }}
+              borderRadius="md"
+              size="sm"
+              fontWeight="semibold"
+              bg="white" // White background for flat look
+              color="gray.700" // Darker text color
+              borderColor="gray.300" // Light gray border
+              _hover={{ borderColor: "gray.400" }}
+              _focus={{ borderColor: "lightBlue.500", boxShadow: "outline" }}
+            >
+              <option value={3}>3</option>
+              <option value={6}>6</option>
+              <option value={9}>9</option>
+              <option value={12}>12</option>
+            </Select>
+          </HStack>
+
+          {/* Page navigation buttons */}
+          <HStack spacing={1} flexWrap="wrap" justifyContent="center">
+            <Tooltip label="First Page" hasArrow>
+              <IconButton
+                icon={<ChevronLeftIcon />}
+                onClick={() => paginate(1)}
+                isDisabled={currentPage === 1 || totalPages === 0}
+                aria-label="First Page"
+                size="sm"
+                borderRadius="full"
+                color="lightBlue.700" // Light blue icon color
+                variant="ghost"
+                _hover={{ bg: "lightBlue.100" }} // Light blue hover
+                _active={{ bg: "lightBlue.200" }}
+              />
+            </Tooltip>
+            <Tooltip label="Previous Page" hasArrow>
+              <IconButton
+                icon={<ArrowBackIcon />}
+                onClick={() => paginate(currentPage - 1)}
+                isDisabled={currentPage === 1 || totalPages === 0}
+                aria-label="Previous Page"
+                size="sm"
+                borderRadius="full"
+                color="lightBlue.700"
+                variant="ghost"
+                _hover={{ bg: "lightBlue.100" }}
+                _active={{ bg: "lightBlue.200" }}
+              />
+            </Tooltip>
+
+            {/* Render page numbers dynamically */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <Button
+                key={page}
+                onClick={() => paginate(page)}
+                colorScheme="lightBlue"
+                variant={currentPage === page ? "solid" : "ghost"}
+                size="sm"
+                borderRadius="full"
+                minW="32px"
+                px={0}
+                fontWeight="bold"
+                // Adjusted colors for flat look
+                color={currentPage === page ? "white" : "lightBlue.700"} // White text for active, lightBlue for others
+                bg={currentPage === page ? "lightBlue.500" : "transparent"} // lightBlue bg for active, transparent for others
+                _hover={{
+                  bg: currentPage === page ? "lightBlue.600" : "lightBlue.100", // Darker lightBlue for active hover, light fill for others
+                  color: currentPage === page ? "white" : "lightBlue.700",
+                }}
+                _active={{
+                  bg: currentPage === page ? "lightBlue.700" : "lightBlue.200",
+                }}
+                boxShadow="none" // Removed box shadow for flat look
+              >
+                {page}
+              </Button>
+            ))}
+
+            <Tooltip label="Next Page" hasArrow>
+              <IconButton
+                icon={<ArrowForwardIcon />}
+                onClick={() => paginate(currentPage + 1)}
+                isDisabled={currentPage === totalPages || totalPages === 0}
+                aria-label="Next Page"
+                size="sm"
+                borderRadius="full"
+                color="lightBlue.700"
+                variant="ghost"
+                _hover={{ bg: "lightBlue.100" }}
+                _active={{ bg: "lightBlue.200" }}
+              />
+            </Tooltip>
+            <Tooltip label="Last Page" hasArrow>
+              <IconButton
+                icon={<ChevronRightIcon />}
+                onClick={() => paginate(totalPages)}
+                isDisabled={currentPage === totalPages || totalPages === 0}
+                aria-label="Last Page"
+                size="sm"
+                borderRadius="full"
+                color="lightBlue.700"
+                variant="ghost"
+                _hover={{ bg: "lightBlue.100" }}
+                _active={{ bg: "lightBlue.200" }}
+              />
+            </Tooltip>
+          </HStack>
+
+          <Text
+            fontSize={{ base: "xs", md: "sm" }}
+            color="gray.600" // Changed text color to darker gray
+            whiteSpace="nowrap"
+            textAlign="center"
+            px={2} // Add some horizontal padding
+            py={1} // Add some vertical padding
+            bg="white" // White background for the text
+            borderRadius="md" // Slightly rounded corners
+            border="1px solid" // Subtle border
+            borderColor="gray.200" // Light gray border color
+          >
+            Showing {filteredRequests.length > 0 ? indexOfFirstItem + 1 : 0} -{" "}
+            {Math.min(indexOfLastItem, filteredRequests.length)} of{" "}
+            {filteredRequests.length} requests
+          </Text>
+        </Flex>
       </VStack>
-      {/* --- */}
-      ## Add New Leave Request Modal
-      {/* --- */}
+
+      {/* Add New Leave Request Modal */}
       <Modal isOpen={isAddModalOpen} onClose={onAddModalClose}>
         <ModalOverlay />
         <ModalContent borderRadius="lg" boxShadow="2xl">
-          <ModalHeader bg="blue.500" color="white" borderTopRadius="lg">
+          <ModalHeader bg="lightBlue.500" color="white" borderTopRadius="lg">
             Add New Leave Request
           </ModalHeader>
           <ModalCloseButton color="white" />
@@ -966,14 +1044,14 @@ const Leave = () => {
                   onChange={handleNewLeaveChange}
                   borderRadius="md"
                 >
-                  <option value="Sick leave request">Sick leave request</option>
-                  <option value="Excuse request">Excuse request</option>
-                  <option value="Business Trip Request">
-                    Business Trip Request
+                  <option value="Sick leave request">Sick leave </option>
+                  <option value="Excuse Request">Excuse </option>
+                  <option value="Business Trip Request">Business Trip</option>
+                  <option value="M/P Leave  Request">M/P Leave </option>
+                  <option value="Bereavement leave Request">
+                    Bereavement leave
                   </option>
-                  <option value="Loan request">Loan request</option>
-                  <option value="Ticket Request">Ticket Request</option>
-                  <option value="Vacation leave">Vacation leave</option>
+                  <option value="Vacation leave Request">Vacation leave</option>
                 </Select>
               </FormControl>
 
@@ -982,7 +1060,7 @@ const Leave = () => {
                 <Input
                   name="days"
                   type="text"
-                  placeholder="e.g., 2 or 2.5"
+                  placeholder="e.g., 2, 2.5 hours, 5000.00"
                   value={newLeaveData.days}
                   onChange={handleNewLeaveChange}
                   borderRadius="md"
