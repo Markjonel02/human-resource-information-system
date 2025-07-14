@@ -220,21 +220,33 @@ const LeaveRequestCard = ({
       transition="all 0.3s ease-in-out"
       position="relative"
     >
-      <Flex align="center" mb={2} p={2} bg="lightBlue.100" borderRadius="md">
+      <Flex
+        align="center"
+        mb={2}
+        p={2}
+        borderRadius="md"
+        justifyContent="space-between"
+        bg="lightBlue.50"
+      >
         <HStack spacing={2} align="center">
           {status === "Pending" && (
             <Checkbox
               isChecked={isSelected}
               onChange={() => onToggleSelect(id)}
               colorScheme="blue"
+              borderColor="blue.500"
               size="md"
             />
           )}
-          <Text fontSize="md" fontWeight="semibold" color="black">
-            {leaveType}
-          </Text>
+          <Box
+            p={2}
+            borderRadius="md" // Added borderRadius for the light blue background box
+          >
+            <Text fontSize="md" fontWeight="semibold" color="black">
+              {leaveType}
+            </Text>
+          </Box>
         </HStack>
-        <Spacer />
         <Badge
           px={3}
           py={1}
@@ -280,7 +292,12 @@ const LeaveRequestCard = ({
         </Text>
       </Box>
 
-      <Flex justifyContent="space-between" alignItems="flex-end" pt={2} gap={500}>
+      <Flex
+        justifyContent="space-between"
+        alignItems="flex-end"
+        pt={2}
+        gap={500}
+      >
         <Text fontSize="sm" fontWeight="semibold" color="gray.700">
           Actions
         </Text>
@@ -802,7 +819,6 @@ const Leave = () => {
               </>
             )}
             <Select
-              placeholder="Filter by Status"
               width={{ base: "100%", sm: "200px" }}
               value={filterStatus}
               onChange={(e) => {
@@ -824,7 +840,7 @@ const Leave = () => {
         --- ## Leave Request Cards
         <SimpleGrid
           columns={{ base: 1, md: 2, lg: 3 }}
-          spacing={{base:5,md:8}}
+          spacing={{ base: 5, md: 8 }}
           width="100%"
           maxW="1200px"
         >
