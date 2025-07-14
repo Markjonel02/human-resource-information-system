@@ -210,13 +210,10 @@ const PayrollCalculatorContent = () => {
     <ChakraProvider theme={theme}>
       <Box
         position="relative" // Make this box a positioning context for its children
-        height="100vh" // Take full viewport height
-        bg="gray.50" // Light background for the page
       >
         <Button
-          position="absolute" // Position button absolutely within the parent Box
-          top="4" // 16px from top
-          right="4" // 16px from right
+          mt={10}
+          mb={10}
           colorScheme="teal"
           size="md"
           onClick={onOpen} // Open the modal when button is clicked
