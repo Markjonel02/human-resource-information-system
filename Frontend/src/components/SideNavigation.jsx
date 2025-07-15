@@ -15,7 +15,11 @@ import {
   IconButton,
   useBreakpointValue,
   Tooltip,
-  Avatar, // Import Avatar for user picture
+  Avatar,
+  Menu, // Import Menu
+  MenuButton, // Import MenuButton
+  MenuList, // Import MenuList
+  MenuItem, // Import MenuItem
 } from "@chakra-ui/react";
 import {
   Home,
@@ -29,8 +33,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu as MenuIcon,
+  Clock, // Import Clock icon for time actions
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom"; // Import useNavigate
 import { AiOutlineMonitor } from "react-icons/ai";
 import { MdOutlineRequestPage } from "react-icons/md";
 
@@ -38,6 +43,7 @@ const SideNavigation = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const location = useLocation();
+  const navigate = useNavigate(); // Initialize useNavigate
 
   const isMobile = useBreakpointValue({ base: true, md: true, lg: false });
 
@@ -71,6 +77,13 @@ const SideNavigation = () => {
 
   const SidebarContent = ({ forceExpanded = false, hideHeader = false }) => {
     const collapsed = forceExpanded ? false : isCollapsed;
+
+    // Function to handle logout
+    const handleLogout = () => {
+      console.log("Logout clicked!");
+      // Implement your logout logic here (e.g., clear session, redirect)
+      navigate("/logout"); // Example redirect to a logout page/route
+    };
 
     return (
       <Box
@@ -237,33 +250,8 @@ const SideNavigation = () => {
 
         <Spacer />
 
-        {/* LOGGED IN USER Section */}
-        <Box mt="auto" mb="6">
-          <Flex
-            align="center"
-            p="3"
-            rounded="lg"
-            bg={useColorModeValue("gray.50", "gray.700")}
-            color="gray.700"
-            _hover={{ bg: useColorModeValue("gray.100", "gray.600") }}
-            transition="all 0.2s"
-            justifyContent={collapsed ? "center" : "flex-start"}
-          >
-            {collapsed ? (
-              <Tooltip label={loggedInUser.name} placement="right">
-                <Avatar size="sm" src={loggedInUser.avatarUrl} />
-              </Tooltip>
-            ) : (
-              <>
-                <Avatar size="sm" src={loggedInUser.avatarUrl} mr="3" />
-                <Text fontWeight="medium">{loggedInUser.name}</Text>
-              </>
-            )}
-          </Flex>
-        </Box>
-
-        {/* USER Section (Settings & Logout) */}
-        <Box>
+        {/* USER Section (Settings and User Dropdown) */}
+        <Box mt="auto">
           {!collapsed && (
             <Text
               fontSize="xs"
@@ -309,39 +297,65 @@ const SideNavigation = () => {
                 )}
               </Link>
             ))}
-            {/* Logout Button */}
-            {collapsed ? (
-              <Tooltip label="Logout" placement="right">
-                <Flex
-                  align="center"
-                  p="3"
-                  rounded="lg"
-                  color="gray.700"
-                  _hover={{ bg: useColorModeValue("red.50", "red.900") }}
-                  transition="all 0.2s"
-                  justifyContent="center"
-                  onClick={() => console.log("Logout clicked")} // Add logout logic here
-                  cursor="pointer"
-                >
-                  <Icon as={LogOut} w={5} h={5} color="gray.500" />
-                </Flex>
-              </Tooltip>
-            ) : (
-              <Flex
+
+            {/* Logged In User Account with Dropdown */}
+            <Menu placement={collapsed ? "right-start" : "top-start"}>
+              <MenuButton
+                as={Flex}
                 align="center"
                 p="3"
                 rounded="lg"
+                bg={useColorModeValue("gray.50", "gray.700")}
                 color="gray.700"
-                _hover={{ bg: useColorModeValue("red.50", "red.900") }}
+                _hover={{ bg: useColorModeValue("gray.100", "gray.600") }}
                 transition="all 0.2s"
-                justifyContent="flex-start"
-                onClick={() => console.log("Logout clicked")} // Add logout logic here
+                justifyContent={collapsed ? "center" : "flex-start"}
                 cursor="pointer"
+                w="full" // Ensure MenuButton takes full width
               >
-                <Icon as={LogOut} w={5} h={5} mr="3" color="gray.500" />
-                <Text>Logout</Text>
-              </Flex>
-            )}
+                {collapsed ? (
+                  <Tooltip label={loggedInUser.name} placement="right">
+                    <Avatar size="sm" src={loggedInUser.avatarUrl} />
+                  </Tooltip>
+                ) : (
+                  <Flex align="center">
+                    <Avatar size="sm" src={loggedInUser.avatarUrl} mr={2} />
+                    <Text fontWeight="medium">{loggedInUser.name}</Text>
+                  </Flex>
+                )}
+              </MenuButton>
+              <MenuList
+                bg={useColorModeValue("white", "gray.800")}
+                borderColor={useColorModeValue("gray.200", "gray.700")}
+                shadow="lg"
+                rounded="md"
+                py="2"
+              >
+                {/* Time In MenuItem now a Link */}
+                <Link to="/timein" onClick={onClose}>
+                  <MenuItem
+                    icon={<Icon as={Clock} w={4} h={4} />}
+                    _hover={{
+                      bg: useColorModeValue("purple.50", "purple.900"),
+                    }}
+                    color={useColorModeValue("gray.700", "gray.200")}
+                  >
+                    Time In/Out
+                  </MenuItem>
+                </Link>
+
+                {/* Time Out MenuItem now a Link */}
+
+                <MenuItem
+                  icon={<Icon as={LogOut} w={4} h={4} />}
+                  onClick={handleLogout}
+                  _hover={{ bg: useColorModeValue("red.50", "red.900") }}
+                  color={useColorModeValue("red.500", "red.300")}
+                >
+                  Logout
+                </MenuItem>
+              </MenuList>
+            </Menu>
           </VStack>
         </Box>
       </Box>

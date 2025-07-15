@@ -64,7 +64,7 @@ const TopNavigations = () => {
           <InputGroup
             width="200px"
             mr={4}
-            display={{ base: "none", md: "block" }}
+            display={{ base: "none", md: "block", lg: "block" }}
           >
             <InputLeftElement pointerEvents="none">
               <SearchIcon color="gray.300" />
@@ -82,7 +82,10 @@ const TopNavigations = () => {
             aria-label="Add Employee tooltip"
             openDelay={500}
           >
-            <AddEmployeeButton />
+            <Box display={{ base: "none", md: "none", lg: "block" }}>
+              {" "}
+              <AddEmployeeButton />
+            </Box>
           </Tooltip>
         </Flex>
       </Flex>
