@@ -17,6 +17,7 @@ const Request = lazy(() => import("./routes/request/Request"));
 const Payroll = lazy(() => import("./routes/payroll/Payroll"));
 const Documents = lazy(() => import("./routes/Documents"));
 const Monitoring = lazy(() => import("./routes/Monitoring"));
+const TimeIn = lazy(() => import("../src/routes/user/TimeIn"));
 /*const AppsAndIntegration = lazy(() => import("./routes/AppsAndIntegration"));
 const Settings = lazy(() => import("./routes/Settings"));
 const HelpAndSupport = lazy(() => import("./routes/HelpAndSupport")); */
@@ -74,6 +75,7 @@ const App = () => {
                   <Route path="/payroll" element={<Payroll />} />
                   <Route path="/documents" element={<Documents />} />
                   <Route path="/monitoring" element={<Monitoring />} />
+                  <Route path="/timein" element={<TimeIn />} />
                   {/*  <Route path="/apps" element={<AppsAndIntegration />} />
                     <Route path="/settings" element={<Settings />} />
                     <Route path="/help" element={<HelpAndSupport />} /> */}

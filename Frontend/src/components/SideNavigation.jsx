@@ -332,7 +332,7 @@ const SideNavigation = () => {
                 py="2"
               >
                 {/* Time In MenuItem now a Link */}
-                <Link to="/time-in" onClick={onClose}>
+                <Link to="/timein" onClick={onClose}>
                   <MenuItem
                     icon={<Icon as={Clock} w={4} h={4} />}
                     _hover={{
@@ -340,22 +340,11 @@ const SideNavigation = () => {
                     }}
                     color={useColorModeValue("gray.700", "gray.200")}
                   >
-                    Time In
+                    Time In/Out
                   </MenuItem>
                 </Link>
 
                 {/* Time Out MenuItem now a Link */}
-                <Link to="/time-out" onClick={onClose}>
-                  <MenuItem
-                    icon={<Icon as={Clock} w={4} h={4} />}
-                    _hover={{
-                      bg: useColorModeValue("purple.50", "purple.900"),
-                    }}
-                    color={useColorModeValue("gray.700", "gray.200")}
-                  >
-                    Time Out
-                  </MenuItem>
-                </Link>
 
                 <MenuItem
                   icon={<Icon as={LogOut} w={4} h={4} />}
