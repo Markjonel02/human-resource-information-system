@@ -331,7 +331,7 @@ const Employees = () => {
           mb={4}
           wrap="wrap"
           display={"flex"}
-          justifyContent={"end"}
+          justifyContent={{ base: "center", md: "start" }}
         >
           <AddEmployeeButton />
           <Button
@@ -362,13 +362,19 @@ const Employees = () => {
         {/* Header Section */}
         <Flex
           direction={{ base: "column", md: "row" }}
-          justify="space-between"
-          align={{ base: "flex-start", md: "center" }}
+          justify={{ base: "center", md: "space-between" }}
+          align={{ base: "center", md: "center" }}
           mb={6}
-          wrap="wrap" // Allow wrapping on smaller screens
+          wrap="wrap"
         >
-          {/* Left Section: Heading and Add Employee Button */}
-          <VStack align="flex-start" spacing={4} mb={{ base: 4, md: 0 }}>
+          {/* Heading Section */}
+          <VStack
+            align="center"
+            spacing={4}
+            mb={{ base: 4, md: 0 }}
+            w={{ base: "full", md: "auto" }}
+            textAlign="center"
+          >
             <Heading
               as="h1"
               fontSize={{ base: "2xl", sm: "3xl" }}
@@ -378,12 +384,9 @@ const Employees = () => {
               Employees Status
             </Heading>
           </VStack>
-          {/* Right Section: Search and Action Buttons */}
-          <VStack
-            align={{ base: "flex-start", md: "flex-end" }}
-            spacing={4}
-            flex="1"
-          >
+
+          {/* Search Section */}
+          <VStack align="center" spacing={4} w={{ base: "full", md: "auto" }}>
             <InputGroup w={{ base: "full", md: "300px" }}>
               <InputLeftElement pointerEvents="none">
                 <SearchIcon color="gray.400" />
@@ -403,16 +406,17 @@ const Employees = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </InputGroup>
-            {/* Action Buttons */}
-          </VStack>{" "}
+          </VStack>
         </Flex>
+
         {/* Employee Table */}
         <Box bg="white" borderRadius="lg" shadow="md" overflowX="auto">
           <Table
-            variant="simple"
             minW="full"
             divideY="200"
             borderCollapse="collapse"
+            variant="simple"
+            size="lg"
           >
             <Thead bg="gray.50">
               <Tr>
@@ -454,18 +458,20 @@ const Employees = () => {
                   color="gray.500"
                   textTransform="uppercase"
                   letterSpacing="wider"
+                  display={{ base: "none", md: "none", lg: "table-cell" }}
                 >
                   Department
                 </Th>
                 <Th
                   py={3}
-                  px={4}
+                  px={12}
                   textAlign="left"
                   fontSize="xs"
                   fontWeight="medium"
                   color="gray.500"
                   textTransform="uppercase"
                   letterSpacing="wider"
+                  display={{ base: "none", md: "table-cell" }}
                 >
                   Join Date
                 </Th>
@@ -478,6 +484,7 @@ const Employees = () => {
                   color="gray.500"
                   textTransform="uppercase"
                   letterSpacing="wider"
+                  display={{ base: "none", md: "table-cell" }}
                 >
                   Status
                 </Th>
@@ -533,24 +540,39 @@ const Employees = () => {
                         </Box>
                       </Flex>
                     </Td>
-                    <Td px={4} py={4} whiteSpace="nowrap">
+                    <Td
+                      px={4}
+                      py={4}
+                      whiteSpace="nowrap"
+                      display={{ base: "none", md: "none", lg: "table-cell" }}
+                    >
                       <Text fontSize="sm" color="gray.900">
                         {employee.department}
                       </Text>
                     </Td>
-                    <Td px={4} py={4} whiteSpace="nowrap">
+                    <Td
+                      px={4}
+                      py={4}
+                      whiteSpace="nowrap"
+                      display={{ base: "none", md: "table-cell" }}
+                    >
                       <Text fontSize="sm" color="gray.900">
                         <HStack
                           spacing={1}
                           display="inline-flex"
-                          alignItems="center"
+                          alignItems="flex-start"
                         >
                           <CalendarIcon w={3} h={3} color="gray.500" />
                           <Text>{employee.joinDate}</Text>
                         </HStack>
                       </Text>
                     </Td>
-                    <Td px={4} py={4} whiteSpace="nowrap">
+                    <Td
+                      px={4}
+                      py={4}
+                      whiteSpace="nowrap"
+                      display={{ base: "none", md: "table-cell" }}
+                    >
                       <Tag
                         size="md"
                         variant="subtle"
@@ -563,7 +585,7 @@ const Employees = () => {
                       px={4}
                       py={4}
                       whiteSpace="nowrap"
-                      textAlign="right"
+                      textAlign="center"
                       fontSize="sm"
                       fontWeight="medium"
                     >
