@@ -333,6 +333,7 @@ const Employees = () => {
           display={"flex"}
           justifyContent={"end"}
         >
+          <AddEmployeeButton />
           <Button
             colorScheme="red"
             leftIcon={<Trash2 size={18} />}

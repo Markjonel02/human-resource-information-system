@@ -64,7 +64,7 @@ const TopNavigations = () => {
           <InputGroup
             width="200px"
             mr={4}
-            display={{ base: "none", md: "block" }}
+            display={{ base: "none", md: "block", lg: "none" }}
           >
             <InputLeftElement pointerEvents="none">
               <SearchIcon color="gray.300" />
