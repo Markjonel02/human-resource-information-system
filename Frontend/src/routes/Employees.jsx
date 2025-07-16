@@ -704,24 +704,36 @@ const Employees = () => {
                     borderRadius="lg"
                   />
                 </FormControl>
-                <FormControl>
-                  <FormLabel>Status</FormLabel>
-                  <Select
-                    value={employeeToEdit.status}
-                    onChange={(e) =>
-                      setEmployeeToEdit({
-                        ...employeeToEdit,
-                        status: e.target.value,
-                      })
-                    }
+                <Menu>
+                  <MenuButton
+                    as={Button}
+                    rightIcon={<ChevronDownIcon />}
                     borderRadius="lg"
+                    size={{ base: "xs", md: "md" }} // Responsive size
+                    fontSize={{ base: "xs", md: "sm" }}
+                    h={{ base: "8", md: "10" }}
+                    w="full"
+                    textAlign="left"
                   >
-                    {/* Use standard <option> tags */}
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                    <option value="Onboarding">Onboarding</option>
-                  </Select>
-                </FormControl>
+                    {employeeToEdit.status}
+                  </MenuButton>
+                  <MenuList fontSize={{ base: "sm", md: "sm" }}>
+                    {["Active", "Inactive", "Onboarding"].map((status) => (
+                      <MenuItem
+                        key={status}
+                        onClick={() =>
+                          setEmployeeToEdit({
+                            ...employeeToEdit,
+                            status,
+                          })
+                        }
+                        py={{ base: 1, md: 2 }} // Less padding on mobile
+                      >
+                        {status}
+                      </MenuItem>
+                    ))}
+                  </MenuList>
+                </Menu>
               </VStack>
             )}
           </ModalBody>

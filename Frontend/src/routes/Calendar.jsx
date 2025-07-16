@@ -408,9 +408,9 @@ const Calendar = () => {
         case "Public":
           colorScheme = "green";
           break;
-        case "Archived":
+        /* case "Archived":
           colorScheme = "gray";
-          break;
+          break; */
         default:
           colorScheme = "blue";
       }
@@ -483,8 +483,8 @@ const Calendar = () => {
           >
             {" "}
             <Flex gap={2} mb={{ base: 4, md: 0 }}>
-              {["All events", "Shared", "Public", "Archived"].map((label) => (
-                <Button key={label} borderRadius="lg" variant="outline">
+              {["All events", "Shared", "Public"].map((label) => (
+                <Button key={label} borderRadius="lg" variant="outline" >
                   {label}
                 </Button>
               ))}
