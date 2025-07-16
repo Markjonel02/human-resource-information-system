@@ -159,9 +159,6 @@ const EmployeeStatus = () => {
         <Table variant="simple" minW="full">
           <Thead bg="gray.50">
             <Tr>
-              <Th>
-                <Checkbox colorScheme="blue" />
-              </Th>
               <Th>Full Name</Th>
               <Th display={{ base: "none", md: "table-cell" }}>Department</Th>
               <Th display={{ base: "none", md: "none", lg: "table-cell" }}>
@@ -175,9 +172,6 @@ const EmployeeStatus = () => {
             {filteredEmployees.map((employee) => (
               <Tr key={employee.id}>
                 <Td>
-                  <Checkbox colorScheme="blue" />
-                </Td>
-                <Td>
                   <Flex align="center">
                     <Avatar
                       size="md"
@@ -189,7 +183,13 @@ const EmployeeStatus = () => {
                         {employee.name}
                       </Text>
                       <Text fontSize="sm" color="gray.500">
-                        {employee.email}
+                        {useBreakpointValue({
+                          base:
+                            employee.email.length > 10
+                              ? `${employee.email.substring(0, 10)}...`
+                              : employee.email, // Mobile
+                          md: employee.email, // Medium and up shows full name
+                        })}
                       </Text>
                     </Box>
                   </Flex>
