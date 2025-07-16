@@ -23,6 +23,7 @@ import {
   MenuItem,
   VStack,
   HStack,
+  Tooltip,
   useBreakpointValue,
   Spacer,
 } from "@chakra-ui/react";
@@ -117,7 +118,7 @@ const EmployeeStatus = () => {
   };
 
   return (
-    <Box minH="100vh" p={{ base: 4, sm: 0, lg: 0 }} fontFamily="sans-serif">
+    <Box p={{ base: 4, sm: 2, lg: 0 }} fontFamily="sans-serif">
       <Spacer border="1px" color="blue.500" mt={8} mb={8} />
       <Flex
         direction={{ base: "column", md: "row" }}
@@ -160,9 +161,7 @@ const EmployeeStatus = () => {
           <Thead bg="gray.50">
             <Tr>
               <Th>Full Name</Th>
-              <Th display={{ base: "table-cell", md: "table-cell" }}>
-                Department
-              </Th>
+              <Th display={{ base: "none", md: "table-cell" }}>Department</Th>
               <Th display={{ base: "none", md: "none", lg: "table-cell" }}>
                 Join Date
               </Th>
@@ -180,9 +179,22 @@ const EmployeeStatus = () => {
                       src={employee.avatar}
                     />
                     <Box ml={4}>
-                      <Text fontSize="sm" fontWeight="medium" color="gray.900">
-                        {employee.name}
-                      </Text>
+                      <Tooltip label={employee.name} bg="transparent">
+                        <Text
+                          fontSize="sm"
+                          fontWeight="medium"
+                          color="gray.900"
+                        >
+                          {useBreakpointValue({
+                            base:
+                              employee.name.length > 5
+                                ? `${employee.name.substring(0, 5)}...`
+                                : employee.name,
+                            md: employee.name,
+                          })}
+                        </Text>
+                      </Tooltip>
+
                       <Text fontSize="sm" color="gray.500">
                         {useBreakpointValue({
                           base:
@@ -195,7 +207,7 @@ const EmployeeStatus = () => {
                     </Box>
                   </Flex>
                 </Td>
-                <Td display={{ base: "table-cell", md: "table-cell" }}>
+                <Td display={{ base: "none", md: "table-cell" }}>
                   <Text fontSize="sm" color="gray.900">
                     {employee.department}
                   </Text>
@@ -203,9 +215,17 @@ const EmployeeStatus = () => {
                 <Td display={{ base: "none", md: "none", lg: "table-cell" }}>
                   <HStack spacing={1}>
                     <CalendarIcon w={3} h={3} color="gray.500" />
-                    <Text fontSize="sm" color="gray.900">
-                      {employee.joinDate}
-                    </Text>
+                    <Tooltip label={employee.joinDate}>
+                      <Text fontSize="sm" color="gray.900">
+                        {useBreakpointValue({
+                          lg:
+                            employee.joinDate.length > 5
+                              ? `${employee.joinDate.substring(0, 5)}...`
+                              : employee.joinDate, // Mobile
+                          md: employee.joinDate, // Medium and up shows full name
+                        })}
+                      </Text>
+                    </Tooltip>
                   </HStack>
                 </Td>
                 <Td display="table-cell">

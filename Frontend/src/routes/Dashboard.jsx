@@ -7,7 +7,11 @@ const Announcements = lazy(() => import("../components/Announcements"));
 const EmployeeStatus = lazy(() => import("../components/EmployeeStatus"));
 const Dashboard = () => {
   return (
-    <Flex direction={{ base: "column", lg: "row" }} align="flex-start" gap={6}>
+    <Flex
+      direction={{ base: "column", md: "column", lg: "row" }}
+      align="flex-start"
+      gap={6}
+    >
       {/* Employee Tracker always comes first */}
       <Box w={{ base: "100%", md: "100%" }}>
         <EmployeeTracker />

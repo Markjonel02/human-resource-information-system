@@ -91,7 +91,7 @@ const EmployeeTracker = () => {
 
   return (
     <Box pt={4}>
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4} mb={6}>
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 2, xl: 4 }} spacing={4} mb={6}>
         <MetricCard
           title="New Employee"
           value="1012"
