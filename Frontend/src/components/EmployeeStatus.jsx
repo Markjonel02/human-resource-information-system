@@ -164,7 +164,9 @@ const EmployeeStatus = () => {
               </Th>
               <Th>Full Name</Th>
               <Th display={{ base: "none", md: "table-cell" }}>Department</Th>
-              <Th display={{ base: "none", md: "table-cell" }}>Join Date</Th>
+              <Th display={{ base: "none", md: "none", lg: "table-cell" }}>
+                Join Date
+              </Th>
               <Th display={{ base: "none", md: "table-cell" }}>Status</Th>
               <Th>Actions</Th>
             </Tr>
@@ -197,7 +199,7 @@ const EmployeeStatus = () => {
                     {employee.department}
                   </Text>
                 </Td>
-                <Td display={{ base: "none", md: "table-cell" }}>
+                <Td display={{ base: "none", md: "none", lg: "table-cell" }}>
                   <HStack spacing={1}>
                     <CalendarIcon w={3} h={3} color="gray.500" />
                     <Text fontSize="sm" color="gray.900">
