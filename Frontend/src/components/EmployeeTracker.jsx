@@ -45,7 +45,7 @@ const MetricCard = ({ title, value, percentageChange, type, icon }) => {
         {icon && (
           <Icon
             as={icon}
-            w={{ base: 10, md: 7 }}
+            w={{ base: 10, md: 5 }}
             h={7}
             color="teal.500"
             fontSize="xs"
