@@ -91,7 +91,7 @@ const SideNavigation = () => {
         top="0"
         left="0"
         zIndex="1000"
-        w={collapsed ? "20" : "64"}
+        w={collapsed ? "30" : "55"}
         h="100vh"
         bg="white"
         p="4"

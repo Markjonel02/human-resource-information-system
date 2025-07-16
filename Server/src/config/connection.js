@@ -12,7 +12,7 @@ const ConnectDB = async () => {
   mongoose
     .connect(URI)
     .then(() => console.log("MongoDb Is sucessfully connected!"))
-    .catch(() => console.log("error connection"));
+    .catch(() => console.log("MongoDb error connection"));
 };
 
 module.exports = ConnectDB;

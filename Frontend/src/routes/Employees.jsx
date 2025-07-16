@@ -36,6 +36,7 @@ import {
   useDisclosure, // Import useDisclosure for modal control
   FormControl,
   FormLabel,
+  useBreakpointValue,
   Select, // Import Select component
   // Removed Option import as it's not a Chakra UI component
 } from "@chakra-ui/react";
@@ -322,7 +323,7 @@ const Employees = () => {
     <>
       <Box
         minH="100vh"
-        p={{ base: 4, sm: 4, lg: 8 }}
+        p={{ base: 0, sm: 4, lg: 8 }}
         fontFamily="Inter, sans-serif"
       >
         <HStack
@@ -532,10 +533,22 @@ const Employees = () => {
                             fontWeight="medium"
                             color="gray.900"
                           >
-                            {employee.name}
+                            {useBreakpointValue({
+                              base:
+                                employee.name.length > 10
+                                  ? `${employee.name.substring(0, 10)}...`
+                                  : employee.name, // Mobile
+                              md: employee.name, // Medium and up shows full name
+                            })}
                           </Text>
                           <Text fontSize="sm" color="gray.500">
-                            {employee.email}
+                            {useBreakpointValue({
+                              base:
+                                employee.email.length > 10
+                                  ? `${employee.email.substring(0, 10)}...`
+                                  : employee.email, // Mobile
+                              md: employee.email, // Medium and up shows full name
+                            })}
                           </Text>
                         </Box>
                       </Flex>
@@ -640,7 +653,11 @@ const Employees = () => {
       {/* Edit Employee Modal */}
       <Modal isOpen={isEditModalOpen} onClose={onCloseEditModal} isCentered>
         <ModalOverlay />
-        <ModalContent borderRadius="xl" p={4}>
+        <ModalContent
+          borderRadius="xl"
+          p={{ base: 3, md: 4 }}
+          maxW={{ base: "90%", md: "600px" }}
+        >
           <ModalHeader fontSize="2xl" fontWeight="bold">
             Edit Employee
           </ModalHeader>
@@ -758,7 +775,7 @@ const Employees = () => {
                 <HStack>
                   <Text fontWeight="bold">Status:</Text>
                   <Tag
-                    size="md"
+                    size={{ base: "sm", lg: "md" }}
                     variant="subtle"
                     colorScheme={getStatusColorScheme(employeeToView.status)}
                   >

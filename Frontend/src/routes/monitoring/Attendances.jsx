@@ -741,6 +741,12 @@ const Attendances = () => {
                 color="gray.500"
                 textTransform="uppercase"
                 letterSpacing="wider"
+                display={{
+                  base: "none",
+                  md: "none",
+                  lg: "none",
+                  xl: "table-cell",
+                }}
               >
                 Date
               </Th>
@@ -765,7 +771,12 @@ const Attendances = () => {
                 color="gray.500"
                 textTransform="uppercase"
                 letterSpacing="wider"
-                display={{ base: "none", md: "table-cell" }}
+                display={{
+                  base: "none",
+                  md: "none",
+                  lg: "none",
+                  xl: "table-cell",
+                }}
               >
                 Check-in
               </Th>
@@ -778,7 +789,12 @@ const Attendances = () => {
                 color="gray.500"
                 textTransform="uppercase"
                 letterSpacing="wider"
-                display={{ base: "none", md: "table-cell" }}
+                display={{
+                  base: "none",
+                  md: "none",
+                  lg: "none",
+                  xl: "table-cell",
+                }}
               >
                 Check-out
               </Th>
@@ -845,7 +861,17 @@ const Attendances = () => {
                     {record.employeeName}
                   </Text>
                 </Td>
-                <Td px={4} py={4} whiteSpace="nowrap">
+                <Td
+                  px={4}
+                  py={4}
+                  whiteSpace="nowrap"
+                  display={{
+                    base: "none",
+                    md: "none",
+                    lg: "none",
+                    xl: "table-cell",
+                  }}
+                >
                   <HStack spacing={1} display="inline-flex" alignItems="center">
                     <CalendarIcon w={3} h={3} color="gray.500" />
                     <Text fontSize="sm" color="gray.900">
@@ -866,7 +892,12 @@ const Attendances = () => {
                   px={4}
                   py={4}
                   whiteSpace="nowrap"
-                  display={{ base: "none", md: "table-cell" }}
+                  display={{
+                    base: "none",
+                    md: "none",
+                    lg: "none",
+                    xl: "table-cell",
+                  }}
                 >
                   <HStack spacing={1} display="inline-flex" alignItems="center">
                     <TimeIcon w={3} h={3} color="gray.500" />
@@ -879,7 +910,12 @@ const Attendances = () => {
                   px={4}
                   py={4}
                   whiteSpace="nowrap"
-                  display={{ base: "none", md: "table-cell" }}
+                  display={{
+                    base: "none",
+                    md: "none",
+                    lg: "none",
+                    xl: "table-cell",
+                  }}
                 >
                   <HStack spacing={1} display="inline-flex" alignItems="center">
                     <TimeIcon w={3} h={3} color="gray.500" />

@@ -1,7 +1,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-
+const connectDB = require("./config/connection.js");
 const app = express();
 const port = 3000;
 
@@ -16,4 +16,10 @@ app.get("/", (req, res) => {
   console.log("Connected to the api");
 });
 /* running node environtment  */
-app.listen(port, () => console.log(`localhost is running on port ${port}`));
+connectDB()
+  .then(() => {
+    app.listen(port, () => console.log(`localhost is running on port ${port}`));
+  })
+  .catch((err) => {
+    console.error("Error connecting to mongodb", err);
+  });

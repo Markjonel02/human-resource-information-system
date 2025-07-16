@@ -473,61 +473,77 @@ const Calendar = () => {
           </InputGroup>
         </Flex>
 
-        <Flex justify="space-between" align="center" mb={6} wrap="wrap">
-          <Flex gap={2} mb={{ base: 4, md: 0 }}>
-            {["All events", "Shared", "Public", "Archived"].map((label) => (
-              <Button key={label} borderRadius="lg" variant="outline">
-                {label}
-              </Button>
-            ))}
-          </Flex>
-          <Flex align="center" gap={2}>
-            <Text fontSize="lg" fontWeight="semibold">
-              {format(currentMonth, "MMMM yyyy")}
-            </Text>
-            <IconButton
-              aria-label="Previous month"
-              icon={<ChevronLeftIcon />}
-              onClick={goToPreviousMonth}
-              borderRadius="lg"
-            />
-            <IconButton
-              aria-label="Next month"
-              icon={<ChevronRightIcon />}
-              onClick={goToNextMonth}
-              borderRadius="lg"
-            />
-            <Menu>
-              <MenuButton
-                as={Button}
-                rightIcon={<ChevronRightIcon transform="rotate(90deg)" />}
+        <Flex mb={6} wrap="wrap">
+          <Flex
+            direction={{ base: "column", md: "row" }}
+            align={{ base: "center", md: "stetch" }}
+            gap={2}
+            w="full"
+            justify="space-between"
+          >
+            {" "}
+            <Flex gap={2} mb={{ base: 4, md: 0 }}>
+              {["All events", "Shared", "Public", "Archived"].map((label) => (
+                <Button key={label} borderRadius="lg" variant="outline">
+                  {label}
+                </Button>
+              ))}
+            </Flex>
+            <Flex align="center" gap={2}>
+              <Text fontSize="lg" fontWeight="semibold">
+                {format(currentMonth, "MMMM yyyy")}
+              </Text>
+              <IconButton
+                aria-label="Previous month"
+                icon={<ChevronLeftIcon />}
+                onClick={goToPreviousMonth}
                 borderRadius="lg"
+              />
+              <IconButton
+                aria-label="Next month"
+                icon={<ChevronRightIcon />}
+                onClick={goToNextMonth}
+                borderRadius="lg"
+              />
+              <Menu>
+                <MenuButton
+                  as={Button}
+                  rightIcon={<ChevronRightIcon transform="rotate(90deg)" />}
+                  borderRadius="lg"
+                >
+                  Month view
+                </MenuButton>
+                <MenuList>
+                  <MenuItem>Day view</MenuItem>
+                  <MenuItem>Week view</MenuItem>
+                  <MenuItem>Month view</MenuItem>
+                </MenuList>
+              </Menu>
+            </Flex>
+            <Flex
+              direction={{ base: "column", sm: "row" }}
+              w={{ base: "full", sm: "auto" }}
+              gap={2}
+            >
+              <Button
+                leftIcon={<AddIcon />}
+                colorScheme="blue"
+                borderRadius="lg"
+                onClick={() => handleAddEventClick()}
+                w={{ base: "full", sm: "auto" }}
               >
-                Month view
-              </MenuButton>
-              <MenuList>
-                <MenuItem>Day view</MenuItem>
-                <MenuItem>Week view</MenuItem>
-                <MenuItem>Month view</MenuItem>
-              </MenuList>
-            </Menu>
-            <Button
-              leftIcon={<AddIcon />}
-              colorScheme="blue"
-              borderRadius="lg"
-              onClick={() => handleAddEventClick()}
-            >
-              Add event
-            </Button>
-            {/* New button to view holidays */}
-            <Button
-              leftIcon={<StarIcon />}
-              colorScheme="orange"
-              borderRadius="lg"
-              onClick={() => setIsHolidayModalOpen(true)}
-            >
-              View Holidays
-            </Button>
+                Add event
+              </Button>
+              <Button
+                leftIcon={<StarIcon />}
+                colorScheme="orange"
+                borderRadius="lg"
+                onClick={() => setIsHolidayModalOpen(true)}
+                w={{ base: "full", sm: "auto" }}
+              >
+                View Holidays
+              </Button>
+            </Flex>
           </Flex>
         </Flex>
 

@@ -159,12 +159,11 @@ const EmployeeStatus = () => {
         <Table variant="simple" minW="full">
           <Thead bg="gray.50">
             <Tr>
-              <Th>
-                <Checkbox colorScheme="blue" />
-              </Th>
               <Th>Full Name</Th>
               <Th display={{ base: "none", md: "table-cell" }}>Department</Th>
-              <Th display={{ base: "none", md: "table-cell" }}>Join Date</Th>
+              <Th display={{ base: "none", md: "none", lg: "table-cell" }}>
+                Join Date
+              </Th>
               <Th display={{ base: "none", md: "table-cell" }}>Status</Th>
               <Th>Actions</Th>
             </Tr>
@@ -172,9 +171,6 @@ const EmployeeStatus = () => {
           <Tbody bg="white">
             {filteredEmployees.map((employee) => (
               <Tr key={employee.id}>
-                <Td>
-                  <Checkbox colorScheme="blue" />
-                </Td>
                 <Td>
                   <Flex align="center">
                     <Avatar
@@ -187,7 +183,13 @@ const EmployeeStatus = () => {
                         {employee.name}
                       </Text>
                       <Text fontSize="sm" color="gray.500">
-                        {employee.email}
+                        {useBreakpointValue({
+                          base:
+                            employee.email.length > 10
+                              ? `${employee.email.substring(0, 10)}...`
+                              : employee.email, // Mobile
+                          md: employee.email, // Medium and up shows full name
+                        })}
                       </Text>
                     </Box>
                   </Flex>
@@ -197,7 +199,7 @@ const EmployeeStatus = () => {
                     {employee.department}
                   </Text>
                 </Td>
-                <Td display={{ base: "none", md: "table-cell" }}>
+                <Td display={{ base: "none", md: "none", lg: "table-cell" }}>
                   <HStack spacing={1}>
                     <CalendarIcon w={3} h={3} color="gray.500" />
                     <Text fontSize="sm" color="gray.900">
