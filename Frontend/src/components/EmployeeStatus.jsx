@@ -160,12 +160,13 @@ const EmployeeStatus = () => {
           <Thead bg="gray.50">
             <Tr>
               <Th>Full Name</Th>
-              <Th display={{ base: "none", md: "table-cell" }}>Department</Th>
+              <Th display={{ base: "table-cell", md: "table-cell" }}>
+                Department
+              </Th>
               <Th display={{ base: "none", md: "none", lg: "table-cell" }}>
                 Join Date
               </Th>
-              <Th display={{ base: "none", md: "table-cell" }}>Status</Th>
-              <Th>Actions</Th>
+              <Th display="table-cell">Status</Th>
             </Tr>
           </Thead>
           <Tbody bg="white">
@@ -194,7 +195,7 @@ const EmployeeStatus = () => {
                     </Box>
                   </Flex>
                 </Td>
-                <Td display={{ base: "none", md: "table-cell" }}>
+                <Td display={{ base: "table-cell", md: "table-cell" }}>
                   <Text fontSize="sm" color="gray.900">
                     {employee.department}
                   </Text>
@@ -207,7 +208,7 @@ const EmployeeStatus = () => {
                     </Text>
                   </HStack>
                 </Td>
-                <Td display={{ base: "none", md: "table-cell" }}>
+                <Td display="table-cell">
                   <Tag
                     size="md"
                     variant="subtle"
@@ -215,22 +216,6 @@ const EmployeeStatus = () => {
                   >
                     {employee.status}
                   </Tag>
-                </Td>
-                <Td textAlign="right">
-                  <Menu>
-                    <MenuButton
-                      as={IconButton}
-                      aria-label="Options"
-                      icon={<ChevronDownIcon />}
-                      variant="ghost"
-                      colorScheme="gray"
-                    />
-                    <MenuList>
-                      <MenuItem>Edit</MenuItem>
-                      <MenuItem>View</MenuItem>
-                      <MenuItem>Delete</MenuItem>
-                    </MenuList>
-                  </Menu>
                 </Td>
               </Tr>
             ))}

@@ -11,14 +11,14 @@ import {
   useColorModeValue,
   Flex,
   Heading,
+  useBreakpointValue,
   Text,
+  Icon,
 } from "@chakra-ui/react";
-import { Icon } from "@chakra-ui/react";
 import { FaUser, FaUserMinus, FaCalendarAlt, FaFileAlt } from "react-icons/fa";
 import { ResponsiveBar } from "@nivo/bar";
-import { extendTheme } from "@chakra-ui/react"; // Not strictly needed for this fix, but good to keep if you plan to extend themes
+import { employeeTrackerData } from "../lib/api"; // Your data source
 
-// 1. Define the MetricCard component
 const MetricCard = ({ title, value, percentageChange, type, icon }) => {
   const cardBg = useColorModeValue("white", "gray.700");
   const textColor = useColorModeValue("gray.800", "white");
@@ -33,7 +33,7 @@ const MetricCard = ({ title, value, percentageChange, type, icon }) => {
       rounded="md"
       bg={cardBg}
     >
-      <Flex justifyContent="space-between" alignItems="center">
+      <Flex justify="space-between" align="center">
         <Box>
           <StatLabel fontWeight="medium" isTruncated color={helpTextColor}>
             {title}
@@ -43,7 +43,14 @@ const MetricCard = ({ title, value, percentageChange, type, icon }) => {
           </StatNumber>
         </Box>
         {icon && (
-          <Icon as={icon} w={7} h={7} color="teal.500" fontSize={"xs"} ml={5} /> // Using Chakra's Icon component with the passed icon prop
+          <Icon
+            as={icon}
+            w={{ base: 10, md: 7 }}
+            h={7}
+            color="teal.500"
+            fontSize="xs"
+            ml={{ base: 1, md: 5 }}
+          />
         )}
       </Flex>
       <StatHelpText>
@@ -57,58 +64,34 @@ const MetricCard = ({ title, value, percentageChange, type, icon }) => {
   );
 };
 
-// 2. Sample Data for the Bar Chart
-const employeeTrackerData = [
-  {
-    day: "Monday",
-    "Full-time": 50,
-    "Part-time": 20,
-  },
-  {
-    day: "Tuesday",
-    "Full-time": 55,
-    "Part-time": 22,
-  },
-  {
-    day: "Wednesday",
-    "Full-time": 48,
-    "Part-time": 18,
-  },
-  {
-    day: "Thursday",
-    "Full-time": 60,
-    "Part-time": 25,
-  },
-  {
-    day: "Friday",
-    "Full-time": 52,
-    "Part-time": 21,
-  },
-  {
-    day: "Saturday",
-    "Full-time": 30,
-    "Part-time": 15,
-  },
-  {
-    day: "Sunday",
-    "Full-time": 10,
-    "Part-time": 5,
-  },
-];
-
 const EmployeeTracker = () => {
   const chartBgColor = useColorModeValue("white", "gray.700");
   const chartBorderColor = useColorModeValue("gray.200", "gray.700");
   const chartTitleColor = useColorModeValue("gray.800", "white");
 
-  return (
-    // 3. Wrap the component in ChakraProvider
+  const isMobile = useBreakpointValue({ base: true, md: false });
+  const axisBottomLabel = useBreakpointValue({
+    md: "Day",
+  });
 
+  const shortLabels = {
+    Monday: "M",
+    Tuesday: "T",
+    Wednesday: "W",
+    Thursday: "Th",
+    Friday: "F",
+    Saturday: "Sa",
+    Sunday: "Su",
+  };
+
+  const formattedData = employeeTrackerData.map((item) => ({
+    ...item,
+    day: isMobile ? shortLabels[item.day] || item.day : item.day,
+  }));
+
+  return (
     <Box pt={4}>
-      {" "}
-      {/* Changed from 70% to 50% */}
-      {/* Metric Cards */}
-      <SimpleGrid columns={{ base: 2, md: 2, lg: 4 }} spacing={4} mb={6}>
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4} mb={6}>
         <MetricCard
           title="New Employee"
           value="1012"
@@ -138,7 +121,7 @@ const EmployeeTracker = () => {
           icon={FaFileAlt}
         />
       </SimpleGrid>
-      {/* Employee Tracker Bar Chart */}
+
       <Box
         height="350px"
         width="100%"
@@ -150,7 +133,7 @@ const EmployeeTracker = () => {
         rounded="md"
         bg={chartBgColor}
       >
-        <Flex justifyContent="space-between" alignItems="center" mb={3}>
+        <Flex justify="space-between" align="center" mb={3}>
           <Heading as="h2" size="md" color={chartTitleColor}>
             Employee Tracker
           </Heading>
@@ -158,8 +141,9 @@ const EmployeeTracker = () => {
             This week ▼
           </Text>
         </Flex>
+
         <ResponsiveBar
-          data={employeeTrackerData} // Now `employeeTrackerData` is defined
+          data={formattedData}
           keys={["Full-time", "Part-time"]}
           indexBy="day"
           margin={{ top: 10, right: 20, bottom: 40, left: 50 }}
@@ -167,19 +151,15 @@ const EmployeeTracker = () => {
           valueScale={{ type: "linear" }}
           indexScale={{ type: "band", round: true }}
           colors={{ scheme: "set2" }}
-          borderColor={{
-            from: "color",
-            modifiers: [["darker", 1.6]],
-          }}
+          borderColor={{ from: "color", modifiers: [["darker", 1.6]] }}
           axisTop={null}
           axisRight={null}
           axisBottom={{
             tickSize: 4,
             tickPadding: 4,
-            legend: "Day",
+
             legendPosition: "middle",
             legendOffset: 28,
-            truncateTickAt: 0,
           }}
           axisLeft={{
             tickSize: 4,
@@ -187,14 +167,10 @@ const EmployeeTracker = () => {
             legend: "Count",
             legendPosition: "middle",
             legendOffset: -35,
-            truncateTickAt: 0,
           }}
           labelSkipWidth={10}
           labelSkipHeight={10}
-          labelTextColor={{
-            from: "color",
-            modifiers: [["darker", 1.4]],
-          }}
+          labelTextColor={{ from: "color", modifiers: [["darker", 1.4]] }}
           legends={[
             {
               dataFrom: "keys",
