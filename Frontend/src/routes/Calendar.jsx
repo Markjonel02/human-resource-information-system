@@ -15,7 +15,6 @@ import {
   MenuItem,
   Badge,
   useToast,
-  Tooltip,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -25,11 +24,19 @@ import {
   ModalCloseButton,
   FormControl,
   FormLabel,
-  List,
-  ListItem,
-  ListIcon,
-  useBreakpointValue, // Import breakpoint utility
-} from "@chakra-ui/react";import {
+  List, // Added List for holiday modal
+  ListItem, // Added ListItem for holiday modal
+  ListIcon, // Added ListIcon for holiday modal
+} from "@chakra-ui/react";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  SearchIcon,
+  AddIcon,
+  DeleteIcon,
+  StarIcon, // Added StarIcon for holidays
+} from "@chakra-ui/icons";
+import {
   format,
   startOfMonth,
   endOfMonth,
@@ -476,7 +483,7 @@ const Calendar = () => {
           >
             {" "}
             <Flex gap={2} mb={{ base: 4, md: 0 }}>
-              {["All events", "Shared", "Public"].map((label) => (
+              {["All events", "Shared", "Public", "Archived"].map((label) => (
                 <Button key={label} borderRadius="lg" variant="outline">
                   {label}
                 </Button>
