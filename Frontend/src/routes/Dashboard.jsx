@@ -8,7 +8,7 @@ const EmployeeStatus = lazy(() => import("../components/EmployeeStatus"));
 const Dashboard = () => {
   return (
     <Flex
-      direction={{ base: "column", md: "column", lg: "row" }}
+      direction={{ base: "column", lg: "colum", xl: "row" }}
       align="flex-start"
       gap={6}
     >
@@ -19,7 +19,10 @@ const Dashboard = () => {
       </Box>
 
       {/* Right-side content */}
-      <Box width={{ base: "100%", md: "100%", lg: "35%" }} mt={{ lg: 4 }}>
+      <Box
+        width={{ base: "100%", md: "100%", lg: "100%", xl: "35%" }}
+        mt={{ lg: 4 }}
+      >
         <Announcements />
         <Box mt={4}>
           <UpcomingSchcedule />

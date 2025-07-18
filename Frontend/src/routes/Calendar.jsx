@@ -23,10 +23,12 @@ import {
   ModalBody,
   ModalCloseButton,
   FormControl,
+  useBreakpointValue,
   FormLabel,
-  List, // Added List for holiday modal
-  ListItem, // Added ListItem for holiday modal
-  ListIcon, // Added ListIcon for holiday modal
+  List,
+  ListItem,
+  ListIcon,
+  Tooltip, // Import Tooltip
 } from "@chakra-ui/react";
 import {
   ChevronLeftIcon,
@@ -34,7 +36,7 @@ import {
   SearchIcon,
   AddIcon,
   DeleteIcon,
-  StarIcon, // Added StarIcon for holidays
+  StarIcon,
 } from "@chakra-ui/icons";
 import {
   format,
@@ -60,7 +62,7 @@ const philippineHolidays2025 = [
     isHoliday: true,
     color: "#DD6B20",
     time: "09:00",
-  }, // Orange
+  },
   {
     id: generateUniqueId(),
     title: "Chinese New Year",
@@ -141,7 +143,7 @@ const philippineHolidays2025 = [
     isHoliday: true,
     color: "#DD6B20",
     time: "09:00",
-  }, // Approximate, actual date varies
+  },
   {
     id: generateUniqueId(),
     title: "Ninoy Aquino Day",
@@ -225,11 +227,111 @@ const philippineHolidays2025 = [
   },
 ];
 
+// --- New EventBadge Component ---
+const EventBadge = ({ event, onEdit, onDelete }) => {
+  const toast = useToast();
+
+  let colorScheme = "blue";
+  let icon = null;
+
+  if (event.isHoliday) {
+    colorScheme = "orange";
+    icon = <StarIcon mr={1} />;
+  } else {
+    switch (event.type) {
+      case "Shared":
+        colorScheme = "purple";
+        break;
+      case "Public":
+        colorScheme = "green";
+        break;
+      default:
+        colorScheme = "blue";
+    }
+  }
+
+  const truncatedTitle = useBreakpointValue({
+    base:
+      event.title.length > 1
+        ? `${event.title.substring(0, 1)}...`
+        : event.title,
+    md: event.title,
+  });
+
+  const handleBadgeClick = () => {
+    if (event.isHoliday) {
+      toast({
+        title: "This is a public holiday.",
+        description: "Public holidays cannot be edited.",
+        status: "info",
+        duration: 3000,
+        isClosable: true,
+      });
+    } else {
+      onEdit(event);
+    }
+  };
+
+  const handleDeleteClick = (e) => {
+    e.stopPropagation();
+    if (event.isHoliday) {
+      toast({
+        title: "Cannot delete public holiday.",
+        description: "Public holidays are fixed and cannot be removed.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+    onDelete(event.id);
+  };
+
+  return (
+    <Tooltip label={event.title} aria-label={event.title} openDelay={500}>
+      <Badge
+        colorScheme={colorScheme}
+        borderRadius="md"
+        px={2}
+        py={1}
+        mb={1}
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        cursor="pointer"
+        onClick={handleBadgeClick}
+        _hover={{ bg: `${colorScheme}.100` }}
+      >
+        <Box display="flex" alignItems="center">
+          {icon}
+          <Text fontSize="xs" fontWeight="bold">
+            {event.time !== "09:00" ? event.time : ""}
+          </Text>
+          <Text fontSize="xs" ml={event.time !== "09:00" ? 1 : 0}>
+            {truncatedTitle}
+          </Text>
+        </Box>
+        {!event.isHoliday && (
+          <IconButton
+            size="xs"
+            variant="ghost"
+            colorScheme="red"
+            aria-label="Delete event"
+            icon={<DeleteIcon />}
+            onClick={handleDeleteClick}
+          />
+        )}
+      </Badge>
+    </Tooltip>
+  );
+};
+// --- End New EventBadge Component ---
+
 const Calendar = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false); // New state for holiday modal
+  const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
   const [newEvent, setNewEvent] = useState({
     id: "",
     title: "",
@@ -241,14 +343,12 @@ const Calendar = () => {
   const [editingEventId, setEditingEventId] = useState(null);
   const toast = useToast();
 
-  // Load events from local storage and merge with holidays on initial render
   useEffect(() => {
     const storedEvents = localStorage.getItem("calendarEvents");
     let initialEvents = [];
     if (storedEvents) {
       initialEvents = JSON.parse(storedEvents);
     }
-    // Merge stored events with Philippine holidays. Ensure holidays are not duplicated if already present.
     const mergedEvents = [...initialEvents];
     philippineHolidays2025.forEach((holiday) => {
       if (
@@ -263,9 +363,7 @@ const Calendar = () => {
     setEvents(mergedEvents);
   }, []);
 
-  // Save events (excluding holidays) to local storage whenever they change
   useEffect(() => {
-    // Only save user-added events, not the pre-defined holidays
     const userEvents = events.filter((event) => !event.isHoliday);
     localStorage.setItem("calendarEvents", JSON.stringify(userEvents));
   }, [events]);
@@ -301,35 +399,12 @@ const Calendar = () => {
   };
 
   const handleEditEventClick = (event) => {
-    // Prevent editing of holidays through the regular event modal
-    if (event.isHoliday) {
-      toast({
-        title: "This is a public holiday.",
-        description: "Public holidays cannot be edited.",
-        status: "info",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
     setEditingEventId(event.id);
     setNewEvent({ ...event });
     setIsModalOpen(true);
   };
 
   const handleDeleteEvent = (id) => {
-    // Prevent deleting of holidays
-    const eventToDelete = events.find((event) => event.id === id);
-    if (eventToDelete && eventToDelete.isHoliday) {
-      toast({
-        title: "Cannot delete public holiday.",
-        description: "Public holidays are fixed and cannot be removed.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
     setEvents(events.filter((e) => e.id !== id));
     toast({
       title: "Event deleted.",
@@ -386,76 +461,10 @@ const Calendar = () => {
     return events
       .filter((e) => isSameDay(parseISO(e.date), day))
       .sort((a, b) => {
-        // Sort holidays first, then by time
         if (a.isHoliday && !b.isHoliday) return -1;
         if (!a.isHoliday && b.isHoliday) return 1;
         return a.time.localeCompare(b.time);
       });
-  };
-
-  const renderEventBadge = (event) => {
-    let colorScheme = "blue";
-    let icon = null;
-
-    if (event.isHoliday) {
-      colorScheme = "orange"; // Distinct color for holidays
-      icon = <StarIcon mr={1} />; // Star icon for holidays
-    } else {
-      switch (event.type) {
-        case "Shared":
-          colorScheme = "purple";
-          break;
-        case "Public":
-          colorScheme = "green";
-          break;
-        case "Archived":
-          colorScheme = "gray";
-          break;
-        default:
-          colorScheme = "blue";
-      }
-    }
-
-    return (
-      <Badge
-        key={event.id}
-        colorScheme={colorScheme}
-        borderRadius="md"
-        px={2}
-        py={1}
-        mb={1}
-        display="flex"
-        alignItems="center"
-        justifyContent="space-between"
-        cursor="pointer"
-        onClick={() => handleEditEventClick(event)} // Still allow click for holidays to show info toast
-        _hover={{ bg: `${colorScheme}.100` }}
-      >
-        <Box display="flex" alignItems="center">
-          {icon}
-          <Text fontSize="xs" fontWeight="bold">
-            {event.time !== "09:00" ? event.time : ""}
-          </Text>{" "}
-          {/* Hide default time for holidays */}
-          <Text fontSize="xs" ml={event.time !== "09:00" ? 1 : 0}>
-            {event.title}
-          </Text>
-        </Box>
-        {!event.isHoliday && ( // Only show delete button for non-holiday events
-          <IconButton
-            size="xs"
-            variant="ghost"
-            colorScheme="red"
-            aria-label="Delete event"
-            icon={<DeleteIcon />}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDeleteEvent(event.id);
-            }}
-          />
-        )}
-      </Badge>
-    );
   };
 
   return (
@@ -481,9 +490,8 @@ const Calendar = () => {
             w="full"
             justify="space-between"
           >
-            {" "}
             <Flex gap={2} mb={{ base: 4, md: 0 }}>
-              {["All events", "Shared", "Public", "Archived"].map((label) => (
+              {["All events", "Shared", "Public"].map((label) => (
                 <Button key={label} borderRadius="lg" variant="outline">
                   {label}
                 </Button>
@@ -505,20 +513,7 @@ const Calendar = () => {
                 onClick={goToNextMonth}
                 borderRadius="lg"
               />
-              <Menu>
-                <MenuButton
-                  as={Button}
-                  rightIcon={<ChevronRightIcon transform="rotate(90deg)" />}
-                  borderRadius="lg"
-                >
-                  Month view
-                </MenuButton>
-                <MenuList>
-                  <MenuItem>Day view</MenuItem>
-                  <MenuItem>Week view</MenuItem>
-                  <MenuItem>Month view</MenuItem>
-                </MenuList>
-              </Menu>
+              <Menu></Menu>
             </Flex>
             <Flex
               direction={{ base: "column", sm: "row" }}
@@ -592,7 +587,14 @@ const Calendar = () => {
                 <Flex direction="column" gap={1}>
                   {getEventsForDay(day)
                     .slice(0, 3)
-                    .map((event) => renderEventBadge(event))}
+                    .map((event) => (
+                      <EventBadge
+                        key={event.id}
+                        event={event}
+                        onEdit={handleEditEventClick}
+                        onDelete={handleDeleteEvent}
+                      />
+                    ))}
                 </Flex>
                 {getEventsForDay(day).length > 3 && (
                   <Text fontSize="xs" color="gray.500" mt={1}>
