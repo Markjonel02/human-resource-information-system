@@ -77,7 +77,7 @@ const App = () => {
                   <Route path="/documents" element={<Documents />} />
                   <Route path="/monitoring" element={<Monitoring />} />
                   <Route path="/timein" element={<TimeIn />} />
-                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/settings/*" element={<Settings />} />
                 </Routes>
               </Suspense>
             </Box>
