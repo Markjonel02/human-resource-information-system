@@ -10,6 +10,7 @@ import {
   Button,
   Tag,
   Avatar,
+  Tooltip,
   VStack,
   HStack,
   Divider,
@@ -130,9 +131,11 @@ const UpcomingSchedule = () => {
                   name={schedule.assignee.name}
                   src={schedule.assignee.avatar}
                 />
-                <Text fontSize="sm" color={subTextColor}>
-                  {schedule.assignee.name}
-                </Text>
+                <Tooltip label={schedule.assignee.name}>
+                  <Text fontSize="sm" color={subTextColor}>
+                    {`${schedule.assignee.name.substring(0, 5)}...`}
+                  </Text>
+                </Tooltip>
                 <Spacer />
                 <HStack spacing={1} alignItems="center">
                   <Text fontSize="sm" color={subTextColor}>
