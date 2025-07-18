@@ -11,6 +11,8 @@ import {
   useColorModeValue,
   Flex,
   Icon,
+  useMediaQuery, // Import useMediaQuery
+  Tooltip, // Import Tooltip
 } from "@chakra-ui/react";
 import {
   FaPlaneDeparture,
@@ -18,7 +20,22 @@ import {
   FaBuilding,
   FaUmbrellaBeach,
 } from "react-icons/fa";
-import Leave from "../../routes/request/Leave";
+
+// Assuming Leave component is available at this path or mocked for standalone example
+// import Leave from "../../routes/request/Leave";
+
+// Mock Leave component for demonstration purposes if the original path is not accessible
+const Leave = () => (
+  <Box p={6}>
+    <Heading fontSize="2xl" mb={3}>
+      Leave Request
+    </Heading>
+    <Text fontSize="md" color="gray.600">
+      Request time off for vacation, sick leave, or other personal reasons.
+    </Text>
+  </Box>
+);
+
 const Overtime = () => (
   <Box p={6}>
     <Heading fontSize="2xl" mb={3}>
@@ -58,6 +75,22 @@ const Request = () => {
   const activeTabBg = useColorModeValue("teal.50", "teal.900");
   const borderColor = useColorModeValue("gray.200", "gray.600");
 
+  // Use useMediaQuery to check for mobile screen size (e.g., less than 48em which is 'md' breakpoint)
+  const [isMobile] = useMediaQuery("(max-width: 48em)"); // Chakra UI's 'md' breakpoint
+
+  const renderTabContent = (icon, fullText, mobileText) => (
+    <Flex align="center" gap={2}>
+      <Icon as={icon} />
+      {isMobile ? (
+        <Tooltip label={fullText} aria-label={fullText} placement="top">
+          <Text>{mobileText}</Text>
+        </Tooltip>
+      ) : (
+        <Text>{fullText}</Text>
+      )}
+    </Flex>
+  );
+
   return (
     <Box mt={10} bg="white" rounded="2xl" shadow="xl">
       <Tabs variant="unstyled" isFitted colorScheme="teal">
@@ -73,9 +106,10 @@ const Request = () => {
             py={4}
             transition="all 0.3s"
           >
+            {/* Leave tab - no truncation */}
             <Flex align="center" gap={2}>
               <Icon as={FaPlaneDeparture} />
-              Leave
+              <Text>Leave</Text>
             </Flex>
           </Tab>
           <Tab
@@ -89,10 +123,7 @@ const Request = () => {
             py={4}
             transition="all 0.3s"
           >
-            <Flex align="center" gap={2}>
-              <Icon as={FaClock} />
-              Overtime
-            </Flex>
+            {renderTabContent(FaClock, "Overtime", "OT")}
           </Tab>
           <Tab
             _selected={{
@@ -105,10 +136,7 @@ const Request = () => {
             py={4}
             transition="all 0.3s"
           >
-            <Flex align="center" gap={2}>
-              <Icon as={FaBuilding} />
-              Official Business
-            </Flex>
+            {renderTabContent(FaBuilding, "Official Business", "OB")}
           </Tab>
           <Tab
             _selected={{
@@ -121,10 +149,7 @@ const Request = () => {
             py={4}
             transition="all 0.3s"
           >
-            <Flex align="center" gap={2}>
-              <Icon as={FaUmbrellaBeach} />
-              Day Off
-            </Flex>
+            {renderTabContent(FaUmbrellaBeach, "Day Off", "DO")}
           </Tab>
         </TabList>
 

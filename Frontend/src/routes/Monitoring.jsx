@@ -10,6 +10,8 @@ import {
   Text,
   VStack,
   useColorModeValue,
+  useBreakpointValue,
+  Tooltip, // Import Tooltip
 } from "@chakra-ui/react";
 
 const Monitoring = () => {
@@ -62,7 +64,8 @@ const Monitoring = () => {
     <Box
       bgGradient="linear(to-br, blue.50, indigo.100)"
       minH="100vh"
-      p={{ base: 4, md: 8 }}
+      p={{ base: 0, md: 8 }}
+      fontFamily="Inter, sans-serif" // Ensure Inter font is applied
     >
       <VStack spacing={6} textAlign="center" mb={10}>
         <Heading fontSize={{ base: "3xl", md: "5xl" }} color="blue.800">
@@ -92,19 +95,29 @@ const Monitoring = () => {
         >
           <TabList bg="blue.100" roundedTop="2xl">
             {tabData.map((tab, index) => (
-              <Tab
-                key={index}
-                _selected={{
-                  bg: "white",
-                  color: "blue.800",
-                  fontWeight: "bold",
-                  borderBottom: "4px solid",
-                  borderColor: "blue.600",
-                }}
-                _hover={{ bg: "blue.200" }}
-              >
-                {tab.label}
-              </Tab>
+              <Tooltip key={index} label={tab.label} hasArrow placement="top">
+                <Tab
+                  _selected={{
+                    bg: "white",
+                    color: "blue.800",
+                    fontWeight: "bold",
+                    borderBottom: "4px solid",
+                    borderColor: "blue.600",
+                  }}
+                  _hover={{ bg: "blue.200" }}
+                  // Add rounded corners to tabs
+                  borderRadius="md"
+                >
+                  {/* Conditional rendering for truncated text */}
+                  {useBreakpointValue({
+                    base:
+                      tab.label.length > 2
+                        ? `${tab.label.substring(0, 2)}...`
+                        : tab.label,
+                    md: tab.label,
+                  })}
+                </Tab>
+              </Tooltip>
             ))}
           </TabList>
 

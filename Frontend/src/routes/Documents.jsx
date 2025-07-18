@@ -13,6 +13,7 @@ import {
   Flex,
   Spacer,
   Button,
+  Tooltip,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -141,7 +142,7 @@ const Documents = () => {
       alignItems="flex-start"
     >
       <Box
-        w={{ base: "100%", md: "90%", lg: "100%" }}
+        w={{ base: "100%", md: "100%", lg: "100%" }}
         maxW="1200px"
         bg="white"
         p={{ base: 4, md: 8, lg: 0 }}
@@ -191,10 +192,18 @@ const Documents = () => {
               borderRadius="none"
               fontSize={{ base: "sm", md: "md" }}
             >
-              <HStack spacing={2}>
-                <Icon as={FaFileAlt} />
-                <Text>Policies & Memos</Text>
-              </HStack>
+              {" "}
+              <Tooltip label="Policies & Memos">
+                <HStack spacing={2} justify="center">
+                  <Icon as={FaFileAlt} />
+
+                  <Text display={{ base: "none", md: "inline" }}>
+                    Policies & Memos
+                  </Text>
+
+                  <Text display={{ base: "inline", md: "none" }}>Polic...</Text>
+                </HStack>
+              </Tooltip>
             </Tab>
             <Tab
               py={3}
@@ -209,10 +218,13 @@ const Documents = () => {
               borderRadius="none"
               fontSize={{ base: "sm", md: "md" }}
             >
-              <HStack spacing={2}>
-                <Icon as={FaExclamationTriangle} />
-                <Text>Offenses</Text>
-              </HStack>
+              <Tooltip label="Offenses">
+                <HStack spacing={2} justify="center">
+                  <Icon as={FaExclamationTriangle} />
+                  <Text display={{ base: "none", md: "inline" }}>Offenses</Text>
+                  <Text display={{ base: "inline", md: "none" }}>Offen...</Text>
+                </HStack>
+              </Tooltip>
             </Tab>
             <Tab
               py={3}
@@ -227,10 +239,15 @@ const Documents = () => {
               borderRadius="none"
               fontSize={{ base: "sm", md: "md" }}
             >
-              <HStack spacing={2}>
-                <Icon as={FaBan} />
-                <Text>Suspended</Text>
-              </HStack>
+              <Tooltip label="Suspended">
+                <HStack spacing={2} justify="center">
+                  <Icon as={FaBan} />
+                  <Text display={{ base: "none", md: "inline" }}>
+                    Suspended
+                  </Text>
+                  <Text display={{ base: "inline", md: "none" }}>Suspe...</Text>
+                </HStack>
+              </Tooltip>
             </Tab>
           </TabList>
           <TabPanels>
