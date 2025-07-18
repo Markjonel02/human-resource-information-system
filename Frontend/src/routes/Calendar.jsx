@@ -23,10 +23,12 @@ import {
   ModalBody,
   ModalCloseButton,
   FormControl,
+  useBreakpointValue,
   FormLabel,
-  List, // Added List for holiday modal
-  ListItem, // Added ListItem for holiday modal
-  ListIcon, // Added ListIcon for holiday modal
+  List,
+  ListItem,
+  Tooltip,
+  ListIcon,
 } from "@chakra-ui/react";
 import {
   ChevronLeftIcon,
@@ -34,7 +36,7 @@ import {
   SearchIcon,
   AddIcon,
   DeleteIcon,
-  StarIcon, // Added StarIcon for holidays
+  StarIcon,
 } from "@chakra-ui/icons";
 import {
   format,
@@ -60,7 +62,7 @@ const philippineHolidays2025 = [
     isHoliday: true,
     color: "#DD6B20",
     time: "09:00",
-  }, // Orange
+  },
   {
     id: generateUniqueId(),
     title: "Chinese New Year",
@@ -141,7 +143,7 @@ const philippineHolidays2025 = [
     isHoliday: true,
     color: "#DD6B20",
     time: "09:00",
-  }, // Approximate, actual date varies
+  },
   {
     id: generateUniqueId(),
     title: "Ninoy Aquino Day",
@@ -225,11 +227,114 @@ const philippineHolidays2025 = [
   },
 ];
 
+// --- New EventBadge Component ---
+const EventBadge = ({ event, onEdit, onDelete }) => {
+  const toast = useToast(); // Use toast inside this component as well
+
+  let colorScheme = "blue";
+  let icon = null;
+
+  if (event.isHoliday) {
+    colorScheme = "orange";
+    icon = <StarIcon mr={1} />;
+  } else {
+    switch (event.type) {
+      case "Shared":
+        colorScheme = "purple";
+        break;
+      case "Public":
+        colorScheme = "green";
+        break;
+      default:
+        colorScheme = "blue";
+    }
+  }
+
+  // Call useBreakpointValue here, inside the functional component
+  const truncatedTitle = useBreakpointValue({
+    base:
+      event.title.length > 1
+        ? `${event.title.substring(0, 1)}...`
+        : event.title,
+    md: event.title,
+  });
+
+  const handleBadgeClick = () => {
+    // Prevent editing of holidays through the regular event modal
+    if (event.isHoliday) {
+      toast({
+        title: "This is a public holiday.",
+        description: "Public holidays cannot be edited.",
+        status: "info",
+        duration: 3000,
+        isClosable: true,
+      });
+    } else {
+      onEdit(event);
+    }
+  };
+
+  const handleDeleteClick = (e) => {
+    e.stopPropagation(); // Prevent the badge click from firing
+    // Prevent deleting of holidays
+    if (event.isHoliday) {
+      toast({
+        title: "Cannot delete public holiday.",
+        description: "Public holidays are fixed and cannot be removed.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+    onDelete(event.id);
+  };
+
+  return (
+    <Badge
+      colorScheme={colorScheme}
+      borderRadius="md"
+      px={2}
+      py={1}
+      mb={1}
+      display="flex"
+      alignItems="center"
+      justifyContent="space-between"
+      cursor="pointer"
+      onClick={handleBadgeClick}
+      _hover={{ bg: `${colorScheme}.100` }}
+    >
+      <Box display="flex" alignItems="center">
+        {icon}
+        <Text fontSize="xs" fontWeight="bold">
+          {event.time !== "09:00" ? event.time : ""}
+        </Text>
+        <Tooltip label={event.name}>
+          <Text fontSize="xs" ml={event.time !== "09:00" ? 1 : 0}>
+            {truncatedTitle}
+          </Text>
+        </Tooltip>
+      </Box>
+      {!event.isHoliday && (
+        <IconButton
+          size="xs"
+          variant="ghost"
+          colorScheme="red"
+          aria-label="Delete event"
+          icon={<DeleteIcon />}
+          onClick={handleDeleteClick}
+        />
+      )}
+    </Badge>
+  );
+};
+// --- End New EventBadge Component ---
+
 const Calendar = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false); // New state for holiday modal
+  const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
   const [newEvent, setNewEvent] = useState({
     id: "",
     title: "",
@@ -241,14 +346,12 @@ const Calendar = () => {
   const [editingEventId, setEditingEventId] = useState(null);
   const toast = useToast();
 
-  // Load events from local storage and merge with holidays on initial render
   useEffect(() => {
     const storedEvents = localStorage.getItem("calendarEvents");
     let initialEvents = [];
     if (storedEvents) {
       initialEvents = JSON.parse(storedEvents);
     }
-    // Merge stored events with Philippine holidays. Ensure holidays are not duplicated if already present.
     const mergedEvents = [...initialEvents];
     philippineHolidays2025.forEach((holiday) => {
       if (
@@ -263,9 +366,7 @@ const Calendar = () => {
     setEvents(mergedEvents);
   }, []);
 
-  // Save events (excluding holidays) to local storage whenever they change
   useEffect(() => {
-    // Only save user-added events, not the pre-defined holidays
     const userEvents = events.filter((event) => !event.isHoliday);
     localStorage.setItem("calendarEvents", JSON.stringify(userEvents));
   }, [events]);
@@ -301,35 +402,14 @@ const Calendar = () => {
   };
 
   const handleEditEventClick = (event) => {
-    // Prevent editing of holidays through the regular event modal
-    if (event.isHoliday) {
-      toast({
-        title: "This is a public holiday.",
-        description: "Public holidays cannot be edited.",
-        status: "info",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
+    // This logic is now mostly handled within EventBadge, but kept for direct modal open
     setEditingEventId(event.id);
     setNewEvent({ ...event });
     setIsModalOpen(true);
   };
 
   const handleDeleteEvent = (id) => {
-    // Prevent deleting of holidays
-    const eventToDelete = events.find((event) => event.id === id);
-    if (eventToDelete && eventToDelete.isHoliday) {
-      toast({
-        title: "Cannot delete public holiday.",
-        description: "Public holidays are fixed and cannot be removed.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
+    // This logic is now mostly handled within EventBadge, but kept for direct deletion
     setEvents(events.filter((e) => e.id !== id));
     toast({
       title: "Event deleted.",
@@ -386,389 +466,323 @@ const Calendar = () => {
     return events
       .filter((e) => isSameDay(parseISO(e.date), day))
       .sort((a, b) => {
-        // Sort holidays first, then by time
         if (a.isHoliday && !b.isHoliday) return -1;
         if (!a.isHoliday && b.isHoliday) return 1;
         return a.time.localeCompare(b.time);
       });
   };
 
-  const renderEventBadge = (event) => {
-    let colorScheme = "blue";
-    let icon = null;
-
-    if (event.isHoliday) {
-      colorScheme = "orange"; // Distinct color for holidays
-      icon = <StarIcon mr={1} />; // Star icon for holidays
-    } else {
-      switch (event.type) {
-        case "Shared":
-          colorScheme = "purple";
-          break;
-        case "Public":
-          colorScheme = "green";
-          break;
-        /* case "Archived":
-          colorScheme = "gray";
-          break; */
-        default:
-          colorScheme = "blue";
-      }
-    }
-
-    return (
-      <Badge
-        key={event.id}
-        colorScheme={colorScheme}
-        borderRadius="md"
-        px={2}
-        py={1}
-        mb={1}
-        display="flex"
-        alignItems="center"
-        justifyContent="space-between"
-        cursor="pointer"
-        onClick={() => handleEditEventClick(event)} // Still allow click for holidays to show info toast
-        _hover={{ bg: `${colorScheme}.100` }}
-      >
-        <Box display="flex" alignItems="center">
-          {icon}
-          <Text fontSize="xs" fontWeight="bold">
-            {event.time !== "09:00" ? event.time : ""}
-          </Text>{" "}
-          {/* Hide default time for holidays */}
-          <Text fontSize="xs" ml={event.time !== "09:00" ? 1 : 0}>
-            {event.title}
-          </Text>
-        </Box>
-        {!event.isHoliday && ( // Only show delete button for non-holiday events
-          <IconButton
-            size="xs"
-            variant="ghost"
-            colorScheme="red"
-            aria-label="Delete event"
-            icon={<DeleteIcon />}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDeleteEvent(event.id);
-            }}
-          />
-        )}
-      </Badge>
-    );
-  };
-
   return (
-    <ChakraProvider>
-      <Box p={4} maxW="1200px" mx="auto">
-        <Flex justify="space-between" align="center" mb={6} wrap="wrap">
-          <Text fontSize="3xl" fontWeight="bold" mb={{ base: 4, md: 0 }}>
-            Calendar
-          </Text>
-          <InputGroup w={{ base: "100%", md: "300px" }}>
-            <InputLeftElement pointerEvents="none">
-              <SearchIcon color="gray.300" />
-            </InputLeftElement>
-            <Input type="text" placeholder="Search" borderRadius="lg" />
-          </InputGroup>
-        </Flex>
+    <Box p={4} maxW="1200px" mx="auto">
+      <Flex justify="space-between" align="center" mb={6} wrap="wrap">
+        <Text fontSize="3xl" fontWeight="bold" mb={{ base: 4, md: 0 }}>
+          Calendar
+        </Text>
+        <InputGroup w={{ base: "100%", md: "300px" }}>
+          <InputLeftElement pointerEvents="none">
+            <SearchIcon color="gray.300" />
+          </InputLeftElement>
+          <Input type="text" placeholder="Search" borderRadius="lg" />
+        </InputGroup>
+      </Flex>
 
-        <Flex mb={6} wrap="wrap">
+      <Flex mb={6} wrap="wrap">
+        <Flex
+          direction={{ base: "column", md: "row" }}
+          align={{ base: "center", md: "stetch" }}
+          gap={2}
+          w="full"
+          justify="space-between"
+        >
+          <Flex gap={2} mb={{ base: 4, md: 0 }}>
+            {["All events", "Shared", "Public"].map((label) => (
+              <Button key={label} borderRadius="lg" variant="outline">
+                {label}
+              </Button>
+            ))}
+          </Flex>
+          <Flex align="center" gap={2}>
+            <Text fontSize="lg" fontWeight="semibold">
+              {format(currentMonth, "MMMM yyyy")}
+            </Text>
+            <IconButton
+              aria-label="Previous month"
+              icon={<ChevronLeftIcon />}
+              onClick={goToPreviousMonth}
+              borderRadius="lg"
+            />
+            <IconButton
+              aria-label="Next month"
+              icon={<ChevronRightIcon />}
+              onClick={goToNextMonth}
+              borderRadius="lg"
+            />
+            <Menu>
+              <MenuButton
+                as={Button}
+                rightIcon={<ChevronRightIcon transform="rotate(90deg)" />}
+                borderRadius="lg"
+              >
+                Month view
+              </MenuButton>
+              <MenuList>
+                <MenuItem>Day view</MenuItem>
+                <MenuItem>Week view</MenuItem>
+                <MenuItem>Month view</MenuItem>
+              </MenuList>
+            </Menu>
+          </Flex>
           <Flex
-            direction={{ base: "column", md: "row" }}
-            align={{ base: "center", md: "stetch" }}
+            direction={{ base: "column", sm: "row" }}
+            w={{ base: "full", sm: "auto" }}
             gap={2}
-            w="full"
-            justify="space-between"
           >
-            {" "}
-            <Flex gap={2} mb={{ base: 4, md: 0 }}>
-              {["All events", "Shared", "Public"].map((label) => (
-                <Button key={label} borderRadius="lg" variant="outline" >
-                  {label}
-                </Button>
-              ))}
-            </Flex>
-            <Flex align="center" gap={2}>
-              <Text fontSize="lg" fontWeight="semibold">
-                {format(currentMonth, "MMMM yyyy")}
+            <Button
+              leftIcon={<AddIcon />}
+              colorScheme="blue"
+              borderRadius="lg"
+              onClick={() => handleAddEventClick()}
+              w={{ base: "full", sm: "auto" }}
+            >
+              Add event
+            </Button>
+            <Button
+              leftIcon={<StarIcon />}
+              colorScheme="orange"
+              borderRadius="lg"
+              onClick={() => setIsHolidayModalOpen(true)}
+              w={{ base: "full", sm: "auto" }}
+            >
+              View Holidays
+            </Button>
+          </Flex>
+        </Flex>
+      </Flex>
+
+      <Box
+        border="1px"
+        borderColor="gray.200"
+        borderRadius="lg"
+        overflow="hidden"
+      >
+        <Flex bg="gray.50" borderBottom="1px" borderColor="gray.200">
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+            <Box
+              key={day}
+              flex="1"
+              p={2}
+              textAlign="center"
+              fontWeight="bold"
+              fontSize="sm"
+            >
+              {day}
+            </Box>
+          ))}
+        </Flex>
+        <Box display="grid" gridTemplateColumns="repeat(7, 1fr)">
+          {daysInMonth.map((day, index) => (
+            <Box
+              key={index}
+              border="1px"
+              borderColor="gray.100"
+              minH="120px"
+              p={2}
+              opacity={isSameMonth(day, currentMonth) ? 1 : 0.5}
+              bg={isToday(day) ? "blue.50" : "white"}
+              position="relative"
+              _hover={{ bg: "gray.50" }}
+              onClick={() => handleAddEventClick(day)}
+            >
+              <Text
+                fontWeight="bold"
+                fontSize="lg"
+                color={isToday(day) ? "blue.700" : "gray.700"}
+                mb={2}
+              >
+                {format(day, "d")}
               </Text>
-              <IconButton
-                aria-label="Previous month"
-                icon={<ChevronLeftIcon />}
-                onClick={goToPreviousMonth}
-                borderRadius="lg"
+              <Flex direction="column" gap={1}>
+                {getEventsForDay(day)
+                  .slice(0, 3)
+                  .map((event) => (
+                    <EventBadge // Render the new component
+                      key={event.id}
+                      event={event}
+                      onEdit={handleEditEventClick}
+                      onDelete={handleDeleteEvent}
+                    />
+                  ))}
+              </Flex>
+              {getEventsForDay(day).length > 3 && (
+                <Text fontSize="xs" color="gray.500" mt={1}>
+                  {getEventsForDay(day).length - 3} more...
+                </Text>
+              )}
+            </Box>
+          ))}
+        </Box>
+      </Box>
+
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+        <ModalOverlay />
+        <ModalContent borderRadius="lg">
+          <ModalHeader>
+            {editingEventId ? "Edit Event" : "Add New Event"}
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <FormControl isRequired mb={4}>
+              <FormLabel>Event Title</FormLabel>
+              <Input
+                placeholder="Event Title"
+                value={newEvent.title}
+                onChange={(e) =>
+                  setNewEvent({ ...newEvent, title: e.target.value })
+                }
+                borderRadius="md"
               />
-              <IconButton
-                aria-label="Next month"
-                icon={<ChevronRightIcon />}
-                onClick={goToNextMonth}
-                borderRadius="lg"
+            </FormControl>
+            <FormControl isRequired mb={4}>
+              <FormLabel>Date</FormLabel>
+              <Input
+                type="date"
+                value={newEvent.date}
+                onChange={(e) =>
+                  setNewEvent({ ...newEvent, date: e.target.value })
+                }
+                borderRadius="md"
               />
+            </FormControl>
+            <FormControl isRequired mb={4}>
+              <FormLabel>Time</FormLabel>
+              <Input
+                type="time"
+                value={newEvent.time}
+                onChange={(e) =>
+                  setNewEvent({ ...newEvent, time: e.target.value })
+                }
+                borderRadius="md"
+              />
+            </FormControl>
+            <FormControl mb={4}>
+              <FormLabel>Type</FormLabel>
               <Menu>
                 <MenuButton
                   as={Button}
                   rightIcon={<ChevronRightIcon transform="rotate(90deg)" />}
-                  borderRadius="lg"
+                  width="100%"
+                  borderRadius="md"
                 >
-                  Month view
+                  {newEvent.type}
                 </MenuButton>
                 <MenuList>
-                  <MenuItem>Day view</MenuItem>
-                  <MenuItem>Week view</MenuItem>
-                  <MenuItem>Month view</MenuItem>
+                  <MenuItem
+                    onClick={() =>
+                      setNewEvent({
+                        ...newEvent,
+                        type: "All events",
+                        color: "#3182CE",
+                      })
+                    }
+                  >
+                    All events
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() =>
+                      setNewEvent({
+                        ...newEvent,
+                        type: "Shared",
+                        color: "#805AD5",
+                      })
+                    }
+                  >
+                    Shared
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() =>
+                      setNewEvent({
+                        ...newEvent,
+                        type: "Public",
+                        color: "#38A169",
+                      })
+                    }
+                  >
+                    Public
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() =>
+                      setNewEvent({
+                        ...newEvent,
+                        type: "Archived",
+                        color: "#A0AEC0",
+                      })
+                    }
+                  >
+                    Archived
+                  </MenuItem>
                 </MenuList>
               </Menu>
-            </Flex>
-            <Flex
-              direction={{ base: "column", sm: "row" }}
-              w={{ base: "full", sm: "auto" }}
-              gap={2}
+            </FormControl>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              colorScheme="blue"
+              mr={3}
+              onClick={handleSaveEvent}
+              borderRadius="md"
             >
-              <Button
-                leftIcon={<AddIcon />}
-                colorScheme="blue"
-                borderRadius="lg"
-                onClick={() => handleAddEventClick()}
-                w={{ base: "full", sm: "auto" }}
-              >
-                Add event
-              </Button>
-              <Button
-                leftIcon={<StarIcon />}
-                colorScheme="orange"
-                borderRadius="lg"
-                onClick={() => setIsHolidayModalOpen(true)}
-                w={{ base: "full", sm: "auto" }}
-              >
-                View Holidays
-              </Button>
-            </Flex>
-          </Flex>
-        </Flex>
+              {editingEventId ? "Update" : "Save"}
+            </Button>
+            <Button onClick={() => setIsModalOpen(false)} borderRadius="md">
+              Cancel
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
-        <Box
-          border="1px"
-          borderColor="gray.200"
-          borderRadius="lg"
-          overflow="hidden"
-        >
-          <Flex bg="gray.50" borderBottom="1px" borderColor="gray.200">
-            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-              <Box
-                key={day}
-                flex="1"
-                p={2}
-                textAlign="center"
-                fontWeight="bold"
-                fontSize="sm"
-              >
-                {day}
-              </Box>
-            ))}
-          </Flex>
-          <Box display="grid" gridTemplateColumns="repeat(7, 1fr)">
-            {daysInMonth.map((day, index) => (
-              <Box
-                key={index}
-                border="1px"
-                borderColor="gray.100"
-                minH="120px"
-                p={2}
-                opacity={isSameMonth(day, currentMonth) ? 1 : 0.5}
-                bg={isToday(day) ? "blue.50" : "white"}
-                position="relative"
-                _hover={{ bg: "gray.50" }}
-                onClick={() => handleAddEventClick(day)}
-              >
-                <Text
-                  fontWeight="bold"
-                  fontSize="lg"
-                  color={isToday(day) ? "blue.700" : "gray.700"}
-                  mb={2}
-                >
-                  {format(day, "d")}
-                </Text>
-                <Flex direction="column" gap={1}>
-                  {getEventsForDay(day)
-                    .slice(0, 3)
-                    .map((event) => renderEventBadge(event))}
-                </Flex>
-                {getEventsForDay(day).length > 3 && (
-                  <Text fontSize="xs" color="gray.500" mt={1}>
-                    {getEventsForDay(day).length - 3} more...
-                  </Text>
-                )}
-              </Box>
-            ))}
-          </Box>
-        </Box>
-
-        <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-          <ModalOverlay />
-          <ModalContent borderRadius="lg">
-            <ModalHeader>
-              {editingEventId ? "Edit Event" : "Add New Event"}
-            </ModalHeader>
-            <ModalCloseButton />
-            <ModalBody pb={6}>
-              <FormControl isRequired mb={4}>
-                <FormLabel>Event Title</FormLabel>
-                <Input
-                  placeholder="Event Title"
-                  value={newEvent.title}
-                  onChange={(e) =>
-                    setNewEvent({ ...newEvent, title: e.target.value })
-                  }
-                  borderRadius="md"
-                />
-              </FormControl>
-              <FormControl isRequired mb={4}>
-                <FormLabel>Date</FormLabel>
-                <Input
-                  type="date"
-                  value={newEvent.date}
-                  onChange={(e) =>
-                    setNewEvent({ ...newEvent, date: e.target.value })
-                  }
-                  borderRadius="md"
-                />
-              </FormControl>
-              <FormControl isRequired mb={4}>
-                <FormLabel>Time</FormLabel>
-                <Input
-                  type="time"
-                  value={newEvent.time}
-                  onChange={(e) =>
-                    setNewEvent({ ...newEvent, time: e.target.value })
-                  }
-                  borderRadius="md"
-                />
-              </FormControl>
-              <FormControl mb={4}>
-                <FormLabel>Type</FormLabel>
-                <Menu>
-                  <MenuButton
-                    as={Button}
-                    rightIcon={<ChevronRightIcon transform="rotate(90deg)" />}
-                    width="100%"
-                    borderRadius="md"
-                  >
-                    {newEvent.type}
-                  </MenuButton>
-                  <MenuList>
-                    <MenuItem
-                      onClick={() =>
-                        setNewEvent({
-                          ...newEvent,
-                          type: "All events",
-                          color: "#3182CE",
-                        })
-                      }
-                    >
-                      All events
-                    </MenuItem>
-                    <MenuItem
-                      onClick={() =>
-                        setNewEvent({
-                          ...newEvent,
-                          type: "Shared",
-                          color: "#805AD5",
-                        })
-                      }
-                    >
-                      Shared
-                    </MenuItem>
-                    <MenuItem
-                      onClick={() =>
-                        setNewEvent({
-                          ...newEvent,
-                          type: "Public",
-                          color: "#38A169",
-                        })
-                      }
-                    >
-                      Public
-                    </MenuItem>
-                    <MenuItem
-                      onClick={() =>
-                        setNewEvent({
-                          ...newEvent,
-                          type: "Archived",
-                          color: "#A0AEC0",
-                        })
-                      }
-                    >
-                      Archived
-                    </MenuItem>
-                  </MenuList>
-                </Menu>
-              </FormControl>
-            </ModalBody>
-            <ModalFooter>
-              <Button
-                colorScheme="blue"
-                mr={3}
-                onClick={handleSaveEvent}
-                borderRadius="md"
-              >
-                {editingEventId ? "Update" : "Save"}
-              </Button>
-              <Button onClick={() => setIsModalOpen(false)} borderRadius="md">
-                Cancel
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-
-        {/* Holiday List Modal */}
-        <Modal
-          isOpen={isHolidayModalOpen}
-          onClose={() => setIsHolidayModalOpen(false)}
-          size="md"
-        >
-          <ModalOverlay />
-          <ModalContent borderRadius="lg">
-            <ModalHeader>Philippine Holidays 2025</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              <List spacing={3}>
-                {philippineHolidays2025
-                  .sort(
-                    (a, b) =>
-                      parseISO(a.date).getTime() - parseISO(b.date).getTime()
-                  )
-                  .map((holiday) => (
-                    <ListItem
-                      key={holiday.id}
-                      display="flex"
-                      alignItems="center"
-                    >
-                      <ListIcon as={StarIcon} color="orange.500" />
-                      <Text fontWeight="semibold">
-                        {format(parseISO(holiday.date), "MMM d")}:
-                      </Text>
-                      <Text ml={2}>{holiday.title}</Text>
-                    </ListItem>
-                  ))}
-              </List>
-              <Text fontSize="sm" color="gray.500" mt={4}>
-                *Dates for some holidays (e.g., Eid'l Adha) are approximate and
-                subject to official declaration.
-              </Text>
-            </ModalBody>
-            <ModalFooter>
-              <Button
-                onClick={() => setIsHolidayModalOpen(false)}
-                borderRadius="md"
-              >
-                Close
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-      </Box>
-    </ChakraProvider>
+      {/* Holiday List Modal */}
+      <Modal
+        isOpen={isHolidayModalOpen}
+        onClose={() => setIsHolidayModalOpen(false)}
+        size="md"
+      >
+        <ModalOverlay />
+        <ModalContent borderRadius="lg">
+          <ModalHeader>Philippine Holidays 2025</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <List spacing={3}>
+              {philippineHolidays2025
+                .sort(
+                  (a, b) =>
+                    parseISO(a.date).getTime() - parseISO(b.date).getTime()
+                )
+                .map((holiday) => (
+                  <ListItem key={holiday.id} display="flex" alignItems="center">
+                    <ListIcon as={StarIcon} color="orange.500" />
+                    <Text fontWeight="semibold">
+                      {format(parseISO(holiday.date), "MMM d")}:
+                    </Text>
+                    <Text ml={2}>{holiday.title}</Text>
+                  </ListItem>
+                ))}
+            </List>
+            <Text fontSize="sm" color="gray.500" mt={4}>
+              *Dates for some holidays (e.g., Eid'l Adha) are approximate and
+              subject to official declaration.
+            </Text>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              onClick={() => setIsHolidayModalOpen(false)}
+              borderRadius="md"
+            >
+              Close
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </Box>
   );
 };
 
