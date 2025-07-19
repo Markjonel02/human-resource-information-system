@@ -1,10 +1,10 @@
 const mongoose = require("mongoose");
-const bcyrpt = require("bcrypt");
-const { MaxKey } = require("bson");
+const bcrypt = require("bcrypt"); // Corrected typo from bcyrpt
+
 const UserSchema = new mongoose.Schema({
   firstname: { type: String, required: true },
   lastname: { type: String, required: true },
-  username: { type: String, required: true },
+  username: { type: String, required: true, unique: true }, // Added unique constraint for username
   suffix: { type: String },
   prefix: { type: String },
   password: { type: String, required: true },
@@ -29,16 +29,14 @@ const UserSchema = new mongoose.Schema({
   },
   religion: {
     type: String,
-    enum: ["catholic", "christian", "others"],
+    enum: ["catholic", "christian", "others"], // Consider making 'others' more flexible if needed
     required: true,
   },
-  age: { type: Number, required: true },
+  age: { type: Number, required: true }, // This will be calculated in pre-save hook
   presentAddress: { type: String, required: true },
   province: { type: String, required: true },
   town: { type: String, required: true },
-
   city: { type: String, required: true },
-
   mobileNumber: { type: String, required: true, match: /^09\d{9}$/ },
   employeeEmail: {
     type: String,
@@ -86,21 +84,19 @@ const UserSchema = new mongoose.Schema({
   tinNumber: { type: Number, required: true },
   sssNumber: { type: Number, required: true },
   philhealthNumber: { type: Number, required: true },
-  shcoolName: { type: String },
+  shcoolName: { type: String }, // Typo: Should be schoolName
   degree: { type: String },
   educationalAttainment: { type: String },
   educationFromYear: {
     type: String,
-
     match: /^\d{4}$/,
   },
   educationToYear: {
     type: String,
-
     match: /^\d{4}$/,
   },
   achievements: { type: String },
-  dependants: { type: String },
+  dependants: { type: String }, // Consider making this an array of objects for multiple dependents
   dependentsRelation: { type: String },
   dependentbirthDate: { type: Date },
   employerName: { type: String },
@@ -108,22 +104,33 @@ const UserSchema = new mongoose.Schema({
   prevPosition: { type: String },
   employmentfromDate: { type: String, match: /^\d{4}$/ },
   employmenttoDate: { type: String, match: /^\d{4}$/ },
+  // Added for authorization roles
+  role: {
+    type: String,
+    enum: ["employee", "manager", "admin"],
+    default: "employee",
+  },
 });
 
-// Hash password before saving
+// Hash password before saving and calculate age
 UserSchema.pre("save", async function (next) {
-  const age = today.getFullYear() - this.birthday.getFullYear();
+  // Calculate age based on birthday
+  const today = new Date();
+  let age = today.getFullYear() - this.birthday.getFullYear();
   const monthDiff = today.getMonth() - this.birthday.getMonth();
   const dayDiff = today.getDate() - this.birthday.getDate();
+
   if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
     age--;
   }
-  if (age < 18) {
+  this.age = age; // Set the age field
+
+  if (this.age < 18) {
     return next(new Error("User must be at least 18 years old!"));
   }
 
   // Password hashing
-  if (!this.isModified("password")) return next();
+  if (!this.isModified("password")) return next(); // Only hash if password is new or modified
 
   try {
     const saltRounds = 10;
@@ -134,5 +141,14 @@ UserSchema.pre("save", async function (next) {
     next(err);
   }
 });
+
+// Method to compare password (for login)
+UserSchema.methods.comparePassword = async function (candidatePassword) {
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    throw new Error(error);
+  }
+};
 
 module.exports = mongoose.model("User", UserSchema);
