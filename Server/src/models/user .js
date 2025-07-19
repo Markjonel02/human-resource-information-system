@@ -5,8 +5,8 @@ const UserSchema = new mongoose.Schema({
   firstname: { type: String, required: true },
   lastname: { type: String, required: true },
   username: { type: String, required: true },
-  suffix: { type: String, required: true },
-  prefix: { type: String, required: true },
+  suffix: { type: String },
+  prefix: { type: String },
   password: { type: String, required: true },
   gender: {
     type: String,
@@ -15,7 +15,7 @@ const UserSchema = new mongoose.Schema({
   },
   birthday: { type: Date, required: true },
   nationality: { type: String, required: true },
-  sivilstatus: {
+  civilStatus: {
     type: String,
     enum: [
       "single",
@@ -34,9 +34,11 @@ const UserSchema = new mongoose.Schema({
   },
   age: { type: Number, required: true },
   presentAddress: { type: String, required: true },
-  province: { type: String, rquired: true },
+  province: { type: String, required: true },
+  town: { type: String, required: true },
+
   city: { type: String, required: true },
-  town: { type: String, rquired: true },
+
   mobileNumber: { type: String, required: true, match: /^09\d{9}$/ },
   employeeEmail: {
     type: String,
@@ -84,36 +86,38 @@ const UserSchema = new mongoose.Schema({
   tinNumber: { type: Number, required: true },
   sssNumber: { type: Number, required: true },
   philhealthNumber: { type: Number, required: true },
-  shoolName: { type: String, required: true },
-  degree: { type: String, required: true },
-  educationalAttainment: { type: String, required: true },
+  shcoolName: { type: String },
+  degree: { type: String },
+  educationalAttainment: { type: String },
   educationFromYear: {
     type: String,
-    required: true,
+
     match: /^\d{4}$/,
   },
   educationToYear: {
     type: String,
-    required: true,
+
     match: /^\d{4}$/,
   },
-  achivements: { type: String, required: true },
-  dependants: { type: String, required: true },
-  dependatsRelation: { type: String, required: true },
-  dependantbirthDate: { type: Date, required: true },
-  employerName: { type: String, required: true },
-  employeeAddress: { type: String, required: true },
-  prevPosition: { type: String, required: true },
-  employmentfromDate: { type: String, required: true, match: /^\d{4}$/ },
-  employmenttoDate: { type: String, required: true, match: /^\d{4}$/ },
+  achievements: { type: String },
+  dependants: { type: String },
+  dependentsRelation: { type: String },
+  dependentbirthDate: { type: Date },
+  employerName: { type: String },
+  employeeAddress: { type: String },
+  prevPosition: { type: String },
+  employmentfromDate: { type: String, match: /^\d{4}$/ },
+  employmenttoDate: { type: String, match: /^\d{4}$/ },
 });
 
 // Hash password before saving
 UserSchema.pre("save", async function (next) {
-  const today = new Date();
-
-  // Age validation first
   const age = today.getFullYear() - this.birthday.getFullYear();
+  const monthDiff = today.getMonth() - this.birthday.getMonth();
+  const dayDiff = today.getDate() - this.birthday.getDate();
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    age--;
+  }
   if (age < 18) {
     return next(new Error("User must be at least 18 years old!"));
   }
@@ -131,4 +135,4 @@ UserSchema.pre("save", async function (next) {
   }
 });
 
-module.exports = ("User", UserSchema);
+module.exports = mongoose.model("User", UserSchema);
