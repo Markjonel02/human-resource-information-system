@@ -1,6 +1,8 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const dotenv = require("dotenv");
+dotenv.config();
 const connectDB = require("./config/connection.js");
 const app = express();
 const port = 3000;
@@ -9,6 +11,7 @@ const port = 3000;
 app.use(express.json());
 app.use(bodyParser.json);
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cors());
 
 /* routes */
 app.get("/", (req, res) => {

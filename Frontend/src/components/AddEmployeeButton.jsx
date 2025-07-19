@@ -411,6 +411,16 @@ const AddEmployeeButton = () => {
                   focusBorderColor="blue.400"
                 />
               </FormControl>
+              <FormControl id="province" isRequired>
+                <FormLabel>Province</FormLabel>
+                <Input
+                  placeholder="Enter province"
+                  value={province}
+                  onChange={(e) => setProvince(e.target.value)}
+                  borderRadius="lg"
+                  focusBorderColor="blue.400"
+                />
+              </FormControl>
               <FormControl id="city" isRequired>
                 <FormLabel>City</FormLabel>
                 <Input
@@ -427,16 +437,6 @@ const AddEmployeeButton = () => {
                   placeholder="Enter town"
                   value={town}
                   onChange={(e) => setTown(e.target.value)}
-                  borderRadius="lg"
-                  focusBorderColor="blue.400"
-                />
-              </FormControl>
-              <FormControl id="province" isRequired>
-                <FormLabel>Province</FormLabel>
-                <Input
-                  placeholder="Enter province"
-                  value={province}
-                  onChange={(e) => setProvince(e.target.value)}
                   borderRadius="lg"
                   focusBorderColor="blue.400"
                 />
