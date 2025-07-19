@@ -1,16 +1,136 @@
 const mongoose = require("mongoose");
-const bcyrpt = require("bcrypt");
+const bcrypt = require("bcrypt"); // Corrected typo from bcyrpt
+
 const UserSchema = new mongoose.Schema({
-  name: { type: String, required: true },
+  firstname: { type: String, required: true },
   lastname: { type: String, required: true },
-  useername: { type: String, required: true },
+  username: { type: String, required: true, unique: true }, // Added unique constraint for username
+  suffix: { type: String },
+  prefix: { type: String },
   password: { type: String, required: true },
-  email: {},
+  gender: {
+    type: String,
+    enum: ["male", "female", "nonbinary", "prefer not to say"],
+    default: "prefer not to say",
+  },
+  birthday: { type: Date, required: true },
+  nationality: { type: String, required: true },
+  civilStatus: {
+    type: String,
+    enum: [
+      "single",
+      "married",
+      "widowed",
+      "divorced",
+      "annulled",
+      "legally separated",
+    ],
+    required: true,
+  },
+  religion: {
+    type: String,
+    enum: ["catholic", "christian", "others"], // Consider making 'others' more flexible if needed
+    required: true,
+  },
+  age: { type: Number, required: true }, // This will be calculated in pre-save hook
+  presentAddress: { type: String, required: true },
+  province: { type: String, required: true },
+  town: { type: String, required: true },
+  city: { type: String, required: true },
+  mobileNumber: { type: String, required: true, match: /^09\d{9}$/ },
+  employeeEmail: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+    match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+  },
+  companyName: { type: String, required: true },
+  employeeId: {
+    type: String,
+    required: true,
+    unique: true, // Prevent duplicate entries
+    trim: true, // Removes accidental leading/trailing spaces
+    match: /^EMP-\d{4}$/,
+  },
+  jobposition: { type: String, required: true },
+  corporaterank: {
+    type: String,
+    required: true,
+    enum: [
+      "managerial employees",
+      "managerial staff",
+      "supervisory employees",
+      "rank-and-file employee",
+    ],
+  },
+  jobStatus: {
+    type: String,
+    required: true,
+    enum: ["probisionary", "regular"],
+  },
+  location: { type: String, required: true },
+  businessUnit: { type: String, required: true },
+  department: { type: String, required: true },
+  head: { type: String, required: true },
+  employeeStatus: {
+    type: Number,
+    required: true,
+    enum: [0, 1], // 0 = Inactive, 1 = Active
+  },
+  salaryRate: { type: Number, required: true },
+  bankAccountNumber: { type: Number, required: true },
+  tinNumber: { type: Number, required: true },
+  sssNumber: { type: Number, required: true },
+  philhealthNumber: { type: Number, required: true },
+  shcoolName: { type: String }, // Typo: Should be schoolName
+  degree: { type: String },
+  educationalAttainment: { type: String },
+  educationFromYear: {
+    type: String,
+    match: /^\d{4}$/,
+  },
+  educationToYear: {
+    type: String,
+    match: /^\d{4}$/,
+  },
+  achievements: { type: String },
+  dependants: { type: String }, // Consider making this an array of objects for multiple dependents
+  dependentsRelation: { type: String },
+  dependentbirthDate: { type: Date },
+  employerName: { type: String },
+  employeeAddress: { type: String },
+  prevPosition: { type: String },
+  employmentfromDate: { type: String, match: /^\d{4}$/ },
+  employmenttoDate: { type: String, match: /^\d{4}$/ },
+  // Added for authorization roles
+  role: {
+    type: String,
+    enum: ["employee", "manager", "admin"],
+    default: "employee",
+  },
 });
 
-// Hash password before saving
+// Hash password before saving and calculate age
 UserSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next(); // Skip if password is unchanged
+  // Calculate age based on birthday
+  const today = new Date();
+  let age = today.getFullYear() - this.birthday.getFullYear();
+  const monthDiff = today.getMonth() - this.birthday.getMonth();
+  const dayDiff = today.getDate() - this.birthday.getDate();
+
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    age--;
+  }
+  this.age = age; // Set the age field
+
+  if (this.age < 18) {
+    return next(new Error("User must be at least 18 years old!"));
+  }
+
+  // Password hashing
+  if (!this.isModified("password")) return next(); // Only hash if password is new or modified
 
   try {
     const saltRounds = 10;
@@ -21,4 +141,14 @@ UserSchema.pre("save", async function (next) {
     next(err);
   }
 });
-module.exports = mongoose.model("Users", UserSchema);
+
+// Method to compare password (for login)
+UserSchema.methods.comparePassword = async function (candidatePassword) {
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    throw new Error(error);
+  }
+};
+
+module.exports = mongoose.model("User", UserSchema);

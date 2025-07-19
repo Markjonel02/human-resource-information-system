@@ -20,6 +20,7 @@ import {
   SimpleGrid, // Import SimpleGrid for multi-column layout
 } from "@chakra-ui/react";
 import { PlusCircle } from "lucide-react"; // Using lucide-react for the icon
+import { use } from "react";
 
 const AddEmployeeButton = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -41,7 +42,8 @@ const AddEmployeeButton = () => {
   const [province, setProvince] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [email, setEmail] = useState("");
-
+  const [suffix, setSuffix] = useState("");
+  const [prefix, setPrefix] = useState("");
   // States for Corporate Details
   const [companyName, setCompanyName] = useState("");
   const [employeeId, setEmployeeId] = useState("");
@@ -88,6 +90,8 @@ const AddEmployeeButton = () => {
       firstName,
       lastName,
       middleInitial,
+      suffix,
+      prefix,
       gender,
       birthday,
       nationality,
@@ -146,6 +150,8 @@ const AddEmployeeButton = () => {
     setFirstName("");
     setLastName("");
     setMiddleInitial("");
+    setSuffix("");
+    setPrefix("");
     setGender("");
     setBirthday("");
     setNationality("");
@@ -325,7 +331,26 @@ const AddEmployeeButton = () => {
                   focusBorderColor="blue.400"
                 />
               </FormControl>
-
+              <FormControl id="suffix">
+                <FormLabel>Suffix</FormLabel>
+                <Input
+                  placeholder=" ex: Jr,Sr,II and etc..."
+                  value={suffix}
+                  onChange={(e) => setSuffix(e.target.value)}
+                  borderRadius="lg"
+                  focusBorderColor="blue.400"
+                />
+              </FormControl>
+              <FormControl id="prefix">
+                <FormLabel>Prefix</FormLabel>
+                <Input
+                  placeholder=" ex:Mr,Ms,Msr,and etc... "
+                  value={prefix}
+                  onChange={(e) => setPrefix(e.target.value)}
+                  borderRadius="lg"
+                  focusBorderColor="blue.400"
+                />
+              </FormControl>
               <FormControl id="gender" isRequired>
                 <FormLabel>Gender</FormLabel>
                 <Select
@@ -411,6 +436,16 @@ const AddEmployeeButton = () => {
                   focusBorderColor="blue.400"
                 />
               </FormControl>
+              <FormControl id="province" isRequired>
+                <FormLabel>Province</FormLabel>
+                <Input
+                  placeholder="Enter province"
+                  value={province}
+                  onChange={(e) => setProvince(e.target.value)}
+                  borderRadius="lg"
+                  focusBorderColor="blue.400"
+                />
+              </FormControl>
               <FormControl id="city" isRequired>
                 <FormLabel>City</FormLabel>
                 <Input
@@ -427,16 +462,6 @@ const AddEmployeeButton = () => {
                   placeholder="Enter town"
                   value={town}
                   onChange={(e) => setTown(e.target.value)}
-                  borderRadius="lg"
-                  focusBorderColor="blue.400"
-                />
-              </FormControl>
-              <FormControl id="province" isRequired>
-                <FormLabel>Province</FormLabel>
-                <Input
-                  placeholder="Enter province"
-                  value={province}
-                  onChange={(e) => setProvince(e.target.value)}
                   borderRadius="lg"
                   focusBorderColor="blue.400"
                 />
@@ -646,7 +671,7 @@ const AddEmployeeButton = () => {
               </FormControl>
 
               {/* Educational Background Fields */}
-              <FormControl id="school-name" isRequired>
+              <FormControl id="school-name">
                 <FormLabel>School Name</FormLabel>
                 <Input
                   placeholder="Enter school name"
@@ -656,7 +681,7 @@ const AddEmployeeButton = () => {
                   focusBorderColor="blue.400"
                 />
               </FormControl>
-              <FormControl id="degree" isRequired>
+              <FormControl id="degree">
                 <FormLabel>Degree</FormLabel>
                 <Input
                   placeholder="Enter degree"
@@ -666,7 +691,7 @@ const AddEmployeeButton = () => {
                   focusBorderColor="blue.400"
                 />
               </FormControl>
-              <FormControl id="educational-attainment" isRequired>
+              <FormControl id="educational-attainment">
                 <FormLabel>Educational Attainment</FormLabel>
                 <Input
                   placeholder="e.g., College Graduate, Master's Degree"
@@ -676,7 +701,7 @@ const AddEmployeeButton = () => {
                   focusBorderColor="blue.400"
                 />
               </FormControl>
-              <FormControl id="education-from" isRequired>
+              <FormControl id="education-from">
                 <FormLabel>Education From (Year)</FormLabel>
                 <Input
                   type="number"
@@ -687,7 +712,7 @@ const AddEmployeeButton = () => {
                   focusBorderColor="blue.400"
                 />
               </FormControl>
-              <FormControl id="education-to" isRequired>
+              <FormControl id="education-to">
                 <FormLabel>Education To (Year)</FormLabel>
                 <Input
                   type="number"
@@ -710,7 +735,7 @@ const AddEmployeeButton = () => {
               </FormControl>
 
               {/* Dependants Fields */}
-              <FormControl id="dependant-name" isRequired>
+              <FormControl id="dependant-name">
                 <FormLabel>Dependant Name</FormLabel>
                 <Input
                   placeholder="Enter dependant's name"
@@ -720,7 +745,7 @@ const AddEmployeeButton = () => {
                   focusBorderColor="blue.400"
                 />
               </FormControl>
-              <FormControl id="dependant-relationship" isRequired>
+              <FormControl id="dependant-relationship">
                 <FormLabel>Dependant Relationship</FormLabel>
                 <Input
                   placeholder="e.g., Son, Daughter, Spouse"
@@ -730,7 +755,7 @@ const AddEmployeeButton = () => {
                   focusBorderColor="blue.400"
                 />
               </FormControl>
-              <FormControl id="dependant-birthdate" isRequired>
+              <FormControl id="dependant-birthdate">
                 <FormLabel>Dependant Birthdate</FormLabel>
                 <Input
                   type="date"
@@ -742,7 +767,7 @@ const AddEmployeeButton = () => {
               </FormControl>
 
               {/* Employment History Fields */}
-              <FormControl id="employer-name" isRequired>
+              <FormControl id="employer-name">
                 <FormLabel>Employer Name</FormLabel>
                 <Input
                   placeholder="Enter previous employer name"
@@ -752,7 +777,7 @@ const AddEmployeeButton = () => {
                   focusBorderColor="blue.400"
                 />
               </FormControl>
-              <FormControl id="employer-address" isRequired>
+              <FormControl id="employer-address">
                 <FormLabel>Employer Address</FormLabel>
                 <Input
                   placeholder="Enter previous employer address"
@@ -762,7 +787,7 @@ const AddEmployeeButton = () => {
                   focusBorderColor="blue.400"
                 />
               </FormControl>
-              <FormControl id="employment-position" isRequired>
+              <FormControl id="employment-position">
                 <FormLabel>Position</FormLabel>
                 <Input
                   placeholder="Enter position held"
@@ -772,7 +797,7 @@ const AddEmployeeButton = () => {
                   focusBorderColor="blue.400"
                 />
               </FormControl>
-              <FormControl id="employment-from" isRequired>
+              <FormControl id="employment-from">
                 <FormLabel>Employment From (Date)</FormLabel>
                 <Input
                   type="date"
@@ -782,7 +807,7 @@ const AddEmployeeButton = () => {
                   focusBorderColor="blue.400"
                 />
               </FormControl>
-              <FormControl id="employment-to" isRequired>
+              <FormControl id="employment-to">
                 <FormLabel>Employment To (Date)</FormLabel>
                 <Input
                   type="date"
