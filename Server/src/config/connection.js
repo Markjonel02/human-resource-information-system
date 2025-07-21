@@ -3,7 +3,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const ConnectDB = async () => {
-  const URI = "mongodb://localhost:27017/Hri-system";
+  const URI = process.env.MONGO_URI;
 
   if (!URI) {
     console.log("MongoDB connection error: MONGO_URI is not defined.");
