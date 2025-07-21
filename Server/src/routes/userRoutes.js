@@ -1,23 +1,13 @@
-const express = require("express");
-const router = express.Router();
-const authController = require("../controllers/authcontroller");
-const { verifyToken } = require("../middleware/authMiddleware");
-
-
-router.post("/login", authController.login);
-router.post("/register", authController.register);
-router.get("/profile", verifyToken, authController.getProfile);
-router.post("/refresh-token", authController.refreshToken);
-router.post("/logout", authController.logout);
-module.exports = router;
 // routes.js
 const express = require("express");
-const authController = require("./controllers/authController");
-const employeecreationController = require("./controllers/employeecreationController");
-const verifyJWT = require("./middleware/verifyJWT");
-const authorizeRoles = require("./middleware/authorizeRoles");
+const router = express.Router();
 
-// Create an Express Router instance
+// Corrected paths for controllers and middleware
+// Please ensure these paths and filenames match your actual directory structure and file names.
+const authController = require("../controllers/authController"); // Assuming authController.js
+const employeecreationController = require("../controllers/userCreation"); // Assuming employeecreationController.js
+const verifyJWT = require("../middlewares/verifyJWT"); // Assuming middleware/verifyJWT.js
+const authorizeRoles = require("../middlewares/authorizeRole"); // Assuming middleware/authorizeRoles.js
 
 // Authentication routes (public access)
 router.post("/auth/register", authController.register);

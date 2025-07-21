@@ -1,4 +1,4 @@
-const user = required("../models/user");
+const user = require("../models/user");
 
 // @desc Create a new employee (admin only)
 // @route POST /employees
@@ -121,7 +121,7 @@ const getAllEmployees = async (req, res) => {
 // @route GET /employees/:id
 // @access Private (Admin, Manager, Employee - self)
 
-const getEmployeebyId = async (req, res) => {
+const getEmployeeById = async (req, res) => {
   const { id } = req.params;
 
   // Allow admin/manager to view any employee, or  employee to view  their own profile
@@ -223,5 +223,4 @@ module.exports = {
   getAllEmployees,
   getEmployeeById,
   updateEmployee,
-  deleteEmployee,
 };
