@@ -170,7 +170,7 @@ const Login = () => {
             </FormControl>
 
             {/* Forgot Password */}
-            <Box w="full" textAlign="right">
+            <Box w="full" textAlign="center">
               <Link
                 href="#"
                 fontSize="sm"
@@ -196,19 +196,6 @@ const Login = () => {
             </Button>
           </VStack>
         </form>
-
-        {/* Sign Up */}
-        <Text mt={8} textAlign="center" fontSize="sm" color="blue.500">
-          Don't have an account?{" "}
-          <Link
-            href="#"
-            fontWeight="medium"
-            color="blue.600"
-            _hover={{ color: "blue.800" }}
-          >
-            Sign up now
-          </Link>
-        </Text>
       </Box>
     </Box>
   );
