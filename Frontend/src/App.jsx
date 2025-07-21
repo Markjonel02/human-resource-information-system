@@ -19,6 +19,7 @@ const Documents = lazy(() => import("./routes/Documents"));
 const Monitoring = lazy(() => import("./routes/Monitoring"));
 const TimeIn = lazy(() => import("../src/routes/user/TimeIn"));
 const Settings = lazy(() => import("../src/routes/user/Settings"));
+const LoginPahe = lazy(() => import("./pages/auth/Login"));
 /*const AppsAndIntegration = lazy(() => import("./routes/AppsAndIntegration"));
 const Settings = lazy(() => import("./routes/Settings"));
 const HelpAndSupport = lazy(() => import("./routes/HelpAndSupport")); */
@@ -69,6 +70,7 @@ const App = () => {
               >
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
+                  <Route path="/login" element={<LoginPahe />} />
                   <Route path="/employees" element={<Employees />} />
                   <Route path="/attendances" element={<Attendances />} />
                   <Route path="/calendar" element={<Calendar />} />
