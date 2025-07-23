@@ -26,11 +26,7 @@ router.post(
   authorizeRoles("admin"),
   employeecreationController.createEmployee
 );
-router.delete(
-  "/employees/:id",
-  authorizeRoles("admin"),
-  employeecreationController.deleteEmployee
-);
+
 router.put(
   "/employees/:id",
   authorizeRoles("admin", "manager"),
