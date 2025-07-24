@@ -51,10 +51,11 @@ const UserSchema = new mongoose.Schema({
   employeeId: {
     type: String,
     required: true,
-    unique: true, // Prevent duplicate entries
-    trim: true, // Removes accidental leading/trailing spaces
-    match: /^EMP-\d{4}$/,
+    unique: true,
+    trim: true,
+    match: /^EMP\d{3,4}$/, // Accepts EMP001 or EMP0001
   },
+
   jobposition: { type: String, required: true },
   corporaterank: {
     type: String,
@@ -69,8 +70,9 @@ const UserSchema = new mongoose.Schema({
   jobStatus: {
     type: String,
     required: true,
-    enum: ["probisionary", "regular"],
+    enum: ["probationary", "regular", "Full-time", "Part-time"],
   },
+
   location: { type: String, required: true },
   businessUnit: { type: String, required: true },
   department: { type: String, required: true },
