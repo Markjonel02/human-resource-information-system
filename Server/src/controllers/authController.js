@@ -1,4 +1,4 @@
-const User = require("../models/User");
+const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
@@ -46,7 +46,6 @@ const register = async (req, res) => {
     !password ||
     !otherFields.firstname ||
     !otherFields.lastname ||
-    !otherFields.birthday ||
     !otherFields.nationality ||
     !otherFields.civilStatus ||
     !otherFields.religion ||
