@@ -9,43 +9,8 @@ const createEmployee = async (req, res) => {
       .status(403)
       .json({ message: "Forbidden: Only administrators can create employee" });
   }
-  const { username, employeeEmail, password, role, ...otherFields } = req.body;
-  //Baseic validation for required flieds
-  if (
-    !username ||
-    !employeeEmail ||
-    !password ||
-    !otherFields.firstname ||
-    !otherFields.lastname ||
-    !otherFields.birthday ||
-    !otherFields.nationality ||
-    !otherFields.civilStatus ||
-    !otherFields.religion ||
-    !otherFields.presentAddress ||
-    !otherFields.province ||
-    !otherFields.town ||
-    !otherFields.city ||
-    !otherFields.mobileNumber ||
-    !otherFields.companyName ||
-    !otherFields.employeeId ||
-    !otherFields.jobposition ||
-    !otherFields.corporaterank ||
-    !otherFields.jobStatus ||
-    !otherFields.location ||
-    !otherFields.businessUnit ||
-    !otherFields.department ||
-    !otherFields.head ||
-    otherFields.employeeStatus === undefined ||
-    !otherFields.salaryRate ||
-    !otherFields.bankAccountNumber ||
-    !otherFields.tinNumber ||
-    !otherFields.sssNumber ||
-    !otherFields.philhealthNumber
-  ) {
-    return res.status(400).json({
-      message: "All required fields are necessary to create an employee.",
-    });
-  }
+
+  
   try {
     //check for duplicate username,email,or,employeeId
     const duplicateUser = await User.findOne({ username }).lean().exec();
