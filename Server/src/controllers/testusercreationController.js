@@ -1,91 +1,98 @@
-const user = require("../models/user");
+const User = require("../models/user");
 
 const CreateEmployee = async (req, res) => {
-  const {
-    username,
-    password,
-    employeeEmail, // fixed casing
-    ...otherFields
-  } = req.body;
-
-  // Basic validation for required fields
-  if (
-    !username ||
-    !employeeEmail ||
-    !password ||
-    !otherFields.firstname ||
-    !otherFields.lastname ||
-    !otherFields.birthday ||
-    !otherFields.nationality ||
-    !otherFields.civilStatus ||
-    !otherFields.religion ||
-    !otherFields.presentAddress ||
-    !otherFields.province ||
-    !otherFields.town ||
-    !otherFields.city ||
-    !otherFields.mobileNumber ||
-    !otherFields.companyName ||
-    !otherFields.employeeId ||
-    !otherFields.jobposition ||
-    !otherFields.corporaterank ||
-    !otherFields.jobStatus ||
-    !otherFields.location ||
-    !otherFields.businessUnit ||
-    !otherFields.department ||
-    !otherFields.head ||
-    otherFields.employeeStatus === undefined ||
-    !otherFields.salaryRate ||
-    !otherFields.bankAccountNumber ||
-    !otherFields.tinNumber ||
-    !otherFields.sssNumber ||
-    !otherFields.philhealthNumber
-  ) {
-    return res.status(400).json({
-      message: "All required fields are necessary to create an employee.",
-    });
-  }
-
   try {
-    const duplicateEmail = await user.findOne({ employeeEmail }).lean().exec();
-    if (duplicateEmail) {
-      return res.status(409).json({ message: "User email is already taken!" });
+    const { username, password, employeeEmail, ...otherFields } = req.body;
+
+    // Required fields
+    const requiredMain = ["username", "password", "employeeEmail"];
+    const requiredFields = [
+      "firstname",
+      "lastname",
+      "birthday",
+      "nationality",
+      "civilStatus",
+      "religion",
+      "presentAddress",
+      "province",
+      "town",
+      "city",
+      "mobileNumber",
+      "companyName",
+      "employeeId",
+      "jobposition",
+      "corporaterank",
+      "jobStatus",
+      "location",
+      "businessUnit",
+      "department",
+      "head",
+      "employeeStatus",
+      "salaryRate",
+      "bankAccountNumber",
+      "tinNumber",
+      "sssNumber",
+      "philhealthNumber",
+    ];
+
+    // Validate required main fields
+    if (!username || !password || !employeeEmail) {
+      return res
+        .status(400)
+        .json({ message: "Username, email, and password are required." });
     }
 
-    const duplicateEmployeeId = await user
-      .findOne({ employeeId: otherFields.employeeId })
-      .lean()
-      .exec();
-    if (duplicateEmployeeId) {
-      return res.status(409).json({ message: "Employee ID is already taken!" });
+    // Validate other required fields
+    for (const field of requiredFields) {
+      if (otherFields[field] === undefined || otherFields[field] === "") {
+        return res
+          .status(400)
+          .json({ message: `Field '${field}' is required.` });
+      }
     }
 
-    const duplicateUsername = await user.findOne({ username }).lean().exec();
-    if (duplicateUsername) {
-      return res.status(409).json({ message: "Username already taken!" });
-    }
+    // Check duplicates in parallel
+    const [emailExists, idExists, usernameExists] = await Promise.all([
+      User.findOne({ employeeEmail }).lean(),
+      User.findOne({ employeeId: otherFields.employeeId }).lean(),
+      User.findOne({ username }).lean(),
+    ]);
 
-    const newHired = new user({
+    if (emailExists)
+      return res.status(409).json({ message: "Email is already taken." });
+    if (idExists)
+      return res.status(409).json({ message: "Employee ID is already taken." });
+    if (usernameExists)
+      return res.status(409).json({ message: "Username is already taken." });
+
+    // Create new employee
+    const newEmployee = new User({
       username,
       password,
       employeeEmail,
       ...otherFields,
     });
+    await newEmployee.save();
 
-    await newHired.save();
-    res.status(200).json({
+    return res.status(200).json({
       message: {
-        id: newHired._id,
-        username: newHired.username,
-        employeeEmail: newHired.employeeEmail,
-        employeeId: newHired.employeeId,
+        id: newEmployee._id,
+        username: newEmployee.username,
+        employeeEmail: newEmployee.employeeEmail,
+        employeeId: newEmployee.employeeId,
       },
     });
+    console.log(`successfully created:${newEmployee}`);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error during employee creation!" });
+    console.error("CreateEmployee Error:", error);
+    return res
+      .status(500)
+      .json({ message: "Server error during employee creation." });
   }
 };
 
-module.exports = {
-  CreateEmployee,
-};
+
+const getEmployee = async(req,res)=>{
+  
+}
+module.exports = { CreateEmployee };
