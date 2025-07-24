@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt"); // Corrected typo from bcyrpt
+const { Timestamp } = require("bson");
 
 const UserSchema = new mongoose.Schema({
   firstname: { type: String, required: true },
@@ -79,11 +80,11 @@ const UserSchema = new mongoose.Schema({
     required: true,
     enum: [0, 1], // 0 = Inactive, 1 = Active
   },
-  salaryRate: { type: Number, required: true },
-  bankAccountNumber: { type: Number, required: true },
-  tinNumber: { type: Number, required: true },
-  sssNumber: { type: Number, required: true },
-  philhealthNumber: { type: Number, required: true },
+  salaryRate: { type: Number, required: true }, // still a number
+  bankAccountNumber: { type: String, required: true }, // allows dashes
+  tinNumber: { type: String, required: true }, // e.g. 123-456-789
+  sssNumber: { type: String, required: true }, // e.g. 01-2345678-9
+  philhealthNumber: { type: String, required: true }, // e.g. 12-3456789
   shcoolName: { type: String }, // Typo: Should be schoolName
   degree: { type: String },
   educationalAttainment: { type: String },
@@ -151,4 +152,4 @@ UserSchema.methods.comparePassword = async function (candidatePassword) {
   }
 };
 
-module.exports = mongoose.model("User", UserSchema);
+module.exports = mongoose.model("user", UserSchema);

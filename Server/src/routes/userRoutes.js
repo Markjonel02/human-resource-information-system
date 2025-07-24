@@ -23,6 +23,7 @@ router.use(verifyJWT);
 // Admin-only routes for employee creation and deletion, and full access to lists/details/updates
 router.post(
   "/employees",
+  verifyJWT,
   authorizeRoles("admin"),
   employeecreationController.createEmployee
 );
