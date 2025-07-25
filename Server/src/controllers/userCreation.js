@@ -4,37 +4,52 @@ const user = require("../models/user");
 // @route POST /employees
 // @access Private (Admin)
 const createEmployee = async (req, res) => {
+  // 1. Authorization Check: Ensure only administrators can create employees.
   if (req.user.role !== "admin") {
-    return res
-      .status(403)
-      .json({ message: "Forbidden: Only administrators can create employee" });
+    return res.status(403).json({
+      message: "Forbidden: Only administrators can create employees.",
+    });
   }
 
-  
-  try {
-    //check for duplicate username,email,or,employeeId
-    const duplicateUser = await User.findOne({ username }).lean().exec();
-    if (duplicateUser) {
-      return res.status(409).json({ message: "username Already exists!" });
-    }
+  // 2. Destructure Request Body: Extract necessary fields for clarity.
+  const { username, employeeEmail, password, role, ...otherFields } = req.body;
 
-    const duplicateEmail = await User.findOne({ employeeEmail });
-    if (duplicateEmail) {
-      return res
-        .status(409)
-        .json({ message: "employeeId already exists" })
-        .lean()
-        .exec();
-    }
-    const duplicateEmployeeId = await User.findOne({
-      employeeId: otherFields.employeeId,
-    })
-      .lean()
-      .exec();
-    if (duplicateEmployeeId) {
-      return res.status(409).json({ message: "EmployeeId already exists " });
-    }
-    // create new user (employee)
+  try {
+    // 3. Centralized Duplicate Check Function:
+    //    This function checks for existing username, employeeEmail, or employeeId.
+    const checkDuplicate = async (field, value, message) => {
+      const query = {};
+      query[field] = value;
+      const existingUser = await User.findOne(query).lean().exec();
+      if (existingUser) {
+        return res.status(409).json({ message });
+      }
+      return null; // No duplicate found
+    };
+
+    // 4. Perform Duplicate Checks:
+    let response = await checkDuplicate(
+      "username",
+      username,
+      "Username already exists!"
+    );
+    if (response) return response;
+
+    response = await checkDuplicate(
+      "employeeEmail",
+      employeeEmail,
+      "Employee email already exists!"
+    );
+    if (response) return response;
+
+    response = await checkDuplicate(
+      "employeeId",
+      otherFields.employeeId,
+      "Employee ID already exists!"
+    );
+    if (response) return response;
+
+    // 5. Create New Employee:
     const newEmployee = new User({
       username,
       employeeEmail,
@@ -42,9 +57,14 @@ const createEmployee = async (req, res) => {
       role: role || "employee", // Admin can specify role, default to 'employee'
       ...otherFields,
     });
-    await newEmployee.save(); //this will tigger the pre-save hook
+
+    // 6. Save Employee and Respond:
+    await newEmployee.save(); // This will trigger the pre-save hook for password hashing
+
     res.status(201).json({
-      message: {
+      message: "Employee created successfully!", // More user-friendly success message
+      employee: {
+        // Use a more descriptive key than 'message' for the employee data
         id: newEmployee._id,
         username: newEmployee.username,
         employeeEmail: newEmployee.employeeEmail,
@@ -53,11 +73,13 @@ const createEmployee = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(error);
+    // 7. Error Handling: Differentiate between validation errors and other server errors.
+    console.error("Error creating employee:", error); // More specific error logging
+
     if (error.name === "ValidationError") {
       return res.status(400).json({ message: error.message });
     }
-    res.status(500).json({ message: "Server error during employee Creation!" });
+    res.status(500).json({ message: "Server error during employee creation." });
   }
 };
 

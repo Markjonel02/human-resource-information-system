@@ -1,59 +1,91 @@
-// src/context/AuthContext.js
-import { createContext, useState, useEffect, useContext } from "react";
-import axios from "axios";
+// context/Auth.js
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
+import { useNavigate } from "react-router-dom";
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    () => localStorage.getItem("isAuthenticated") === "true"
-  );
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  // Auto-check session with refresh token
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const res = await axios.get("/auth/refresh", { withCredentials: true });
-        setIsAuthenticated(true);
-        setUser(res.data.user);
-        localStorage.setItem("isAuthenticated", "true");
-      } catch (error) {
-        setIsAuthenticated(false);
-        localStorage.removeItem("isAuthenticated");
-      } finally {
-        setLoading(false);
+  // Initialize authState from localStorage or default to null
+  const [authState, setAuthState] = useState(() => {
+    try {
+      const storedToken = localStorage.getItem("accessToken");
+      const storedUser = localStorage.getItem("user");
+      if (storedToken && storedUser) {
+        console.log(
+          "AuthContext: Found stored token and user, initializing as authenticated."
+        );
+        return {
+          accessToken: storedToken,
+          user: JSON.parse(storedUser), // Parse user object from string
+          isAuthenticated: true,
+        };
       }
-    };
-    checkSession();
+    } catch (error) {
+      console.error(
+        "AuthContext: Failed to load auth state from localStorage:",
+        error
+      );
+      // Clear localStorage if parsing fails to prevent infinite errors
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("user");
+    }
+    console.log(
+      "AuthContext: No stored token/user or error, initializing as not authenticated."
+    );
+    return { accessToken: null, user: null, isAuthenticated: false };
+  });
+
+  const navigate = useNavigate();
+
+  // Function to handle user login
+  const login = useCallback((accessToken, user) => {
+    console.log(
+      "AuthContext: Login function called, setting authState and localStorage."
+    );
+    setAuthState({ accessToken, user, isAuthenticated: true });
+    localStorage.setItem("accessToken", accessToken);
+    localStorage.setItem("user", JSON.stringify(user)); // Store user object as string
   }, []);
 
-  const login = (userData) => {
-    setIsAuthenticated(true);
-    setUser(userData);
-    localStorage.setItem("isAuthenticated", "true");
+  // Function to handle user logout
+  const logout = useCallback(() => {
+    console.log(
+      "AuthContext: Logout function called, clearing authState and localStorage."
+    );
+    setAuthState({ accessToken: null, user: null, isAuthenticated: false });
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("user");
+    navigate("/login"); // Redirect to login page after logout
+  }, [navigate]);
+
+  // Optional: A useEffect to handle token expiration or validation if needed
+  useEffect(() => {
+    // This effect can be used for more advanced token management,
+    // like checking token expiry or attempting to refresh tokens automatically.
+    // For now, the persistence is handled by the initial useState and login/logout functions.
+    // You might add logic here to verify accessToken validity periodically.
+    console.log("AuthContext: authState updated:", authState.isAuthenticated);
+  }, [authState.isAuthenticated, authState.accessToken]);
+
+  const value = {
+    authState,
+    login,
+    logout,
   };
 
-  const logout = async () => {
-    try {
-      await axios.post("/auth/logout", {}, { withCredentials: true });
-    } catch (e) {
-      console.warn("Logout request failed", e);
-    } finally {
-      setIsAuthenticated(false);
-      setUser(null);
-      localStorage.removeItem("isAuthenticated");
-    }
-  };
-
-  return (
-    <AuthContext.Provider
-      value={{ isAuthenticated, user, login, logout, loading }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};

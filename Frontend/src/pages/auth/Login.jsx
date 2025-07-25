@@ -18,7 +18,7 @@ import {
 import { axiosInstance } from "../../lib/axiosInstance"; // Assuming axiosInstance is configured correctly
 import { useNavigate } from "react-router-dom";
 import { Mail, Lock } from "lucide-react";
-import { useAuth } from "../../context/Auth"; // Import the Auth context
+import { useAuth } from "../../context/AuthContext"; // Corrected import path for Auth context
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -35,10 +35,10 @@ const Login = () => {
       toast({
         title: "Missing Fields",
         description: "Please enter both username and password.",
-        status: "warning", // Changed from 'danger' to 'warning' for Chakra UI status
+        status: "warning",
         duration: 3000,
         isClosable: true,
-        position: "top", // Added position to top
+        position: "top",
       });
       return; // Stop execution if fields are missing
     }
@@ -54,6 +54,7 @@ const Login = () => {
       );
 
       // Extract accessToken and user data from the successful response
+      // IMPORTANT: Ensure your backend's /auth/login endpoint sends 'role' in this 'user' object
       const { accessToken, user } = response.data;
 
       // Update authentication state using the Auth context's login function
@@ -66,12 +67,16 @@ const Login = () => {
         status: "success",
         duration: 3000,
         isClosable: true,
-        position: "top", // Added position to top
+        position: "top",
       });
 
-      // Redirect to the dashboard after a short delay
+      // Redirect based on user role after a short delay
       setTimeout(() => {
-        navigate("/"); // Navigate to the root path, which is protected and leads to Dashboard
+        if (user.role === "employee") {
+          navigate("/employee-dashboard"); // Redirect employees to /employee-dashboard
+        } else {
+          navigate("/"); // Redirect others (e.g., admins) to the general dashboard
+        }
       }, 1500);
 
       // Clear input fields after successful login
@@ -96,9 +101,9 @@ const Login = () => {
         status: "error",
         duration: 5000,
         isClosable: true,
-        position: "top", // Added position to top
-        variant: "subtle", // Optional: Change toast variant
-        colorScheme: "red", // Optional: Change color scheme for better visibility
+        position: "top",
+        variant: "subtle",
+        colorScheme: "red",
       });
     }
   };
@@ -138,35 +143,6 @@ const Login = () => {
         zIndex={0}
       />
 
-      {/* HRIS Masked Text */}
-      {/* <Box
-        position="absolute"
-        inset="0"
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-        zIndex={0}
-        pointerEvents="none"
-      >
-        <Text
-          fontSize={["9rem", "12rem", "25em"]}
-          fontWeight="black"
-          textTransform="uppercase"
-          lineHeight="1"
-          style={{
-            backgroundImage: `url(${Bg})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            WebkitBackgroundClip: "text",
-            backgroundClip: "text",
-            color: "transparent",
-            opacity: 0.3,
-          }}
-        >
-          HRIS
-        </Text>
-      </Box> */}
-
       {/* Login Card */}
       <Box
         zIndex={10}
@@ -195,8 +171,7 @@ const Login = () => {
               <FormLabel color="blue.600">Username</FormLabel>
               <InputGroup>
                 <InputLeftElement pointerEvents="none">
-                  <Mail size={18} color="#60A5FA" />{" "}
-                  {/* Using Mail icon for username, consider a user icon if available */}
+                  <Mail size={18} color="#60A5FA" />
                 </InputLeftElement>
                 <Input
                   type="text"
