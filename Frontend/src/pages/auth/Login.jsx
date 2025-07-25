@@ -15,38 +15,84 @@ import {
   useToast,
   useColorModeValue,
 } from "@chakra-ui/react";
+import { axiosInstance } from "../../lib/axiosInstance"; // Assuming axiosInstance is configured correctly
 import { useNavigate } from "react-router-dom";
 import { Mail, Lock } from "lucide-react";
+import { useAuth } from "../../context/Auth"; // Import the Auth context
+
 const Login = () => {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const toast = useToast();
-  const navigate = useNavigate(); // Add this
+  const navigate = useNavigate();
+  const { login: authLogin } = useAuth(); // Destructure login function from Auth context
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (email && password) {
+
+    // Basic client-side validation for empty fields
+    if (!username || !password) {
       toast({
-        title: "Login Successful.",
-        description: "Redirecting to dashboard...",
+        title: "Missing Fields",
+        description: "Please enter both username and password.",
+        status: "warning", // Changed from 'danger' to 'warning' for Chakra UI status
+        duration: 3000,
+        isClosable: true,
+      });
+      return; // Stop execution if fields are missing
+    }
+
+    try {
+      // Make API call to the backend login endpoint
+      const response = await axiosInstance.post(
+        `/auth/login`, // Endpoint for login
+        { username, password }, // Send username and password
+        {
+          withCredentials: true, // Important for sending/receiving HTTP-only cookies (refresh token)
+        }
+      );
+
+      // Extract accessToken and user data from the successful response
+      const { accessToken, user } = response.data;
+
+      // Update authentication state using the Auth context's login function
+      authLogin(accessToken, user);
+
+      // Display success toast
+      toast({
+        title: "Login Successful",
+        description: "Welcome back!",
         status: "success",
-        duration: 2000,
+        duration: 3000,
         isClosable: true,
       });
 
-      // Simulate successful login
+      // Redirect to the dashboard after a short delay
       setTimeout(() => {
-        navigate("/dashboard"); // Redirect to dashboard
+        navigate("/"); // Navigate to the root path, which is protected and leads to Dashboard
       }, 1500);
 
-      setEmail("");
+      // Clear input fields after successful login
+      setUsername("");
       setPassword("");
-    } else {
+    } catch (error) {
+      // Log the full error for debugging purposes
+      console.error(
+        "Login error:",
+        error.response ? error.response.data : error.message
+      );
+
+      // Determine the error message to display to the user
+      const errorMessage =
+        error.response?.data?.message ||
+        "An unexpected error occurred. Please try again.";
+
+      // Display error toast
       toast({
-        title: "Missing Fields",
-        description: "Please enter both email and password.",
-        status: "warning",
-        duration: 3000,
+        title: "Login Failed",
+        description: errorMessage,
+        status: "error",
+        duration: 5000,
         isClosable: true,
       });
     }
@@ -59,7 +105,7 @@ const Login = () => {
       display="flex"
       alignItems="center"
       justifyContent="center"
-      bg="blue.50"
+      bg="whiteAlpha.900"
       p={4}
       overflow="hidden"
     >
@@ -88,7 +134,7 @@ const Login = () => {
       />
 
       {/* HRIS Masked Text */}
-      <Box
+      {/*       <Box
         position="absolute"
         inset="0"
         display="flex"
@@ -114,7 +160,7 @@ const Login = () => {
         >
           HRIS
         </Text>
-      </Box>
+      </Box> */}
 
       {/* Login Card */}
       <Box
@@ -139,25 +185,26 @@ const Login = () => {
 
         <form onSubmit={handleSubmit}>
           <VStack spacing={6}>
-            {/* Email */}
+            {/* Username Input */}
             <FormControl isRequired>
-              <FormLabel color="blue.600">Email Address</FormLabel>
+              <FormLabel color="blue.600">Username</FormLabel>
               <InputGroup>
                 <InputLeftElement pointerEvents="none">
-                  <Mail size={18} color="#60A5FA" />
+                  <Mail size={18} color="#60A5FA" />{" "}
+                  {/* Using Mail icon for username, consider a user icon if available */}
                 </InputLeftElement>
                 <Input
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  placeholder="Enter your username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   borderColor="blue.300"
                   focusBorderColor="blue.500"
                 />
               </InputGroup>
             </FormControl>
 
-            {/* Password */}
+            {/* Password Input */}
             <FormControl isRequired>
               <FormLabel color="blue.600">Password</FormLabel>
               <InputGroup>
@@ -175,7 +222,7 @@ const Login = () => {
               </InputGroup>
             </FormControl>
 
-            {/* Forgot Password */}
+            {/* Forgot Password Link */}
             <Box w="full" textAlign="center">
               <Link
                 href="#"

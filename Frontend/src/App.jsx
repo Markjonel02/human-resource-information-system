@@ -2,7 +2,7 @@ import { Box, Flex } from "@chakra-ui/react";
 import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute"; // Import ProtectedRoute
-import { useAuth } from "./context/Auth"; // Assuming useAuth is used elsewhere for authentication state
+import { useAuth } from "./context/Auth";
 import { useLocation } from "react-router-dom";
 
 // Layout Components

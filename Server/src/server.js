@@ -23,7 +23,7 @@ app.use(
 );
 /* routes */
 // All routes defined in routes.js will now be accessible from the root path '/'
-app.use("/", userRoutes);
+app.use("/api", userRoutes);
 
 // Basic root route (can be removed if all routes are in routes.js)
 app.get("/", (req, res) => {
