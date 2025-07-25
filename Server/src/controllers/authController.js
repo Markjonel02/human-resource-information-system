@@ -5,120 +5,117 @@ const dotenv = require("dotenv");
 
 dotenv.config(); // Load environment variables
 
-// Utility function to generate JWT tokens
+// -------------------- Utility: Generate Tokens -------------------- //
 const generateTokens = (user) => {
-  const accessToken = jwt.sign(
-    {
-      UserInfo: {
-        id: user._id,
-        username: user.username,
-        role: user.role,
-      },
+  const payload = {
+    UserInfo: {
+      id: user._id,
+      username: user.username,
+      role: user.role,
     },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_ACCESS_TOKEN_EXPIRATION || "15m" } // Default 15 minutes
-  );
+  };
 
-  const refreshToken = jwt.sign(
-    {
-      UserInfo: {
-        id: user._id,
-        username: user.username,
-        role: user.role,
-      },
-    },
-    process.env.JWT_REFRESH_SECRET,
-    { expiresIn: process.env.JWT_REFRESH_TOKEN_EXPIRATION || "7d" } // Default 7 days
-  );
+  const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_ACCESS_TOKEN_EXPIRATION || "15m",
+  });
+
+  const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+    expiresIn: process.env.JWT_REFRESH_TOKEN_EXPIRATION || "7d",
+  });
+
   return { accessToken, refreshToken };
 };
 
-// @desc Register a new user
-// @route POST /auth/register
-// @access Public
-const register = async (req, res) => {
-  const { username, employeeEmail, password, role, ...otherFields } = req.body;
+// -------------------- Utility: Set Refresh Token Cookie -------------------- //
+const setRefreshTokenCookie = (res, token) => {
+  res.cookie("jwt", token, {
+    httpOnly: true, // Prevents JavaScript access (XSS protection)
+    secure: process.env.NODE_ENV === "production", // HTTPS only in production
+    sameSite: "Strict", // CSRF protection
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  });
+};
 
-  // Basic validation
-  if (
-    !username ||
-    !employeeEmail ||
-    !password ||
-    !otherFields.firstname ||
-    !otherFields.lastname ||
-    !otherFields.nationality ||
-    !otherFields.civilStatus ||
-    !otherFields.religion ||
-    !otherFields.presentAddress ||
-    !otherFields.province ||
-    !otherFields.town ||
-    !otherFields.city ||
-    !otherFields.mobileNumber ||
-    !otherFields.companyName ||
-    !otherFields.employeeId ||
-    !otherFields.jobposition ||
-    !otherFields.corporaterank ||
-    !otherFields.jobStatus ||
-    !otherFields.location ||
-    !otherFields.businessUnit ||
-    !otherFields.department ||
-    !otherFields.head ||
-    otherFields.employeeStatus === undefined ||
-    !otherFields.salaryRate ||
-    !otherFields.bankAccountNumber ||
-    !otherFields.tinNumber ||
-    !otherFields.sssNumber ||
-    !otherFields.philhealthNumber
-  ) {
-    return res
-      .status(400)
-      .json({ message: "All required fields are necessary for registration." });
+// -------------------- Controller: Register -------------------- //
+const register = async (req, res) => {
+  const {
+    username,
+    employeeEmail,
+    password,
+    role = "employee",
+    ...fields
+  } = req.body;
+
+  // Required field validation
+  const requiredFields = [
+    "firstname",
+    "lastname",
+    "nationality",
+    "civilStatus",
+    "religion",
+    "presentAddress",
+    "province",
+    "town",
+    "city",
+    "mobileNumber",
+    "companyName",
+    "employeeId",
+    "jobposition",
+    "corporaterank",
+    "jobStatus",
+    "location",
+    "businessUnit",
+    "department",
+    "head",
+    "employeeStatus",
+    "salaryRate",
+    "bankAccountNumber",
+    "tinNumber",
+    "sssNumber",
+    "philhealthNumber",
+  ];
+
+  const missingField = requiredFields.find((field) => !fields[field]);
+  if (!username || !employeeEmail || !password || missingField) {
+    return res.status(400).json({
+      message: `Missing required field: ${
+        missingField || "username/employeeEmail/password"
+      }`,
+    });
   }
 
   try {
-    // Check for duplicate username or email
-    const duplicateUser = await User.findOne({ username }).lean().exec();
-    if (duplicateUser) {
-      return res.status(409).json({ message: "Username already exists." });
-    }
-    const duplicateEmail = await User.findOne({ employeeEmail }).lean().exec();
-    if (duplicateEmail) {
-      return res
-        .status(409)
-        .json({ message: "Employee email already exists." });
-    }
-    const duplicateEmployeeId = await User.findOne({
-      employeeId: otherFields.employeeId,
-    })
-      .lean()
-      .exec();
-    if (duplicateEmployeeId) {
-      return res.status(409).json({ message: "Employee ID already exists." });
+    // Check for duplicates
+    const duplicateChecks = [
+      { username },
+      { employeeEmail },
+      { employeeId: fields.employeeId },
+    ];
+
+    for (const check of duplicateChecks) {
+      if (await User.findOne(check).lean().exec()) {
+        return res.status(409).json({
+          message: `Duplicate entry: ${Object.keys(check)[0]} already exists.`,
+        });
+      }
     }
 
-    // Create new user
+    // Create and save new user
     const newUser = new User({
       username,
       employeeEmail,
-      password, // Password will be hashed by the pre-save hook
-      role: role || "employee", // Default role to 'employee' if not provided
-      ...otherFields,
+      password, // Will be hashed by pre-save middleware
+      role,
+      ...fields,
     });
 
-    await newUser.save(); // This will trigger the pre-save hook for password hashing and age calculation
+    await newUser.save();
 
-    // Generate tokens for immediate login after registration
+    // Generate tokens and set refresh token cookie
     const { accessToken, refreshToken } = generateTokens(newUser);
+    setRefreshTokenCookie(res, refreshToken);
 
-    // Set refresh token as httpOnly cookie
-    res.cookie("jwt", refreshToken, {
-      httpOnly: true, // Accessible only by web server
-      secure: process.env.NODE_ENV === "production", // Use HTTPS in production
-      sameSite: "Strict", // CSRF protection
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
-
-    res.status(201).json({
+    return res.status(201).json({
       message: "User registered successfully",
       accessToken,
       user: {
@@ -129,17 +126,17 @@ const register = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(error);
-    if (error.name === "ValidationError") {
-      return res.status(400).json({ message: error.message });
-    }
-    res.status(500).json({ message: "Server error during registration." });
+    console.error("Registration error:", error);
+    return res.status(500).json({
+      message:
+        error.name === "ValidationError"
+          ? error.message
+          : "Server error during registration.",
+    });
   }
 };
 
-// @desc Authenticate user & get token
-// @route POST /auth/login
-// @access Public
+// -------------------- Controller: Login -------------------- //
 const login = async (req, res) => {
   const { username, password } = req.body;
 
@@ -150,131 +147,82 @@ const login = async (req, res) => {
   }
 
   try {
-    const foundUser = await User.findOne({ username }).exec();
-
-    if (!foundUser) {
+    const user = await User.findOne({ username }).exec();
+    if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ message: "Invalid credentials." });
     }
 
-    const isMatch = await foundUser.comparePassword(password);
+    const { accessToken, refreshToken } = generateTokens(user);
+    setRefreshTokenCookie(res, refreshToken);
 
-    if (!isMatch) {
-      return res.status(401).json({ message: "Invalid credentials." });
-    }
-
-    const { accessToken, refreshToken } = generateTokens(foundUser);
-
-    // Set refresh token as httpOnly cookie
-    res.cookie("jwt", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
-
-    res.status(200).json({
+    return res.status(200).json({
       message: "Login successful",
       accessToken,
       user: {
-        id: foundUser._id,
-        username: foundUser.username,
-        employeeEmail: foundUser.employeeEmail,
-        role: foundUser.role,
+        id: user._id,
+        username: user.username,
+        employeeEmail: user.employeeEmail,
+        role: user.role,
       },
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error during login." });
+    console.error("Login error:", error);
+    return res.status(500).json({ message: "Server error during login." });
   }
 };
 
-// @desc Refresh JWT token
-// @route GET /auth/refresh
-// @access Public (but requires refresh token cookie)
-const refreshToken = (req, res) => {
-  const cookies = req.cookies;
+// -------------------- Controller: Refresh Token -------------------- //
+const refreshToken = async (req, res) => {
+  const token = req.cookies?.jwt;
+  if (!token)
+    return res.status(401).json({ message: "No refresh token found." });
 
-  if (!cookies?.jwt) {
-    return res.status(401).json({ message: "Unauthorized: No refresh token." });
-  }
-
-  const refreshToken = cookies.jwt;
-
-  jwt.verify(
-    refreshToken,
-    process.env.JWT_REFRESH_SECRET,
-    async (err, decoded) => {
-      if (err) {
-        // Clear cookie if token is invalid or expired
-        res.clearCookie("jwt", {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "Strict",
-        });
-        return res
-          .status(403)
-          .json({ message: "Forbidden: Invalid refresh token." });
-      }
-
-      try {
-        const foundUser = await User.findById(decoded.UserInfo.id).exec();
-
-        if (!foundUser) {
-          return res
-            .status(401)
-            .json({ message: "Unauthorized: User not found." });
-        }
-
-        const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
-          generateTokens(foundUser);
-
-        // Set new refresh token as httpOnly cookie
-        res.cookie("jwt", newRefreshToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "Strict",
-          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        });
-
-        res.status(200).json({
-          message: "Token refreshed successfully",
-          accessToken: newAccessToken,
-          user: {
-            id: foundUser._id,
-            username: foundUser.username,
-            employeeEmail: foundUser.employeeEmail,
-            role: foundUser.role,
-          },
-        });
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Server error during token refresh." });
-      }
+  jwt.verify(token, process.env.JWT_REFRESH_SECRET, async (err, decoded) => {
+    if (err) {
+      res.clearCookie("jwt");
+      return res
+        .status(403)
+        .json({ message: "Invalid or expired refresh token." });
     }
-  );
+
+    try {
+      const user = await User.findById(decoded.UserInfo.id).exec();
+      if (!user) return res.status(401).json({ message: "User not found." });
+
+      const { accessToken, refreshToken: newRefreshToken } =
+        generateTokens(user);
+      setRefreshTokenCookie(res, newRefreshToken);
+
+      return res.status(200).json({
+        message: "Token refreshed successfully",
+        accessToken,
+        user: {
+          id: user._id,
+          username: user.username,
+          employeeEmail: user.employeeEmail,
+          role: user.role,
+        },
+      });
+    } catch (error) {
+      console.error("Refresh token error:", error);
+      return res
+        .status(500)
+        .json({ message: "Server error during token refresh." });
+    }
+  });
 };
 
-// @desc Logout user & clear cookie
-// @route POST /auth/logout
-// @access Public
+// -------------------- Controller: Logout -------------------- //
 const logout = (req, res) => {
-  const cookies = req.cookies;
-  if (!cookies?.jwt) {
-    return res
-      .status(204)
-      .json({ message: "No content: No refresh token to clear." }); // No content to send back
+  if (!req.cookies?.jwt) {
+    return res.status(204).json({ message: "No refresh token to clear." });
   }
   res.clearCookie("jwt", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "Strict",
   });
-  res.status(200).json({ message: "Logout successful: Cookie cleared." });
+  return res.status(200).json({ message: "Logout successful." });
 };
 
-module.exports = {
-  register,
-  login,
-  refreshToken,
-  logout,
-};
+module.exports = { register, login, refreshToken, logout };

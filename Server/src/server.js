@@ -4,7 +4,7 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const cookieParser = require("cookie-parser");
 const connectDB = require("./config/connection.js");
-/* const userRoutes = require("./routes/userRoutes.js"); */
+const userRoutes = require("./routes/userRoutes.js");
 const testRoutes = require("./routes/testRoutes.js");
 dotenv.config();
 const app = express();
@@ -23,25 +23,24 @@ app.use(
 );
 /* routes */
 // All routes defined in routes.js will now be accessible from the root path '/'
-/* app.use("/", userRoutes);
+app.use("/", userRoutes);
 
 // Basic root route (can be removed if all routes are in routes.js)
 app.get("/", (req, res) => {
   res.send("API is running!");
 });
- */
 
-app.get("/api", (req, res) => {
+/* app.get("/api", (req, res) => {
   res.send("API is Connected!");
-});
+}); */
 
 // Use your other test routes separately
 app.use("/api", testRoutes);
 // Error handling middleware (optional, but good practice)
-/* app.use((err, req, res, next) => {
+app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send("Something broke!");
-}); */
+});
 /* running node environtment  */
 connectDB()
   .then(() => {
