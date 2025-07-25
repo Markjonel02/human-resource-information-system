@@ -163,6 +163,7 @@ const login = async (req, res) => {
         username: user.username,
         employeeEmail: user.employeeEmail,
         role: user.role,
+        firstname: user.firstname,
       },
     });
   } catch (error) {

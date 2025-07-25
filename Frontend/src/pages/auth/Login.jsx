@@ -38,6 +38,7 @@ const Login = () => {
         status: "warning", // Changed from 'danger' to 'warning' for Chakra UI status
         duration: 3000,
         isClosable: true,
+        position: "top", // Added position to top
       });
       return; // Stop execution if fields are missing
     }
@@ -65,6 +66,7 @@ const Login = () => {
         status: "success",
         duration: 3000,
         isClosable: true,
+        position: "top", // Added position to top
       });
 
       // Redirect to the dashboard after a short delay
@@ -94,6 +96,9 @@ const Login = () => {
         status: "error",
         duration: 5000,
         isClosable: true,
+        position: "top", // Added position to top
+        variant: "subtle", // Optional: Change toast variant
+        colorScheme: "red", // Optional: Change color scheme for better visibility
       });
     }
   };
@@ -134,7 +139,7 @@ const Login = () => {
       />
 
       {/* HRIS Masked Text */}
-      {/*       <Box
+      {/* <Box
         position="absolute"
         inset="0"
         display="flex"

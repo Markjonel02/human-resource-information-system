@@ -2,7 +2,7 @@ import { Box, Flex } from "@chakra-ui/react";
 import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute"; // Import ProtectedRoute
-import { useAuth } from "./context/Auth";
+import { useAuth } from "./context/AuthContext"; // Import AuthProvider and useAuth
 import { useLocation } from "react-router-dom";
 
 // Layout Components
@@ -21,14 +21,13 @@ const Documents = lazy(() => import("./routes/Documents"));
 const Monitoring = lazy(() => import("./routes/Monitoring"));
 const TimeIn = lazy(() => import("./routes/user/TimeIn"));
 const Settings = lazy(() => import("./routes/user/Settings"));
-const LoginPage = lazy(() => import("./pages/auth/Login")); // Corrected typo from LoginPahe
+const LoginPage = lazy(() => import("./pages/auth/Login"));
 
 const App = () => {
   const location = useLocation();
-  // Determine if the current path is the login page
-  const hideLayout = location.pathname === "/login";
 
   return (
+    // Ensure AuthProvider wraps the entire Routes component
     <Box>
       <Suspense
         fallback={
@@ -50,62 +49,60 @@ const App = () => {
           </div>
         }
       >
-        <Routes>
-          {/* Public Route for Login - rendered outside the main layout */}
-          <Route path="/login" element={<LoginPage />} />
-
-          {/* All other routes are protected and rendered within the main layout */}
-          <Route
-            path="/*" // Catch all other paths
-            element={
-              <Maincomponent>
-                <Flex minH="100vh">
-                  <SideNavigation />
-                  <Box flex="3" p={4}>
-                    <TopNavigations />
-                    <Box
-                      maxH="calc(100vh - 100px)"
-                      overflowY="auto"
-                      className="scroll"
-                      sx={{
-                        scrollBehavior: "smooth",
-                        "::-webkit-scrollbar": { width: "6px" },
-                        "::-webkit-scrollbar-track": {
-                          background: "transparent",
-                        },
-                        "::-webkit-scrollbar-thumb": {
-                          backgroundColor: "rgba(100, 100, 100, 0.4)",
-                          borderRadius: "4px",
-                          display: "none !important",
-                        },
-                      }}
-                    >
-                      <ProtectedRoute>
-                        <Routes>
-                          {/* Nested routes for protected content */}
-                          <Route path="/" element={<Dashboard />} />
-                          <Route path="/employees" element={<Employees />} />
-                          <Route
-                            path="/attendances"
-                            element={<Attendances />}
-                          />
-                          <Route path="/calendar" element={<Calendar />} />
-                          <Route path="/request" element={<Request />} />
-                          <Route path="/payroll" element={<Payroll />} />
-                          <Route path="/documents" element={<Documents />} />
-                          <Route path="/monitoring" element={<Monitoring />} />
-                          <Route path="/timein" element={<TimeIn />} />
-                          <Route path="/settings/*" element={<Settings />} />
-                        </Routes>
-                      </ProtectedRoute>
-                    </Box>
-                  </Box>
-                </Flex>
-              </Maincomponent>
-            }
-          />
-        </Routes>
+       
       </Suspense>
+      <Routes>
+        {/* Public Route for Login - rendered outside the main layout */}
+        <Route path="/login" element={<LoginPage />} />
+
+        {/* All other routes are protected and rendered within the main layout */}
+        <Route
+          path="/*" // Catch all other paths
+          element={
+            <Maincomponent>
+              <Flex minH="100vh">
+                <SideNavigation />
+                <Box flex="3" p={4}>
+                  <TopNavigations />
+                  <Box
+                    maxH="calc(100vh - 100px)"
+                    overflowY="auto"
+                    className="scroll"
+                    sx={{
+                      scrollBehavior: "smooth",
+                      "::-webkit-scrollbar": { width: "6px" },
+                      "::-webkit-scrollbar-track": {
+                        background: "transparent",
+                      },
+                      "::-webkit-scrollbar-thumb": {
+                        backgroundColor: "rgba(100, 100, 100, 0.4)",
+                        borderRadius: "4px",
+                        display: "none !important",
+                      },
+                    }}
+                  >
+                    <ProtectedRoute>
+                      <Routes>
+                        {/* Nested routes for protected content */}
+                        <Route path="/" element={<Dashboard />} />
+                        <Route path="/employees" element={<Employees />} />
+                        <Route path="/attendances" element={<Attendances />} />
+                        <Route path="/calendar" element={<Calendar />} />
+                        <Route path="/request" element={<Request />} />
+                        <Route path="/payroll" element={<Payroll />} />
+                        <Route path="/documents" element={<Documents />} />
+                        <Route path="/monitoring" element={<Monitoring />} />
+                        <Route path="/timein" element={<TimeIn />} />
+                        <Route path="/settings/*" element={<Settings />} />
+                      </Routes>
+                    </ProtectedRoute>
+                  </Box>
+                </Box>
+              </Flex>
+            </Maincomponent>
+          }
+        />
+      </Routes>
     </Box>
   );
 };
