@@ -15,24 +15,30 @@ import {
   useToast,
   useColorModeValue,
 } from "@chakra-ui/react";
+import { useNavigate } from "react-router-dom";
 import { Mail, Lock } from "lucide-react";
-
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const toast = useToast();
+  const navigate = useNavigate(); // Add this
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (email && password) {
       toast({
         title: "Login Successful.",
-        description: "Login attempt successful! (This is a demo)",
+        description: "Redirecting to dashboard...",
         status: "success",
-        duration: 3000,
+        duration: 2000,
         isClosable: true,
       });
-      console.log("Email:", email, "Password:", password);
+
+      // Simulate successful login
+      setTimeout(() => {
+        navigate("/dashboard"); // Redirect to dashboard
+      }, 1500);
+
       setEmail("");
       setPassword("");
     } else {
