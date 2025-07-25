@@ -6,20 +6,21 @@ import {
   Input,
   InputGroup,
   InputLeftElement,
-  Button,
   IconButton,
-  Spacer, // Spacer is not strictly needed with space-between but kept for completeness
   useColorModeValue,
   Tooltip,
 } from "@chakra-ui/react";
 import { SearchIcon, CalendarIcon } from "@chakra-ui/icons";
-import { FaPlus } from "react-icons/fa";
 import AddEmployeeButton from "./AddemployeeButton";
+import { useAuth } from "../context/AuthContext"; // Correct path to Auth context
+
 const TopNavigations = () => {
   const bgColor = useColorModeValue("white", "gray.800");
   const textColor = useColorModeValue("gray.700", "white");
-  const buttonBgColor = useColorModeValue("blue.600", "blue.500");
-  const buttonHoverBgColor = useColorModeValue("blue.700", "blue.600");
+
+  // Correctly access authState, then user from authState
+  const { authState } = useAuth();
+  const userFirstName = authState?.user?.firstname || "Guest"; // Safely access firstname
 
   return (
     <Box
@@ -30,23 +31,18 @@ const TopNavigations = () => {
       borderColor="gray.200"
       boxShadow="sm"
     >
-      <Flex
-        align="center"
-        justify={{ base: "space-between", md: "space-between" }}
-        flexDirection={{ base: "row", md: "row" }}
-      >
-        {/* Welcome Section - Aligned left on desktop, now also left on mobile within its own flex container */}
-        <Box textAlign={{ base: "left", md: "left" }}>
+      <Flex align="center" justify="space-between" flexDirection="row">
+        {/* Welcome Section */}
+        <Box textAlign="left">
           <Text
             fontSize={{ base: "lg", md: "xl" }}
             fontWeight="bold"
             color={textColor}
-            textAlign="center"
-            ml={{ base: 20, md: 0 }}
           >
             Welcome back,{" "}
             <Text as="span" color="purple.600">
-              Ronald
+              {userFirstName}{" "}
+              {/* This will now correctly display the first name */}
             </Text>
           </Text>
           <Text
@@ -60,7 +56,7 @@ const TopNavigations = () => {
 
         {/* Search and Buttons Section */}
         <Flex align="center">
-          {/* Search Input - Hidden on mobile */}
+          {/* Search Input */}
           <InputGroup
             width="200px"
             mr={4}
@@ -72,18 +68,21 @@ const TopNavigations = () => {
             <Input type="text" placeholder="Search..." borderRadius="md" />
           </InputGroup>
 
-          {/* Icon Buttons with Tooltips - Hidden on mobile */}
+          {/* Calendar Button */}
+          <Tooltip label="Calendar" openDelay={500}>
+            <IconButton
+              aria-label="Calendar"
+              icon={<CalendarIcon />}
+              variant="ghost"
+              colorScheme="gray"
+              mr={2}
+              display={{ base: "none", md: "block", lg: "block" }}
+            />
+          </Tooltip>
 
-          {/* Attendance Button - Hidden on mobile */}
-
-          {/* Add Employee Button (Responsive) */}
-          <Tooltip
-            label="Add Employee"
-            aria-label="Add Employee tooltip"
-            openDelay={500}
-          >
+          {/* Add Employee Button */}
+          <Tooltip label="Add Employee" openDelay={500}>
             <Box display={{ base: "none", md: "none", lg: "block" }}>
-              {" "}
               <AddEmployeeButton />
             </Box>
           </Tooltip>

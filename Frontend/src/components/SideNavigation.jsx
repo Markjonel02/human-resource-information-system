@@ -38,6 +38,7 @@ import {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AiOutlineMonitor } from "react-icons/ai";
 import { MdOutlineRequestPage } from "react-icons/md";
+import { useAuth } from "../context/AuthContext"; // Correct import path for Auth context
 
 const SideNavigation = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -46,29 +47,40 @@ const SideNavigation = () => {
   const navigate = useNavigate();
   const isMobile = useBreakpointValue({ base: true, md: true, lg: false });
 
+  // Get authState and logout function from AuthContext
+  const { authState, logout: authLogout } = useAuth();
+  const loggedInUser = authState.user; // Get the user object from authState
+
   useEffect(() => {
     if (isMobile) {
-      setIsCollapsed(false);
+      setIsCollapsed(false); // Sidebar is always expanded on mobile when drawer is open
     }
   }, [isMobile]);
 
+  // Determine the dashboard path based on the user's role
+  const dashboardPath =
+    loggedInUser?.role === "employee" ? "/employee-dashboard" : "/";
+
   const menuItems = [
-    { icon: Home, label: "Dashboard", path: "/" },
-    { icon: Users, label: "Employees", path: "/employees" },
+    // Dynamically set the Dashboard path
+    { icon: Home, label: "Dashboard", path: dashboardPath },
+    { icon: Users, label: "Employees", path: "/employees", roles: ["admin"] }, // Add a 'roles' property
     { icon: CheckSquare, label: "Attendances", path: "/attendances" },
     { icon: Calendar, label: "Calendar", path: "/calendar" },
     { icon: MdOutlineRequestPage, label: "Request", path: "/request" },
     { icon: DollarSign, label: "Payroll", path: "/payroll" },
     { icon: FileText, label: "Documents", path: "/documents" },
     { icon: AiOutlineMonitor, label: "Monitoring", path: "/monitoring" },
-  ];
+  ].filter((item) => {
+    // If an item has specific roles defined, only show it if the user's role is included
+    // Otherwise, show it to everyone (or if no roles are specified, assume it's for all)
+    if (item.roles) {
+      return item.roles.includes(loggedInUser?.role);
+    }
+    return true; // Show items that don't have a 'roles' property defined
+  });
 
   const userItems = [{ icon: Settings, label: "Settings", path: "/settings" }];
-
-  const loggedInUser = {
-    name: "John Doe",
-    avatarUrl: "https://bit.ly/dan-abramov",
-  };
 
   const activeBg = useColorModeValue("purple.50", "purple.900");
   const activeColor = useColorModeValue("purple.700", "purple.300");
@@ -77,7 +89,9 @@ const SideNavigation = () => {
     const collapsed = forceExpanded ? false : isCollapsed;
 
     const handleLogout = () => {
-      navigate("/logout");
+      console.log("SideNavigation: Logging out...");
+      authLogout(); // Call the logout function from AuthContext
+      // AuthContext's logout function handles navigation to /login
     };
 
     return (
@@ -169,7 +183,11 @@ const SideNavigation = () => {
           )}
           <VStack spacing="1" align="stretch">
             {menuItems.map((item, idx) => (
-              <Link key={idx} to={item.path}>
+              <Link
+                key={idx}
+                to={item.path}
+                onClick={isMobile ? onClose : undefined}
+              >
                 <Flex
                   align="center"
                   p="3"
@@ -222,7 +240,11 @@ const SideNavigation = () => {
           )}
           <VStack spacing="1" align="stretch">
             {userItems.map((item, idx) => (
-              <Link key={idx} to={item.path}>
+              <Link
+                key={idx}
+                to={item.path}
+                onClick={isMobile ? onClose : undefined}
+              >
                 <Flex
                   align="center"
                   p="3"
@@ -267,13 +289,22 @@ const SideNavigation = () => {
                 w="full"
               >
                 {collapsed ? (
-                  <Tooltip label={loggedInUser.name} placement="right">
-                    <Avatar size="sm" src={loggedInUser.avatarUrl} />
+                  <Tooltip
+                    label={loggedInUser?.firstname || "Guest"}
+                    placement="right"
+                  >
+                    <Avatar size="sm" src={loggedInUser?.avatarUrl || ""} />
                   </Tooltip>
                 ) : (
                   <Flex align="center">
-                    <Avatar size="sm" src={loggedInUser.avatarUrl} mr={2} />
-                    <Text fontWeight="medium">{loggedInUser.name}</Text>
+                    <Avatar
+                      size="sm"
+                      src={loggedInUser?.avatarUrl || ""}
+                      mr={2}
+                    />
+                    <Text fontWeight="medium">
+                      {loggedInUser?.firstname || "Guest"}
+                    </Text>
                   </Flex>
                 )}
               </MenuButton>
@@ -284,7 +315,7 @@ const SideNavigation = () => {
                 rounded="md"
                 py="2"
               >
-                <Link to="/timein" onClick={onClose}>
+                <Link to="/timein" onClick={isMobile ? onClose : undefined}>
                   <MenuItem
                     icon={<Icon as={Clock} w={4} h={4} />}
                     color={useColorModeValue("gray.700", "gray.200")}
@@ -294,7 +325,7 @@ const SideNavigation = () => {
                 </Link>
                 <MenuItem
                   icon={<Icon as={LogOut} w={4} h={4} />}
-                  onClick={handleLogout}
+                  onClick={handleLogout} // Calls the authLogout function
                   _hover={{ bg: useColorModeValue("red.50", "red.900") }}
                   color={useColorModeValue("red.500", "red.300")}
                 >

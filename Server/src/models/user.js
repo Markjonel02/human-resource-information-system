@@ -13,6 +13,7 @@ const UserSchema = new mongoose.Schema({
     type: String,
     enum: ["male", "female", "nonbinary", "prefer not to say"],
     default: "prefer not to say",
+    required: true,
   },
   birthday: { type: Date, required: true },
   nationality: { type: String, required: true },

@@ -135,7 +135,7 @@ const EmployeeStatus = () => {
         >
           Employees Status
         </Heading>
-        <InputGroup w={{ base: "full", md: "auto" }}>
+        {/* <InputGroup w={{ base: "full", md: "auto" }}>
           <InputLeftElement pointerEvents="none">
             <SearchIcon color="gray.400" />
           </InputLeftElement>
@@ -153,7 +153,7 @@ const EmployeeStatus = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-        </InputGroup>
+        </InputGroup> */}
       </Flex>
 
       <Box bg="white" borderRadius="lg" shadow="md" overflowX="auto">
