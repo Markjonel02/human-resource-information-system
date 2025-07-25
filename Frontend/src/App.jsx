@@ -22,9 +22,7 @@ const Monitoring = lazy(() => import("./routes/Monitoring"));
 const TimeIn = lazy(() => import("./routes/user/TimeIn"));
 const Settings = lazy(() => import("./routes/user/Settings"));
 const LoginPage = lazy(() => import("./pages/auth/Login"));
-const employeeDashboard = lazy(() =>
-  import("./pages/employee/employeeDashboard")
-); // Import employee dashboard
+const EmployeeDashboard = lazy(() => import("./pages/employee/EmployeeDashboard")); // Import employee dashboard
 const App = () => {
   const location = useLocation(); // Retained in case you need it for other conditional rendering
 
@@ -91,7 +89,7 @@ const App = () => {
                             <Route path="/" element={<Dashboard />} />
                             <Route
                               path="/employee-dashboard"
-                              element={<employeeDashboard />} // Use the employee dashboard component
+                              element={<EmployeeDashboard />} // Use the employee dashboard component
                             />
                             <Route path="/employees" element={<Employees />} />
                             <Route

@@ -360,11 +360,17 @@ const AddEmployeeButton = () => {
           </ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            {/* Authentication Fields (Username, Password) - Added for backend requirement */}
+            {/* Authentication Fields (Username, Password) - Added for backend requirement */}{" "}
+            <Text
+              fontSize="lg"
+              fontWeight="semibold"
+              color="blue.600"
+              textAlign="start" // or "left"
+              mb={4}
+            >
+              Authentication Details
+            </Text>
             <VStack spacing={4} mb={6}>
-              <Text fontSize="lg" fontWeight="semibold" color="blue.600">
-                Authentication Details
-              </Text>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} width="100%">
                 <FormControl id="username" isRequired>
                   <FormLabel>Username</FormLabel>
@@ -389,12 +395,11 @@ const AddEmployeeButton = () => {
                 </FormControl>
               </SimpleGrid>
             </VStack>
-
+            <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
+              Personal Information
+            </Text>
             {/* Personal Information Fields */}
             <VStack spacing={4} mb={6}>
-              <Text fontSize="lg" fontWeight="semibold" color="blue.600">
-                Personal Information
-              </Text>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} width="100%">
                 <FormControl id="first-name" isRequired>
                   <FormLabel>First Name</FormLabel>
@@ -526,12 +531,11 @@ const AddEmployeeButton = () => {
                 </FormControl>
               </SimpleGrid>
             </VStack>
-
+            <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
+              Address Information
+            </Text>
             {/* Address Fields */}
             <VStack spacing={4} mb={6}>
-              <Text fontSize="lg" fontWeight="semibold" color="blue.600">
-                Address Information
-              </Text>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} width="100%">
                 <FormControl id="present-address" isRequired>
                   <FormLabel>Present Address</FormLabel>
@@ -575,12 +579,11 @@ const AddEmployeeButton = () => {
                 </FormControl>
               </SimpleGrid>
             </VStack>
-
-            {/* Contact Fields */}
+            {/* Contact Fields */}{" "}
+            <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
+              Contact Information
+            </Text>
             <VStack spacing={4} mb={6}>
-              <Text fontSize="lg" fontWeight="semibold" color="blue.600">
-                Contact Information
-              </Text>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} width="100%">
                 <FormControl id="mobile-number" isRequired>
                   <FormLabel>Mobile Number</FormLabel>
@@ -606,12 +609,11 @@ const AddEmployeeButton = () => {
                 </FormControl>
               </SimpleGrid>
             </VStack>
-
-            {/* Corporate Details Fields */}
+            {/* Corporate Details Fields */}{" "}
+            <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
+              Corporate Details
+            </Text>
             <VStack spacing={4} mb={6}>
-              <Text fontSize="lg" fontWeight="semibold" color="blue.600">
-                Corporate Details
-              </Text>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} width="100%">
                 <FormControl id="company-name" isRequired>
                   <FormLabel>Company Name</FormLabel>
@@ -729,12 +731,11 @@ const AddEmployeeButton = () => {
                 </FormControl>
               </SimpleGrid>
             </VStack>
-
-            {/* Salary and Government IDs Fields */}
+            {/* Salary and Government IDs Fields */}{" "}
+            <Text mb={4} fontSize="lg" fontWeight="semibold" color="blue.600">
+              Salary & Government IDs
+            </Text>
             <VStack spacing={4} mb={6}>
-              <Text fontSize="lg" fontWeight="semibold" color="blue.600">
-                Salary & Government IDs
-              </Text>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} width="100%">
                 <FormControl id="salary-rate" isRequired>
                   <FormLabel>Salary Rate</FormLabel>
@@ -799,12 +800,11 @@ const AddEmployeeButton = () => {
                 </FormControl>
               </SimpleGrid>
             </VStack>
-
             {/* Educational Background Fields */}
+            <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
+              Educational Background
+            </Text>
             <VStack spacing={4} mb={6}>
-              <Text fontSize="lg" fontWeight="semibold" color="blue.600">
-                Educational Background
-              </Text>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} width="100%">
                 <FormControl id="school-name">
                   <FormLabel>School Name</FormLabel>
@@ -870,12 +870,11 @@ const AddEmployeeButton = () => {
                 </FormControl>
               </SimpleGrid>
             </VStack>
-
-            {/* Dependants Fields */}
+            {/* Dependants Fields */}{" "}
+            <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
+              Dependants Information
+            </Text>
             <VStack spacing={4} mb={6}>
-              <Text fontSize="lg" fontWeight="semibold" color="blue.600">
-                Dependants Information
-              </Text>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} width="100%">
                 <FormControl id="dependant-name">
                   <FormLabel>Dependant Name</FormLabel>
@@ -909,12 +908,12 @@ const AddEmployeeButton = () => {
                 </FormControl>
               </SimpleGrid>
             </VStack>
-
-            {/* Employment History Fields */}
+            {/* Employment History Fields */}{" "}
+            <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
+              Employment History
+            </Text>
             <VStack spacing={4} mb={6}>
-              <Text fontSize="lg" fontWeight="semibold" color="blue.600">
-                Employment History
-              </Text>
+              {" "}
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} width="100%">
                 <FormControl id="employer-name">
                   <FormLabel>Employer Name</FormLabel>

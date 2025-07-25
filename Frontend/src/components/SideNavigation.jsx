@@ -64,14 +64,21 @@ const SideNavigation = () => {
   const menuItems = [
     // Dynamically set the Dashboard path
     { icon: Home, label: "Dashboard", path: dashboardPath },
-    { icon: Users, label: "Employees", path: "/employees" },
+    { icon: Users, label: "Employees", path: "/employees", roles: ["admin"] }, // Add a 'roles' property
     { icon: CheckSquare, label: "Attendances", path: "/attendances" },
     { icon: Calendar, label: "Calendar", path: "/calendar" },
     { icon: MdOutlineRequestPage, label: "Request", path: "/request" },
     { icon: DollarSign, label: "Payroll", path: "/payroll" },
     { icon: FileText, label: "Documents", path: "/documents" },
     { icon: AiOutlineMonitor, label: "Monitoring", path: "/monitoring" },
-  ];
+  ].filter((item) => {
+    // If an item has specific roles defined, only show it if the user's role is included
+    // Otherwise, show it to everyone (or if no roles are specified, assume it's for all)
+    if (item.roles) {
+      return item.roles.includes(loggedInUser?.role);
+    }
+    return true; // Show items that don't have a 'roles' property defined
+  });
 
   const userItems = [{ icon: Settings, label: "Settings", path: "/settings" }];
 

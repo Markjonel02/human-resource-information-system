@@ -1,21 +1,23 @@
 import React from "react";
 import { Flex, Box, Text } from "@chakra-ui/react";
 import { lazy } from "react";
-const EmployeeTracker = lazy(() => import("../components/EmployeeTracker"));
-const UpcomingSchcedule = lazy(() => import("../components/UpcomingSchcedule"));
-const Announcements = lazy(() => import("../components/Announcements"));
-const EmployeeStatus = lazy(() => import("../components/EmployeeStatus"));
-const employeeDashboard = () => {
+
+const AttendanceTrackingEmployee = lazy(() =>
+  import("../../pages/employee/AttendanceTrackingEmployee")
+);
+const UpcomingSchcedule = lazy(() =>
+  import("../../components/UpcomingSchcedule")
+);
+const Announcements = lazy(() => import("../../components/Announcements"));
+const EmployeeDashboard = () => {
   return (
     <Flex
       direction={{ base: "column", lg: "colum", xl: "row" }}
       align="flex-start"
-      gap={6}
     >
       {/* Employee Tracker always comes first */}
       <Box w={{ base: "100%", md: "100%" }}>
-        <EmployeeTracker />
-        <EmployeeStatus />
+        <AttendanceTrackingEmployee />
       </Box>
 
       {/* Right-side content */}
@@ -32,4 +34,4 @@ const employeeDashboard = () => {
   );
 };
 
-export default employeeDashboard;
+export default EmployeeDashboard;
