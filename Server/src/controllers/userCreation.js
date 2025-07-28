@@ -21,7 +21,7 @@ const createEmployee = async (req, res) => {
     const checkDuplicate = async (field, value, message) => {
       const query = {};
       query[field] = value;
-      const existingUser = await User.findOne(query).lean().exec();
+      const existingUser = await user.findOne(query).lean().exec();
       if (existingUser) {
         return res.status(409).json({ message });
       }
@@ -45,7 +45,8 @@ const createEmployee = async (req, res) => {
 
     // 5. Auto-generate employeeId: EMP0001, EMP0002, etc.
     let newEmployeeId;
-    const lastEmployee = await User.findOne({ employeeId: /^EMP/ }) // Find documents where employeeId starts with 'EMP'
+    const lastEmployee = await user
+      .findOne({ employeeId: /^EMP/ }) // Find documents where employeeId starts with 'EMP'
       .sort({ employeeId: -1 }) // Sort by employeeId in descending order (to get the highest number)
       .limit(1) // Get only the latest one
       .lean()
@@ -63,7 +64,7 @@ const createEmployee = async (req, res) => {
     }
 
     // 6. Create New Employee:
-    const newEmployee = new User({
+    const newEmployee = new user({
       username,
       employeeEmail,
       password, // Password will be hashed by the pre-save hook
