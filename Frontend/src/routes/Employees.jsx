@@ -50,7 +50,7 @@ import {
   Eye, // Lucide icon for View
 } from "lucide-react"; // Using lucide-react for new icons
 import AddEmployeeButton from "../components/AddemployeeButton"; // Assuming this path is correct
-
+import { axiosInstance } from "../utils/axiosInstance"; // Assuming axiosInstance is set up for API calls
 // Initial data for employees
 const initialEmployeesData = [
   {
