@@ -21,6 +21,7 @@ import {
   SimpleGrid,
 } from "@chakra-ui/react";
 import { PlusCircle } from "lucide-react";
+import { axiosInstance } from "../lib/axiosInstance"; // Assuming axiosInstance is configured correctly
 
 const AddEmployeeButton = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -60,6 +61,7 @@ const AddEmployeeButton = () => {
   const [department, setDepartment] = useState("");
   const [head, setHead] = useState("");
   const [employeeStatus, setEmployeeStatus] = useState(""); // Will be converted to boolean
+  const [employeeRole, setEmployeeRole] = useState("");
 
   // States for Salary and Government IDs
   const [salaryRate, setSalaryRate] = useState("");
@@ -69,7 +71,7 @@ const AddEmployeeButton = () => {
   const [philhealthNumber, setPhilhealthNumber] = useState("");
   const [pagibigNumber, setPagibigNumber] = useState("");
 
-  // New states for Educational Background (Note: Backend schema might need these fields)
+  // New states for Educational Background
   const [schoolName, setSchoolName] = useState("");
   const [achievements, setAchievements] = useState("");
   const [degree, setDegree] = useState("");
@@ -77,12 +79,12 @@ const AddEmployeeButton = () => {
   const [educationFrom, setEducationFrom] = useState("");
   const [educationTo, setEducationTo] = useState("");
 
-  // New states for Dependants (Note: Backend schema might need these fields)
+  // New states for Dependants
   const [dependantName, setDependantName] = useState("");
   const [dependantRelationship, setDependantRelationship] = useState("");
   const [dependantBirthdate, setDependantBirthdate] = useState("");
 
-  // New states for Employment History (Note: Backend schema might need these fields)
+  // New states for Employment History
   const [employerName, setEmployerName] = useState("");
   const [employerAddress, setEmployerAddress] = useState("");
   const [employmentPosition, setEmploymentPosition] = useState("");
@@ -104,6 +106,7 @@ const AddEmployeeButton = () => {
     setCivilStatus("");
     setReligion("");
     setAge("");
+    setEmployeeRole("");
     setPresentAddress("");
     setCity("");
     setTown("");
@@ -151,16 +154,17 @@ const AddEmployeeButton = () => {
       username,
       password,
       employeeEmail: email, // Map frontend 'email' to backend 'employeeEmail'
-      firstName,
-      lastName,
+      // FIXED: Use correct field names that match backend schema
+      firstname: firstName, // Changed from firstName to firstname
+      lastname: lastName, // Changed from lastName to lastname
       middleInitial,
       suffix,
       prefix,
-      gender,
+      gender: gender.toLowerCase(), // Convert to lowercase to match backend enum
       birthday,
       nationality,
-      civilStatus,
-      religion,
+      civilStatus: civilStatus.toLowerCase(), // Convert to lowercase to match backend enum
+      religion: religion.toLowerCase(), // Convert to lowercase to match backend enum
       age: Number(age), // Ensure age is a number
       presentAddress,
       city,
@@ -168,9 +172,8 @@ const AddEmployeeButton = () => {
       province,
       mobileNumber,
       companyName,
-      employeeId,
       jobposition: jobPosition, // Match backend field name
-      corporaterank: corporateRank, // Match backend field name
+      corporaterank: corporateRank.toLowerCase() /* .replace(/\s+/g, "_") */, // Convert to snake_case
       jobStatus,
       location,
       businessUnit,
@@ -183,26 +186,26 @@ const AddEmployeeButton = () => {
       sssNumber,
       philhealthNumber,
       pagibigNumber,
-      // Note: The backend controller you provided does not explicitly
-      // handle these fields (schoolName, achievements, etc.).
-      // You might need to update your Mongoose User schema and backend controller
-      // to store this additional information if it's required.
-      educationalBackground: {
+      employeeRole, // This should match the backend's role field
+
+      // FIXED: Convert arrays to strings or handle according to backend schema
+      // If backend expects string, stringify the objects; if it expects array, ensure schema matches
+      educationalBackground: JSON.stringify({
         schoolName,
         achievements,
         degree,
         educationalAttainment,
         educationFrom,
         educationTo,
-      },
-      dependants: [
+      }),
+      dependants: JSON.stringify([
         {
           dependantName,
           dependantRelationship,
           dependantBirthdate,
         },
-      ],
-      employmentHistory: [
+      ]),
+      employmentHistory: JSON.stringify([
         {
           employerName,
           employerAddress,
@@ -210,16 +213,14 @@ const AddEmployeeButton = () => {
           employmentFrom,
           employmentTo,
         },
-      ],
+      ]),
     };
 
     try {
-      // Replace 'YOUR_AUTH_TOKEN_HERE' with a dynamic token from your authentication system
-      // For example, if you store it in localStorage: localStorage.getItem('accessToken')
-      const token = "YOUR_ADMIN_AUTH_TOKEN_HERE"; // Placeholder: Get actual admin token
+      const token = localStorage.getItem("accessToken");
 
-      const response = await axios.post(
-        "/api/employees", // Your backend API endpoint
+      const response = await axiosInstance.post(
+        "/create-employees", // Your backend API endpoint
         employeeData,
         {
           headers: {
@@ -270,8 +271,7 @@ const AddEmployeeButton = () => {
     }
   };
 
-  // Determine if the Save Employee button should be disabled
-  // Ensure all required fields from the backend controller are included here
+  // FIXED: Include pagibigNumber in validation
   const isFormValid =
     username &&
     password &&
@@ -290,7 +290,6 @@ const AddEmployeeButton = () => {
     mobileNumber &&
     email && // Corresponds to employeeEmail
     companyName &&
-    employeeId &&
     jobPosition && // Corresponds to jobposition
     corporateRank && // Corresponds to corporaterank
     jobStatus &&
@@ -303,10 +302,9 @@ const AddEmployeeButton = () => {
     bankAccountNumber &&
     tinNumber &&
     sssNumber &&
-    philhealthNumber;
-  // The backend controller doesn't explicitly require pagibigNumber, schoolName, etc.
-  // If they are truly required, add them to this check and your backend validation.
-  // For now, I'm keeping it consistent with your backend's `if (!otherFields.tinNumber || ...)` check.
+    philhealthNumber &&
+    pagibigNumber && // Added pagibigNumber validation
+    employeeRole; // Check if a value is selected (HR/Manager/Admin)
 
   return (
     <Flex
@@ -340,8 +338,8 @@ const AddEmployeeButton = () => {
         onClose={onClose}
         isCentered
         motionPreset="slideInBottom"
-        size="xl" // Make modal larger to accommodate more fields
-        scrollBehavior="inside" // Allow scrolling inside the modal body
+        size="xl"
+        scrollBehavior="inside"
       >
         <ModalOverlay
           bg="blackAlpha.300"
@@ -352,7 +350,7 @@ const AddEmployeeButton = () => {
           boxShadow="2xl"
           p={6}
           bg="white"
-          maxW="4xl" // Increased maxW to better fit more fields in 2 columns
+          maxW="4xl"
           mx={4}
         >
           <ModalHeader fontSize="2xl" fontWeight="bold" pb={2}>
@@ -360,12 +358,12 @@ const AddEmployeeButton = () => {
           </ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            {/* Authentication Fields (Username, Password) - Added for backend requirement */}{" "}
+            {/* Authentication Fields */}
             <Text
               fontSize="lg"
               fontWeight="semibold"
               color="blue.600"
-              textAlign="start" // or "left"
+              textAlign="start"
               mb={4}
             >
               Authentication Details
@@ -395,6 +393,7 @@ const AddEmployeeButton = () => {
                 </FormControl>
               </SimpleGrid>
             </VStack>
+
             <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
               Personal Information
             </Text>
@@ -428,7 +427,7 @@ const AddEmployeeButton = () => {
                     value={middleInitial}
                     onChange={(e) =>
                       setMiddleInitial(e.target.value.toUpperCase().slice(0, 1))
-                    } // Limit to 1 char, uppercase
+                    }
                     maxLength={1}
                     borderRadius="lg"
                     focusBorderColor="blue.400"
@@ -437,7 +436,7 @@ const AddEmployeeButton = () => {
                 <FormControl id="suffix">
                   <FormLabel>Suffix</FormLabel>
                   <Input
-                    placeholder=" ex: Jr,Sr,II and etc..."
+                    placeholder="ex: Jr,Sr,II and etc..."
                     value={suffix}
                     onChange={(e) => setSuffix(e.target.value)}
                     borderRadius="lg"
@@ -447,7 +446,7 @@ const AddEmployeeButton = () => {
                 <FormControl id="prefix">
                   <FormLabel>Prefix</FormLabel>
                   <Input
-                    placeholder=" ex:Mr,Ms,Msr,and etc... "
+                    placeholder="ex:Mr,Ms,Msr,and etc..."
                     value={prefix}
                     onChange={(e) => setPrefix(e.target.value)}
                     borderRadius="lg"
@@ -463,9 +462,10 @@ const AddEmployeeButton = () => {
                     borderRadius="lg"
                     focusBorderColor="blue.400"
                   >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Prefer not to say">Prefer not to say</option>
+                    {/* FIXED: Match backend enum values (lowercase) */}
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="prefer not to say">Prefer not to say</option>
                   </Select>
                 </FormControl>
 
@@ -500,22 +500,28 @@ const AddEmployeeButton = () => {
                     borderRadius="lg"
                     focusBorderColor="blue.400"
                   >
-                    <option value="Single">Single</option>
-                    <option value="Married">Married</option>
-                    <option value="Divorced">Divorced</option>
-                    <option value="Widowed">Widowed</option>
+                    {/* FIXED: Match backend enum values (lowercase) */}
+                    <option value="single">Single</option>
+                    <option value="married">Married</option>
+                    <option value="divorced">Divorced</option>
+                    <option value="widowed">Widowed</option>
                   </Select>
                 </FormControl>
 
                 <FormControl id="religion" isRequired>
                   <FormLabel>Religion</FormLabel>
-                  <Input
-                    placeholder="Enter religion"
+                  <Select
+                    placeholder="Select religion"
                     value={religion}
                     onChange={(e) => setReligion(e.target.value)}
                     borderRadius="lg"
                     focusBorderColor="blue.400"
-                  />
+                  >
+                    {/* FIXED: Match backend enum values (lowercase) */}
+                    <option value="catholic">Catholic</option>
+                    <option value="christian">Christian</option>
+                    <option value="others">Others</option>
+                  </Select>
                 </FormControl>
 
                 <FormControl id="age" isRequired>
@@ -531,6 +537,7 @@ const AddEmployeeButton = () => {
                 </FormControl>
               </SimpleGrid>
             </VStack>
+
             <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
               Address Information
             </Text>
@@ -579,7 +586,8 @@ const AddEmployeeButton = () => {
                 </FormControl>
               </SimpleGrid>
             </VStack>
-            {/* Contact Fields */}{" "}
+
+            {/* Contact Fields */}
             <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
               Contact Information
             </Text>
@@ -588,7 +596,7 @@ const AddEmployeeButton = () => {
                 <FormControl id="mobile-number" isRequired>
                   <FormLabel>Mobile Number</FormLabel>
                   <Input
-                    type="tel" // Use type="tel" for mobile numbers
+                    type="tel"
                     placeholder="e.g., 09XX-XXX-XXXX"
                     value={mobileNumber}
                     onChange={(e) => setMobileNumber(e.target.value)}
@@ -609,7 +617,8 @@ const AddEmployeeButton = () => {
                 </FormControl>
               </SimpleGrid>
             </VStack>
-            {/* Corporate Details Fields */}{" "}
+
+            {/* Corporate Details Fields */}
             <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
               Corporate Details
             </Text>
@@ -621,16 +630,6 @@ const AddEmployeeButton = () => {
                     placeholder="Enter company name"
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
-                    borderRadius="lg"
-                    focusBorderColor="blue.400"
-                  />
-                </FormControl>
-                <FormControl id="employee-id" isRequired>
-                  <FormLabel>Employee ID</FormLabel>
-                  <Input
-                    placeholder="Enter employee ID"
-                    value={employeeId}
-                    onChange={(e) => setEmployeeId(e.target.value)}
                     borderRadius="lg"
                     focusBorderColor="blue.400"
                   />
@@ -654,27 +653,34 @@ const AddEmployeeButton = () => {
                     borderRadius="lg"
                     focusBorderColor="blue.400"
                   >
-                    <option value="Managerial employees">
-                      Managerial employees
+                    {/* These values will be mapped to backend enum values */}
+                    <option value="managerial employees">
+                      Managerial Employees
                     </option>
-                    <option value="Managerial staff">Managerial staff</option>
-                    <option value="Supervisory employees">
-                      Supervisory employees
+                    <option value="managerial staff">Managerial Staff</option>
+                    <option value="supervisory employees">
+                      Supervisory Employees
                     </option>
-                    <option value="Rank-and-File employees">
-                      Rank-and-File employees
-                    </option>
+                 {/*    <option value="rankandfile employees">
+                      Rank and File Employees
+                    </option> */}
                   </Select>
                 </FormControl>
+
                 <FormControl id="job-status" isRequired>
                   <FormLabel>Job Status</FormLabel>
-                  <Input
-                    placeholder="Enter job status (e.g., Full-time, Part-time)"
+                  <Select
+                    placeholder="Select job status"
                     value={jobStatus}
                     onChange={(e) => setJobStatus(e.target.value)}
                     borderRadius="lg"
                     focusBorderColor="blue.400"
-                  />
+                  >
+                    <option value="Probationary">Probationary</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Full-time">Full-time</option>
+                    <option value="Part-time">Part-time</option>
+                  </Select>
                 </FormControl>
                 <FormControl id="location" isRequired>
                   <FormLabel>Location</FormLabel>
@@ -729,9 +735,25 @@ const AddEmployeeButton = () => {
                     <option value="Inactive">Inactive</option>
                   </Select>
                 </FormControl>
+                <FormControl id="role" isRequired>
+                  <FormLabel>Employee Role</FormLabel>
+                  <Select
+                    placeholder="Select employee role"
+                    value={employeeRole}
+                    onChange={(e) => setEmployeeRole(e.target.value)}
+                    borderRadius="lg"
+                    focusBorderColor="blue.400"
+                  >
+                    <option value="admin">Admin</option>
+                    <option value="hr_manager">Manager</option>
+                    <option value="hr">HR Staff</option>
+                    <option value="employee">Employee</option>
+                  </Select>
+                </FormControl>
               </SimpleGrid>
             </VStack>
-            {/* Salary and Government IDs Fields */}{" "}
+
+            {/* Salary and Government IDs Fields */}
             <Text mb={4} fontSize="lg" fontWeight="semibold" color="blue.600">
               Salary & Government IDs
             </Text>
@@ -800,6 +822,7 @@ const AddEmployeeButton = () => {
                 </FormControl>
               </SimpleGrid>
             </VStack>
+
             {/* Educational Background Fields */}
             <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
               Educational Background
@@ -870,7 +893,8 @@ const AddEmployeeButton = () => {
                 </FormControl>
               </SimpleGrid>
             </VStack>
-            {/* Dependants Fields */}{" "}
+
+            {/* Dependants Fields */}
             <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
               Dependants Information
             </Text>
@@ -908,12 +932,12 @@ const AddEmployeeButton = () => {
                 </FormControl>
               </SimpleGrid>
             </VStack>
-            {/* Employment History Fields */}{" "}
+
+            {/* Employment History Fields */}
             <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
               Employment History
             </Text>
             <VStack spacing={4} mb={6}>
-              {" "}
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} width="100%">
                 <FormControl id="employer-name">
                   <FormLabel>Employer Name</FormLabel>
@@ -989,7 +1013,7 @@ const AddEmployeeButton = () => {
                 transform: "translateY(-1px)",
               }}
               transition="all 0.2s ease-in-out"
-              isDisabled={!isFormValid} // Disable if any required field is empty
+              isDisabled={!isFormValid}
             >
               Save Employee
             </Button>

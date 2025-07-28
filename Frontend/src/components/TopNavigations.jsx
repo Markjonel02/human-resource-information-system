@@ -21,7 +21,7 @@ const TopNavigations = () => {
   // Correctly access authState, then user from authState
   const { authState } = useAuth();
   const userFirstName = authState?.user?.firstname || "Guest"; // Safely access firstname
-
+  const role = authState?.user?.role || "User"; // Safely access role
   return (
     <Box
       bg={bgColor}
@@ -50,7 +50,7 @@ const TopNavigations = () => {
             color="gray.500"
             display={{ base: "none", md: "block" }}
           >
-            Home
+            {role}
           </Text>
         </Box>
 
@@ -67,18 +67,6 @@ const TopNavigations = () => {
             </InputLeftElement>
             <Input type="text" placeholder="Search..." borderRadius="md" />
           </InputGroup>
-
-          {/* Calendar Button */}
-          <Tooltip label="Calendar" openDelay={500}>
-            <IconButton
-              aria-label="Calendar"
-              icon={<CalendarIcon />}
-              variant="ghost"
-              colorScheme="gray"
-              mr={2}
-              display={{ base: "none", md: "block", lg: "block" }}
-            />
-          </Tooltip>
 
           {/* Add Employee Button */}
           <Tooltip label="Add Employee" openDelay={500}>

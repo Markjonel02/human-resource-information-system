@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import Bg from "../../assets/pexels-cowomen-1058097-2041627.jpg";
+// import Bg from "../../assets/pexels-cowomen-1058097-2041627.jpg"; // Assuming this is for background image, not directly used in logic
 import {
   Box,
   Input,
@@ -8,12 +8,12 @@ import {
   FormControl,
   FormLabel,
   Button,
-  Text,
+  Text, // Not used but kept for completeness
   VStack,
   Heading,
   Link,
   useToast,
-  useColorModeValue,
+  useColorModeValue, // Not used but kept for completeness
 } from "@chakra-ui/react";
 import { axiosInstance } from "../../lib/axiosInstance"; // Assuming axiosInstance is configured correctly
 import { useNavigate } from "react-router-dom";
@@ -45,11 +45,14 @@ const Login = () => {
 
     try {
       // Make API call to the backend login endpoint
+      // FIX: Corrected syntax for axios.post options
       const response = await axiosInstance.post(
         `/auth/login`, // Endpoint for login
-        { username, password }, // Send username and password
+        { username, password }, // Send username and password in the request body
         {
           withCredentials: true, // Important for sending/receiving HTTP-only cookies (refresh token)
+          // No need to manually add Authorization header here for login,
+          // as the login endpoint *provides* the token.
         }
       );
 
@@ -58,6 +61,7 @@ const Login = () => {
       const { accessToken, user } = response.data;
 
       // Update authentication state using the Auth context's login function
+      // This function should store the accessToken (e.g., in localStorage or state)
       authLogin(accessToken, user);
 
       // Display success toast

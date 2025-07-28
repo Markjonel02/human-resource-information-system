@@ -42,11 +42,11 @@ const register = async (req, res) => {
     username,
     employeeEmail,
     password,
-    role = "employee",
-    ...fields
+    role = "employee", // Default role to 'employee'
+    ...fields // All other fields from the request body
   } = req.body;
 
-  // Required field validation
+  // Required field validation (employeeId is now auto-generated, so it's removed from here)
   const requiredFields = [
     "firstname",
     "lastname",
@@ -59,7 +59,6 @@ const register = async (req, res) => {
     "city",
     "mobileNumber",
     "companyName",
-    "employeeId",
     "jobposition",
     "corporaterank",
     "jobStatus",
@@ -75,6 +74,7 @@ const register = async (req, res) => {
     "philhealthNumber",
   ];
 
+  // Check for missing required fields (excluding employeeId)
   const missingField = requiredFields.find((field) => !fields[field]);
   if (!username || !employeeEmail || !password || missingField) {
     return res.status(400).json({
@@ -85,33 +85,65 @@ const register = async (req, res) => {
   }
 
   try {
-    // Check for duplicates
-    const duplicateChecks = [
-      { username },
-      { employeeEmail },
-      { employeeId: fields.employeeId },
-    ];
-
-    for (const check of duplicateChecks) {
-      if (await User.findOne(check).lean().exec()) {
-        return res.status(409).json({
-          message: `Duplicate entry: ${Object.keys(check)[0]} already exists.`,
-        });
+    // 1. Centralized Duplicate Check Function:
+    //    This function checks for existing username or employeeEmail.
+    const checkDuplicate = async (field, value, message) => {
+      const query = {};
+      query[field] = value;
+      const existingUser = await User.findOne(query).lean().exec();
+      if (existingUser) {
+        return res.status(409).json({ message });
       }
+      return null; // No duplicate found
+    };
+
+    // 2. Perform Duplicate Checks for username and employeeEmail:
+    let response = await checkDuplicate(
+      "username",
+      username,
+      "Username already exists!"
+    );
+    if (response) return response;
+
+    response = await checkDuplicate(
+      "employeeEmail",
+      employeeEmail,
+      "Employee email already exists!"
+    );
+    if (response) return response;
+
+    // 3. Auto-generate employeeId: EMP0001, EMP0002, etc.
+    let newEmployeeId;
+    const lastEmployee = await User.findOne({ employeeId: /^EMP/ }) // Find documents where employeeId starts with 'EMP'
+      .sort({ employeeId: -1 }) // Sort by employeeId in descending order (to get the highest number)
+      .limit(1) // Get only the latest one
+      .lean()
+      .exec();
+
+    if (lastEmployee && lastEmployee.employeeId) {
+      // Extract the numeric part (e.g., '0012' from 'EMP0012')
+      const lastIdNum = parseInt(lastEmployee.employeeId.substring(3), 10);
+      // Increment and format with leading zeros (e.g., 12 -> 13 -> '0013')
+      const nextIdNum = String(lastIdNum + 1).padStart(4, "0");
+      newEmployeeId = `EMP${nextIdNum}`;
+    } else {
+      // If no existing employee IDs found, start from EMP0001
+      newEmployeeId = "EMP0001";
     }
 
-    // Create and save new user
+    // 4. Create and save new user
     const newUser = new User({
       username,
       employeeEmail,
       password, // Will be hashed by pre-save middleware
       role,
-      ...fields,
+      employeeId: newEmployeeId, // Assign the auto-generated ID
+      ...fields, // Include all other fields from the request body
     });
 
     await newUser.save();
 
-    // Generate tokens and set refresh token cookie
+    // 5. Generate tokens and set refresh token cookie
     const { accessToken, refreshToken } = generateTokens(newUser);
     setRefreshTokenCookie(res, refreshToken);
 
@@ -123,6 +155,7 @@ const register = async (req, res) => {
         username: newUser.username,
         employeeEmail: newUser.employeeEmail,
         role: newUser.role,
+        employeeId: newUser.employeeId, // Return the newly generated ID
       },
     });
   } catch (error) {
