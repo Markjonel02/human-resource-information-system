@@ -144,15 +144,6 @@ const AddEmployeeButton = () => {
     setEmploymentFrom("");
     setEmploymentTo("");
   };
-  const mapCorporateRank = (rank) => {
-    const rankMapping = {
-      "managerial employees": "managerial_employees",
-      "managerial staff": "managerial_staff",
-      "supervisory employees": "supervisory_employees",
-      "rank and file employees": "rank_and_file_employees",
-    };
-    return rankMapping[rank] || rank;
-  };
 
   const handleSubmit = async () => {
     // Convert employeeStatus string to boolean
@@ -182,7 +173,7 @@ const AddEmployeeButton = () => {
       mobileNumber,
       companyName,
       jobposition: jobPosition, // Match backend field name
-      corporaterank: mapCorporateRank(corporateRank), // Convert to snake_case
+      corporaterank: corporateRank.toLowerCase() /* .replace(/\s+/g, "_") */, // Convert to snake_case
       jobStatus,
       location,
       businessUnit,
@@ -670,9 +661,9 @@ const AddEmployeeButton = () => {
                     <option value="supervisory employees">
                       Supervisory Employees
                     </option>
-                    <option value="rank and file employees">
+                 {/*    <option value="rankandfile employees">
                       Rank and File Employees
-                    </option>
+                    </option> */}
                   </Select>
                 </FormControl>
 

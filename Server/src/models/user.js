@@ -65,7 +65,7 @@ const UserSchema = new mongoose.Schema({
       "managerial employees",
       "managerial staff",
       "supervisory employees",
-      "rank_and_file employees",
+      /*    "rankandfile employees", */
     ],
   },
   jobStatus: {
