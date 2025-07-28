@@ -1,5 +1,5 @@
 const user = require("../models/user");
-
+const jwt = require("jsonwebtoken");
 // @desc Create a new employee (admin only)
 // @route POST /employees
 // @access Private (Admin)
@@ -96,61 +96,117 @@ const createEmployee = async (req, res) => {
   }
 };
 
+// Assuming 'User' is your Mongoose User model, and 'generateTokens' and 'setRefreshTokenCookie' are defined elsewhere.
+
 const createAdmin = async (req, res) => {
-  const { username, employeeEmail, employeeId, password, ...otherFields } =
-    req.body;
+  // 1. Authorization Check: Ensure only administrators can create other administrators.
+  if (req.user.role !== "admin") {
+    return res.status(403).json({
+      message:
+        "Forbidden: Only administrators can create other administrators.",
+    });
+  }
 
-  if (req.user.role === "admin") {
-    // Admin-specific logic here
-    try {
-      // Check for duplicates
-      const duplicateChecks = [{ username }, { employeeEmail }, { employeeId }];
+  // 2. Destructure Request Body: employeeId is removed as it will be auto-generated.
+  //    Ensure only expected fields are destructured to prevent unexpected data insertion.
+  const { username, employeeEmail, password, ...otherFields } = req.body;
 
-      for (const check of duplicateChecks) {
-        if (await User.findOne(check).lean().exec()) {
-          return res.status(409).json({
-            message: `Duplicate entry: ${
-              Object.keys(check)[0]
-            } already exists.`,
-          });
-        }
+  try {
+    // Helper function to check for duplicates and throw a custom error if found.
+    // This allows the main try-catch block to handle all error responses.
+    const checkDuplicate = async (field, value, message) => {
+      const query = {};
+      query[field] = value;
+      const existingUser = await User.findOne(query).lean().exec();
+      if (existingUser) {
+        // Create a custom error with a status code property
+        const error = new Error(message);
+        error.statusCode = 409; // Conflict status code
+        throw error;
       }
+    };
 
-      // Create and save new user
-      const newUser = new User({
-        username,
-        employeeEmail,
-        password, // Will be hashed by pre-save middleware
-        role: "admin", // Set role to admin
-        ...otherFields,
-      });
+    // 3. Perform Duplicate Checks for username and employeeEmail:
+    await checkDuplicate(
+      "username",
+      username,
+      "Username already exists! Please choose a different username."
+    );
 
-      await newUser.save();
+    await checkDuplicate(
+      "employeeEmail",
+      employeeEmail,
+      "Employee email already exists! Please use a different email address."
+    );
 
-      // Generate tokens and set refresh token cookie
-      const { accessToken, refreshToken } = generateTokens(newUser);
-      setRefreshTokenCookie(res, refreshToken);
+    // 4. Auto-generate employeeId: EMP0001, EMP0002, etc.
+    let newEmployeeId;
+    // Find the last employee with an ID starting with 'EMP' to determine the next sequential ID.
+    const lastEmployee = await User.findOne({ employeeId: /^EMP/ })
+      .sort({ employeeId: -1 }) // Sort in descending order to get the highest numeric ID
+      .limit(1) // Get only one document
+      .lean()
+      .exec();
 
-      return res.status(201).json({
-        message: "Admin registered successfully",
-        accessToken,
-        user: {
-          id: newUser._id,
-          username: newUser.username,
-          employeeEmail: newUser.employeeEmail,
-          role: newUser.role,
-        },
-      });
-    } catch (error) {
-      console.error("Registration error:", error);
-      console.log("Error details:", error);
-      return res.status(500).json({
-        message:
-          error.name === "ValidationError"
-            ? error.message
-            : "Server error during registration.",
-      });
+    if (lastEmployee && lastEmployee.employeeId) {
+      // Extract the numeric part (e.g., '0012' from 'EMP0012')
+      const lastIdNum = parseInt(lastEmployee.employeeId.substring(3), 10);
+      // Increment the number and format it back with leading zeros (e.g., 12 -> 13 -> '0013')
+      const nextIdNum = String(lastIdNum + 1).padStart(4, "0");
+      newEmployeeId = `EMP${nextIdNum}`;
+    } else {
+      // If no existing employee IDs found, start from EMP0001
+      newEmployeeId = "EMP0001";
     }
+
+    // 5. Create new Admin user instance.
+    const newUser = new User({
+      username,
+      employeeEmail,
+      password, // Password will be hashed by a pre-save Mongoose middleware (assumed to be in place)
+      role: "admin", // Explicitly set the role to 'admin'
+      employeeId: newEmployeeId, // Assign the auto-generated ID
+      ...otherFields, // Include any other fields passed in the request body
+    });
+
+    // Save the new user to the database.
+    await newUser.save();
+
+    // 6. Generate authentication tokens and set the refresh token cookie.
+    // These functions are assumed to be defined and handle token creation and cookie setting.
+    const { accessToken, refreshToken } = generateTokens(newUser);
+    setRefreshTokenCookie(res, refreshToken);
+
+    // 7. Send a successful response with the new admin's details and access token.
+    return res.status(201).json({
+      message: "Admin registered successfully",
+      accessToken,
+      user: {
+        id: newUser._id,
+        username: newUser.username,
+        employeeEmail: newUser.employeeEmail,
+        role: newUser.role,
+        employeeId: newUser.employeeId, // Return the newly generated ID
+      },
+    });
+  } catch (error) {
+    // Centralized error handling for all potential errors during the process.
+    console.error("Admin registration error:", error); // Log the full error for debugging
+    console.log("Error details:", error.message); // Log specific error message
+
+    // Handle custom errors (like duplicates) with their specific status codes.
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    // Handle Mongoose validation errors.
+    if (error.name === "ValidationError") {
+      return res.status(400).json({ message: error.message }); // 400 Bad Request for validation errors
+    }
+    // Handle any other unexpected server errors.
+    return res.status(500).json({
+      message:
+        "Server error during admin registration. Please try again later.",
+    });
   }
 };
 
@@ -174,7 +230,6 @@ const getAllEmployees = async (req, res) => {
     res.status(500).json({ message: "Server error while fetching employees!" });
   }
 };
-
 // @desc Get a single employee by ID (admin/manager/self)
 // @route GET /employees/:id
 // @access Private (Admin, Manager, Employee - self)
