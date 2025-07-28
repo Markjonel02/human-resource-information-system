@@ -28,6 +28,13 @@ router.post(
   employeecreationController.createEmployee
 );
 
+router.post(
+  "/create-admin",
+  verifyJWT,
+  authorizeRoles("admin"),
+  employeecreationController.createAdmin
+);
+
 router.put(
   "/employees/:id",
   authorizeRoles("admin", "manager"),

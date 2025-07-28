@@ -111,7 +111,7 @@ const UserSchema = new mongoose.Schema({
   // Added for authorization roles
   role: {
     type: String,
-    enum: ["employee", "manager", "admin"],
+    enum: ["employee", "manager", "admin", "hr_manager"],
     default: "employee",
   },
 });
