@@ -114,8 +114,10 @@ const UserSchema = new mongoose.Schema({
     type: String,
     enum: ["employee", "hr", "admin", "hr_manager"],
   },
-  Timestamp: {
+
+  createdAt: {
     type: Date,
+    default: Date.now,
   },
 });
 

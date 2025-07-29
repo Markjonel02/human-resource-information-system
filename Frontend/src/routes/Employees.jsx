@@ -21,27 +21,26 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
-  VStack,
   HStack,
   Spinner,
+  Button,
   useToast,
 } from "@chakra-ui/react";
-import { SearchIcon, ChevronDownIcon } from "@chakra-ui/icons";
+import { SearchIcon, DeleteIcon } from "@chakra-ui/icons";
 import { FiMoreVertical } from "react-icons/fi";
-import axiosInstance from "../lib/axiosInstance"; // Adjust the path if needed
-import { useAuth } from "../context/AuthContext"; // Assuming you have an AuthContext for authentication
+import axiosInstance from "../lib/axiosInstance";
+
 const Employees = () => {
-  // Local state for employees and loading state
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [allChecked, setAllChecked] = useState(false);
   const toast = useToast();
 
-  // Fetch employees from API on mount
   useEffect(() => {
     fetchingEmployees();
   }, []);
 
-  // API call to fetch employee data
   const fetchingEmployees = async () => {
     setLoading(true);
     try {
@@ -54,14 +53,13 @@ const Employees = () => {
 
       const data = response.data;
 
-      // Format response data to match table structure
       const formattedData = data.map((emp) => ({
         id: emp._id,
         name: `${emp.firstname} ${emp.lastname}`,
         email: emp.employeeEmail,
         department: emp.department || "Not Set",
-        joinDate: emp.joinDate
-          ? new Date(emp.joinDate).toLocaleDateString("en-US", {
+        joinDate: emp.createdAt
+          ? new Date(emp.createdAt).toLocaleDateString("en-US", {
               year: "numeric",
               month: "short",
               day: "2-digit",
@@ -80,23 +78,95 @@ const Employees = () => {
         status: "error",
         duration: 4000,
         isClosable: true,
+        position: "top",
       });
     } finally {
       setLoading(false);
     }
   };
 
+  const handleCheckboxChange = (id) => {
+    setSelectedIds((prev) => {
+      const isSelected = prev.includes(id);
+      const newSelection = isSelected
+        ? prev.filter((sid) => sid !== id)
+        : [...prev, id];
+
+      setAllChecked(newSelection.length === employees.length);
+      return newSelection;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (allChecked) {
+      setSelectedIds([]);
+      setAllChecked(false);
+    } else {
+      const allIds = employees.map((emp) => emp.id);
+      setSelectedIds(allIds);
+      setAllChecked(true);
+    }
+  };
+
+  const handleBulkDeactivate = async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      await axiosInstance.put(
+        "/employees/bulk-deactivate",
+        { ids: selectedIds },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      toast({
+        title: "Employees updated",
+        description: "Selected employees were marked as inactive.",
+        status: "success",
+        duration: 4000,
+        isClosable: true,
+        position: "top", // ⬅️ this centers it at the top
+      });
+
+      setSelectedIds([]);
+      setAllChecked(false);
+      fetchingEmployees();
+    } catch (error) {
+      console.error("Error during bulk deactivate:", error);
+      toast({
+        title: "Update failed",
+        description: "Could not deactivate selected employees.",
+        status: "error",
+        duration: 4000,
+        position: "top",
+        isClosable: true,
+      });
+    }
+  };
+
   return (
     <Box p={6}>
-      <Flex justify="space-between" mb={6}>
+      <Flex justify="space-between" mb={6} flexWrap="wrap" gap={3}>
         <Heading size="lg">Employee List</Heading>
-        <InputGroup w="300px">
-          <InputLeftElement
-            pointerEvents="none"
-            children={<SearchIcon color="gray.400" />}
-          />
-          <Input placeholder="Search employees..." />
-        </InputGroup>
+        <HStack spacing={3}>
+          <InputGroup w="300px">
+            <InputLeftElement pointerEvents="none">
+              <SearchIcon color="gray.400" />
+            </InputLeftElement>
+            <Input placeholder="Search employees..." />
+          </InputGroup>
+
+          <Button
+            colorScheme="red"
+            onClick={handleBulkDeactivate}
+            isDisabled={selectedIds.length === 0}
+            leftIcon={<DeleteIcon />}
+          >
+            Set Inactive ({selectedIds.length})
+          </Button>
+        </HStack>
       </Flex>
 
       {loading ? (
@@ -109,7 +179,14 @@ const Employees = () => {
             <Thead bg="gray.100">
               <Tr>
                 <Th>
-                  <Checkbox />
+                  <Checkbox
+                    isChecked={allChecked}
+                    onChange={handleSelectAll}
+                    isIndeterminate={
+                      selectedIds.length > 0 &&
+                      selectedIds.length < employees.length
+                    }
+                  />
                 </Th>
                 <Th>Employee</Th>
                 <Th>Email</Th>
@@ -123,7 +200,10 @@ const Employees = () => {
               {employees.map((employee) => (
                 <Tr key={employee.id}>
                   <Td>
-                    <Checkbox />
+                    <Checkbox
+                      isChecked={selectedIds.includes(employee.id)}
+                      onChange={() => handleCheckboxChange(employee.id)}
+                    />
                   </Td>
                   <Td>
                     <HStack spacing={3}>
