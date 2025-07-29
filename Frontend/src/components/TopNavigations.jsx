@@ -69,11 +69,20 @@ const TopNavigations = () => {
           </InputGroup>
 
           {/* Add Employee Button */}
-          <Tooltip label="Add Employee" openDelay={500}>
+          {(role === "admin" || role === "hr") && (
+            <Tooltip label="Add Employee" openDelay={500}>
+              <Box display={{ base: "none", md: "block" }}>
+                <AddEmployeeButton />
+              </Box>
+            </Tooltip>
+          )}
+
+          {/* Calendar Icon */}
+          {/* <Tooltip label="Add Employee" openDelay={500}>
             <Box display={{ base: "none", md: "none", lg: "block" }}>
               <AddEmployeeButton />
             </Box>
-          </Tooltip>
+          </Tooltip> */}
         </Flex>
       </Flex>
     </Box>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react"; // Import useRef
 import {
   Box,
   Flex,
@@ -20,6 +20,13 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  Button, // Ensure Button is imported for AlertDialog
+  AlertDialog, // Import AlertDialog components
+  AlertDialogOverlay,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogBody,
+  AlertDialogFooter,
 } from "@chakra-ui/react";
 import {
   Home,
@@ -42,7 +49,7 @@ import { useAuth } from "../context/AuthContext"; // Correct import path for Aut
 
 const SideNavigation = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen, onOpen, onClose } = useDisclosure(); // For the mobile drawer
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useBreakpointValue({ base: true, md: true, lg: false });
@@ -50,6 +57,30 @@ const SideNavigation = () => {
   // Get authState and logout function from AuthContext
   const { authState, logout: authLogout } = useAuth();
   const loggedInUser = authState.user; // Get the user object from authState
+
+  // For Logout Confirmation Dialog
+  const {
+    isOpen: isLogoutAlertOpen,
+    onOpen: onOpenLogoutAlert,
+    onClose: onCloseLogoutAlert,
+  } = useDisclosure();
+  const cancelRef = useRef(); // Ref for the cancel button in AlertDialog
+
+  // Function to handle logout confirmation (opens the AlertDialog)
+  const handleLogout = () => {
+    onOpenLogoutAlert(); // Open the AlertDialog for confirmation
+    if (isMobile) {
+      onClose(); // Close the mobile drawer immediately if open
+    }
+  };
+
+  // Function to perform logout after confirmation
+  const handleConfirmLogout = () => {
+    console.log("SideNavigation: Logging out...");
+    authLogout(); // Call the logout function from AuthContext
+    onCloseLogoutAlert(); // Close the AlertDialog
+    // AuthContext's logout function handles navigation to /login
+  };
 
   useEffect(() => {
     if (isMobile) {
@@ -64,7 +95,12 @@ const SideNavigation = () => {
   const menuItems = [
     // Dynamically set the Dashboard path
     { icon: Home, label: "Dashboard", path: dashboardPath },
-    { icon: Users, label: "Employees", path: "/employees", roles: ["admin"] }, // Add a 'roles' property
+    {
+      icon: Users,
+      label: "Employees",
+      path: "/employees",
+      roles: ["admin", "hr"],
+    }, // Add a 'roles' property
     { icon: CheckSquare, label: "Attendances", path: "/attendances" },
     { icon: Calendar, label: "Calendar", path: "/calendar" },
     { icon: MdOutlineRequestPage, label: "Request", path: "/request" },
@@ -87,12 +123,6 @@ const SideNavigation = () => {
 
   const SidebarContent = ({ forceExpanded = false, hideHeader = false }) => {
     const collapsed = forceExpanded ? false : isCollapsed;
-
-    const handleLogout = () => {
-      console.log("SideNavigation: Logging out...");
-      authLogout(); // Call the logout function from AuthContext
-      // AuthContext's logout function handles navigation to /login
-    };
 
     return (
       <Box
@@ -325,7 +355,7 @@ const SideNavigation = () => {
                 </Link>
                 <MenuItem
                   icon={<Icon as={LogOut} w={4} h={4} />}
-                  onClick={handleLogout} // Calls the authLogout function
+                  onClick={handleLogout} // Now calls the handleLogout in parent scope
                   _hover={{ bg: useColorModeValue("red.50", "red.900") }}
                   color={useColorModeValue("red.500", "red.300")}
                 >
@@ -390,12 +420,51 @@ const SideNavigation = () => {
                 variant="ghost"
               />
             </Flex>
+            {/* Pass handleLogout and handleConfirmLogout as props if SidebarContent needed to directly call them */}
             <SidebarContent forceExpanded hideHeader />
           </DrawerContent>
         </Drawer>
       ) : (
         <SidebarContent />
       )}
+
+      {/* Logout Confirmation AlertDialog */}
+      <AlertDialog
+        isOpen={isLogoutAlertOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onCloseLogoutAlert}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent borderRadius="lg">
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Confirm Logout
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              Are you sure you want to log out? You will need to log in again to
+              access your account.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button
+                ref={cancelRef}
+                onClick={onCloseLogoutAlert}
+                borderRadius="md"
+              >
+                Cancel
+              </Button>
+              <Button
+                colorScheme="red"
+                onClick={handleConfirmLogout}
+                ml={3}
+                borderRadius="md"
+              >
+                Log Out
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </>
   );
 };

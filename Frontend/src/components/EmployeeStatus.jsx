@@ -135,25 +135,6 @@ const EmployeeStatus = () => {
         >
           Employees Status
         </Heading>
-        {/* <InputGroup w={{ base: "full", md: "auto" }}>
-          <InputLeftElement pointerEvents="none">
-            <SearchIcon color="gray.400" />
-          </InputLeftElement>
-          <Input
-            type="text"
-            placeholder="Search here"
-            pl={10}
-            pr={4}
-            py={2}
-            borderWidth="1px"
-            borderColor="gray.300"
-            borderRadius="lg"
-            focusBorderColor="blue.500"
-            _focus={{ boxShadow: "outline" }}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </InputGroup> */}
       </Flex>
 
       <Box bg="white" borderRadius="lg" shadow="md" overflowX="auto">
