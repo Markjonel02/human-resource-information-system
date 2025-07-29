@@ -661,7 +661,7 @@ const AddEmployeeButton = () => {
                     <option value="supervisory employees">
                       Supervisory Employees
                     </option>
-                 {/*    <option value="rankandfile employees">
+                    {/*    <option value="rankandfile employees">
                       Rank and File Employees
                     </option> */}
                   </Select>
@@ -731,8 +731,8 @@ const AddEmployeeButton = () => {
                     borderRadius="lg"
                     focusBorderColor="blue.400"
                   >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
+                    <option value="1">Active</option>
+                    <option value="0">Inactive</option>
                   </Select>
                 </FormControl>
                 <FormControl id="role" isRequired>

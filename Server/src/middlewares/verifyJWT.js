@@ -22,6 +22,16 @@ const verifyJWT = (req, res, next) => {
 
   // Debugging: Log the extracted token
   console.log("Extracted Token:", token);
+
+  // Extra Defensive Check: Block malformed tokens like "null", "undefined", or empty strings
+  if (!token || token === "null" || token === "undefined") {
+    return res
+      .status(401)
+      .json({
+        message: "Unauthorized: Token is null, undefined, or malformed.",
+      });
+  }
+
   // Debugging: Log the JWT Secret being used
   console.log(
     "JWT_SECRET (from env):",
@@ -34,25 +44,24 @@ const verifyJWT = (req, res, next) => {
       // Debugging: Log the JWT verification error
       console.error("JWT Verification Error:", err);
 
-      // Differentiate between token expiration and invalid token for clearer messages
       if (err.name === "TokenExpiredError") {
         return res
           .status(401)
           .json({ message: "Unauthorized: Token expired." });
       }
+
       if (err.name === "JsonWebTokenError") {
         return res
           .status(403)
           .json({ message: "Forbidden: Invalid token signature." });
       }
-      // Generic forbidden for other verification errors
+
       return res
         .status(403)
         .json({ message: "Forbidden: Token verification failed." });
     }
 
     // 4. Check for UserInfo in the decoded token
-    // FIXED: Check for 'UserInfo' (uppercase U) to match your actual token structure
     if (!decoded || !decoded.UserInfo) {
       console.error("Decoded token missing UserInfo property:", decoded);
       return res
@@ -60,9 +69,8 @@ const verifyJWT = (req, res, next) => {
         .json({ message: "Server Error: User information missing in token." });
     }
 
-    // FIXED: Use 'UserInfo' (uppercase) instead of 'userInfo' (lowercase)
-    req.user = decoded.UserInfo; // Attach the entire UserInfo object
-    // Now, in your controllers, you can access req.user.id, req.user.username, req.user.role
+    // Attach decoded user info to request object
+    req.user = decoded.UserInfo;
 
     // Debugging: Log the decoded user information
     console.log("Decoded User Info:", req.user);

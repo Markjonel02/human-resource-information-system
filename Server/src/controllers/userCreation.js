@@ -221,7 +221,7 @@ const getAllEmployees = async (req, res) => {
     });
   }
   try {
-    const employees = await User.find().select("-password").lean().exec(); //exclue password
+    const employees = await user.find().select("-password").lean().exec(); //exclue password
     if (!employees?.length) {
       return res.status(404).json({ message: "No Employees found!" });
     }

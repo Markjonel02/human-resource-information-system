@@ -114,6 +114,9 @@ const UserSchema = new mongoose.Schema({
     type: String,
     enum: ["employee", "hr", "admin", "hr_manager"],
   },
+  Timestamp: {
+    type: Date,
+  },
 });
 
 // Hash password before saving and calculate age
