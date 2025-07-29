@@ -50,7 +50,8 @@ import {
   Eye, // Lucide icon for View
 } from "lucide-react"; // Using lucide-react for new icons
 import AddEmployeeButton from "../components/AddemployeeButton"; // Assuming this path is correct
-import { axiosInstance } from "../utils/axiosInstance"; // Assuming axiosInstance is set up for API calls
+import { axiosInstance } from "../lib/axiosInstance"; // Assuming axiosInstance is set up for API calls
+import { useAuth } from "../context/AuthContext"; // Assuming you have an AuthContext for authentication
 // Initial data for employees
 const initialEmployeesData = [
   {
@@ -127,6 +128,7 @@ const initialEmployeesData = [
 
 const Employees = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(false); // State to manage loading state
   // State to hold the mutable list of employees
   const [employees, setEmployees] = useState(initialEmployeesData);
   // State to hold the IDs of selected employees for bulk actions
@@ -173,6 +175,23 @@ const Employees = () => {
         return "orange";
       default:
         return "gray";
+    }
+  };
+
+  const fetchingEmployees = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const response = await axiosInstance.get("/employees", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setEmployees(response.data);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
