@@ -171,7 +171,7 @@ const register = async (req, res) => {
 
 // -------------------- Controller: Login -------------------- //
 const login = async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, setEmployeeStatus } = req.body;
 
   if (!username || !password) {
     return res
@@ -185,9 +185,11 @@ const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials." });
     }
 
-    // ✅ Correct check
+    // if user is inactive
     if (user.employeeStatus !== 1) {
-      return res.status(403).json({ message: "User is inactive." });
+      return res
+        .status(403)
+        .json({ message: "Your account is inactive. Please contact support." });
     }
 
     const { accessToken, refreshToken } = generateTokens(user);
