@@ -119,6 +119,14 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
+  lastLogin: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 // Hash password before saving and calculate age

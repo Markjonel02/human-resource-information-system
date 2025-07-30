@@ -5,7 +5,7 @@ const router = express.Router();
 // Corrected paths for controllers and middleware
 // Please ensure these paths and filenames match your actual directory structure and file names.
 const authController = require("../controllers/authController"); // Assuming authController.js
-const employeecreationController = require("../controllers/userCreation"); // Assuming employeecreationController.js
+const employeecreationController = require("../controllers/Admin/userAdmin"); // Assuming employeecreationController.js
 const verifyJWT = require("../middlewares/verifyJWT"); // Assuming middleware/verifyJWT.js
 const authorizeRoles = require("../middlewares/authorizeRole"); // Assuming middleware/authorizeRoles.js
 

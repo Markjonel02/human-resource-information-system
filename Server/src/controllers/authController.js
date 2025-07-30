@@ -169,9 +169,10 @@ const register = async (req, res) => {
   }
 };
 
+
 // -------------------- Controller: Login -------------------- //
 const login = async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, setEmployeeStatus } = req.body;
 
   if (!username || !password) {
     return res
@@ -183,6 +184,13 @@ const login = async (req, res) => {
     const user = await User.findOne({ username }).exec();
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ message: "Invalid credentials." });
+    }
+
+    // if user is inactive
+    if (user.employeeStatus !== 1) {
+      return res
+        .status(403)
+        .json({ message: "Your account is inactive. Please contact support." });
     }
 
     const { accessToken, refreshToken } = generateTokens(user);
@@ -197,6 +205,7 @@ const login = async (req, res) => {
         employeeEmail: user.employeeEmail,
         role: user.role,
         firstname: user.firstname,
+        employeeStatus: user.employeeStatus, // ✅ Include this for frontend check
       },
     });
   } catch (error) {

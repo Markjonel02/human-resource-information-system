@@ -1,11 +1,11 @@
-const user = require("../models/user");
+const user = require("../../models/user");
 const jwt = require("jsonwebtoken");
 // @desc Create a new employee (admin only)
 // @route POST /employees
 // @access Private (Admin)
 const createEmployee = async (req, res) => {
   // 1. Authorization Check: Ensure only administrators can create employees.
-  if (req.user.role !== "admin") {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res.status(403).json({
       message: "Forbidden: Only administrators can create employees.",
     });
@@ -271,7 +271,7 @@ const updateEmployee = async (req, res) => {
   const { password, role, ...updates } = req.body; // Exclude password from direct updates here
 
   // Only admins and managers can update employee profiles
-  if (req.user.role !== "admin" && req.user.role !== "manager") {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res.status(403).json({
       message:
         "Forbidden: You do not have permission to update employee profiles.",

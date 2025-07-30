@@ -13,6 +13,7 @@ import {
   Heading,
   Link,
   useToast,
+  Tooltip,
   useColorModeValue, // Not used but kept for completeness
 } from "@chakra-ui/react";
 import { axiosInstance } from "../../lib/axiosInstance"; // Assuming axiosInstance is configured correctly
@@ -23,6 +24,7 @@ import { useAuth } from "../../context/AuthContext"; // Corrected import path fo
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [employeeStatus, setEmployeeStatus] = useState(1); // Assuming default status is active
   const toast = useToast();
   const navigate = useNavigate();
   const { login: authLogin } = useAuth(); // Destructure login function from Auth context
@@ -59,6 +61,18 @@ const Login = () => {
       // Extract accessToken and user data from the successful response
       // IMPORTANT: Ensure your backend's /auth/login endpoint sends 'role' in this 'user' object
       const { accessToken, user } = response.data;
+
+      if (user.employeeStatus !== 1) {
+        toast({
+          title: "Inactive Account",
+          description: "Your account is inactive. Please contact support.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+          position: "top",
+        });
+        return; // Stop login flow if inactive
+      }
 
       // Update authentication state using the Auth context's login function
       // This function should store the accessToken (e.g., in localStorage or state)
@@ -157,6 +171,7 @@ const Login = () => {
         w="full"
         maxW="md"
       >
+        Tooltip
         <Heading
           as="h2"
           size="xl"
