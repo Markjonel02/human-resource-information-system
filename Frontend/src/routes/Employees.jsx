@@ -58,13 +58,7 @@ const Employees = () => {
         name: `${emp.firstname} ${emp.lastname}`,
         email: emp.employeeEmail,
         department: emp.department || "Not Set",
-        joinDate: emp.createdAt
-          ? new Date(emp.createdAt).toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "short",
-              day: "2-digit",
-            })
-          : "N/A",
+        role: emp.role || "Not Set",
         status: emp.employeeStatus === 1 ? "Active" : "Inactive",
         avatar: `https://ui-avatars.com/api/?name=${emp.firstname}+${emp.lastname}&background=random`,
       }));
@@ -217,7 +211,7 @@ const Employees = () => {
                   </Td>
                   <Td>{employee.email}</Td>
                   <Td>{employee.department}</Td>
-                  <Td>{employee.joinDate}</Td>
+                  <Td>{employee.role}</Td>
                   <Td>
                     <Tag
                       size="sm"
