@@ -21,10 +21,13 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  Stack,
   HStack,
   Spinner,
+  useBreakpointValue,
   Button,
   useToast,
+  Tooltip,
 } from "@chakra-ui/react";
 import {
   SearchIcon,
@@ -38,20 +41,27 @@ import axiosInstance from "../lib/axiosInstance";
 const Employees = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
-  //checkbox state
   const [selectedIds, setSelectedIds] = useState([]);
   const [allChecked, setAllChecked] = useState(false);
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const toast = useToast();
 
-  const ITEMS_PER_PAGE = 2;
+  const ITEMS_PER_PAGE = 10;
+
+  const buttonLayout = useBreakpointValue({
+    base: "vertical",
+    md: "horizontal",
+  });
+  // Determine if the screen is mobile to conditionally shorten the email
+  const isMobile = useBreakpointValue({ base: true, md: true, lg: false });
+
   useEffect(() => {
     fetchingEmployees(currentPage);
   }, [currentPage]);
 
-  const rederPagination = () => (
+  // Pagination UI logic
+  const renderPagination = () => (
     <Flex justify="center" align="center" mt={6} gap={2}>
       <Button
         onClick={() => setCurrentPage(1)}
@@ -98,6 +108,8 @@ const Employees = () => {
       </Button>
     </Flex>
   );
+
+  // Fetch employees from API
   const fetchingEmployees = async (page) => {
     setLoading(true);
     try {
@@ -110,11 +122,12 @@ const Employees = () => {
 
       const data = response.data;
 
-      //pagination Logic
-
+      // Set pagination
       const start = (page - 1) * ITEMS_PER_PAGE;
       const end = start + ITEMS_PER_PAGE;
       setTotalPages(Math.ceil(data.length / ITEMS_PER_PAGE));
+
+      // Format data
       const formattedData = data.map((emp) => ({
         id: emp._id,
         name: `${emp.firstname} ${emp.lastname}`,
@@ -141,18 +154,19 @@ const Employees = () => {
     }
   };
 
+  // Handle single checkbox toggle
   const handleCheckboxChange = (id) => {
     setSelectedIds((prev) => {
       const isSelected = prev.includes(id);
       const newSelection = isSelected
         ? prev.filter((sid) => sid !== id)
         : [...prev, id];
-
       setAllChecked(newSelection.length === employees.length);
       return newSelection;
     });
   };
 
+  // Handle select-all toggle
   const handleSelectAll = () => {
     if (allChecked) {
       setSelectedIds([]);
@@ -164,6 +178,7 @@ const Employees = () => {
     }
   };
 
+  // Bulk deactivate selected employees
   const handleBulkDeactivate = async () => {
     try {
       const token = localStorage.getItem("accessToken");
@@ -188,7 +203,7 @@ const Employees = () => {
 
       setSelectedIds([]);
       setAllChecked(false);
-      fetchingEmployees(currentPage); // Refresh the employee list
+      fetchingEmployees(currentPage);
     } catch (error) {
       console.error("Error during bulk deactivate:", error);
       toast({
@@ -196,36 +211,57 @@ const Employees = () => {
         description: "Could not deactivate selected employees.",
         status: "error",
         duration: 4000,
-        position: "top",
         isClosable: true,
+        position: "top",
       });
     }
   };
 
   return (
     <>
-      {" "}
       <Box p={6}>
         <Flex justify="space-between" mb={6} flexWrap="wrap" gap={3}>
           <Heading size="lg">Employee List</Heading>
-          <HStack spacing={3}>
-            <InputGroup w="300px">
-              <InputLeftElement pointerEvents="none">
-                <SearchIcon color="gray.400" />
-              </InputLeftElement>
-              <Input placeholder="Search employees..." />
-            </InputGroup>
 
-            <Button
-              colorScheme="red"
-              onClick={handleBulkDeactivate}
-              isDisabled={selectedIds.length === 0}
-              leftIcon={<DeleteIcon />}
-            >
-              Set Inactive ({selectedIds.length})
-            </Button>
-          </HStack>
+          {buttonLayout === "vertical" ? (
+            <Stack spacing={3} w="100%">
+              <InputGroup>
+                <InputLeftElement pointerEvents="none">
+                  <SearchIcon color="gray.400" />
+                </InputLeftElement>
+                <Input placeholder="Search employees..." />
+              </InputGroup>
+
+              <Button
+                colorScheme="red"
+                onClick={handleBulkDeactivate}
+                isDisabled={selectedIds.length === 0}
+                leftIcon={<DeleteIcon />}
+              >
+                Set Inactive ({selectedIds.length})
+              </Button>
+            </Stack>
+          ) : (
+            <HStack spacing={3}>
+              <InputGroup w="300px">
+                <InputLeftElement pointerEvents="none">
+                  <SearchIcon color="gray.400" />
+                </InputLeftElement>
+                <Input placeholder="Search employees..." />
+              </InputGroup>
+
+              <Button
+                colorScheme="red"
+                onClick={handleBulkDeactivate}
+                isDisabled={selectedIds.length === 0}
+                leftIcon={<DeleteIcon />}
+              >
+                Set Inactive ({selectedIds.length})
+              </Button>
+            </HStack>
+          )}
         </Flex>
+
         {loading ? (
           <Flex justify="center" py={10}>
             <Spinner size="xl" color="blue.500" />
@@ -246,10 +282,18 @@ const Employees = () => {
                     />
                   </Th>
                   <Th>Employee</Th>
-                  <Th>Email</Th>
-                  <Th>Department</Th>
-                  <Th>Join Date</Th>
-                  <Th>Status</Th>
+                  <Th display={{ base: "none", md: "none", lg: "table-cell" }}>
+                    Email
+                  </Th>
+                  <Th display={{ base: "none", md: "none", lg: "table-cell" }}>
+                    Department
+                  </Th>
+                  <Th display={{ base: "none", md: "none", lg: "table-cell" }}>
+                    Role
+                  </Th>
+                  <Th display={{ base: "none", md: "none", lg: "table-cell" }}>
+                    Status
+                  </Th>
                   <Th>Actions</Th>
                 </Tr>
               </Thead>
@@ -269,13 +313,35 @@ const Employees = () => {
                           src={employee.avatar}
                           name={employee.name}
                         />
-                        <Text>{employee.name}</Text>
+                        <Tooltip label={employee.name}>
+                          {isMobile && employee.name.length > 3
+                            ? `${employee.name.slice(0, 3)}...`
+                            : employee.name}
+                        </Tooltip>
                       </HStack>
                     </Td>
-                    <Td>{employee.email}</Td>
-                    <Td>{employee.department}</Td>
-                    <Td>{employee.role}</Td>
-                    <Td>
+                    <Tooltip label={employee.email}>
+                      <Td
+                        display={{ base: "none", md: "none", lg: "table-cell" }}
+                      >
+                        {isMobile && employee.email.length > 5
+                          ? `${employee.email.slice(0, 5)}...`
+                          : employee.email}
+                      </Td>
+                    </Tooltip>
+                    <Td
+                      display={{ base: "none", md: "none", lg: "table-cell" }}
+                    >
+                      {employee.department}
+                    </Td>
+                    <Td
+                      display={{ base: "none", md: "none", lg: "table-cell" }}
+                    >
+                      {employee.role}
+                    </Td>
+                    <Td
+                      display={{ base: "none", md: "none", lg: "table-cell" }}
+                    >
                       <Tag
                         size="sm"
                         variant="subtle"
@@ -307,7 +373,8 @@ const Employees = () => {
           </Box>
         )}
       </Box>
-      {rederPagination()}
+
+      {renderPagination()}
     </>
   );
 };

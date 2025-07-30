@@ -33,14 +33,22 @@ const TopNavigations = () => {
     >
       <Flex align="center" justify="space-between" flexDirection="row">
         {/* Welcome Section */}
-        <Box textAlign="left">
+        <Box
+          textAlign={{ base: "center", md: "left" }}
+          mb={{ base: 2, md: 0 }}
+          ml={{ base: 10, md: 0 }}
+        >
           <Text
             fontSize={{ base: "lg", md: "xl" }}
             fontWeight="bold"
             color={textColor}
           >
             Welcome back,{" "}
-            <Text as="span" color="purple.600">
+            <Text
+              as="span"
+              color="purple.600"
+              textAlign={{ base: "center", md: "left" }}
+            >
               {userFirstName}{" "}
               {/* This will now correctly display the first name */}
             </Text>
