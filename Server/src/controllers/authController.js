@@ -185,6 +185,11 @@ const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials." });
     }
 
+    // ✅ Correct check
+    if (user.employeeStatus !== 1) {
+      return res.status(403).json({ message: "User is inactive." });
+    }
+
     const { accessToken, refreshToken } = generateTokens(user);
     setRefreshTokenCookie(res, refreshToken);
 
@@ -197,6 +202,7 @@ const login = async (req, res) => {
         employeeEmail: user.employeeEmail,
         role: user.role,
         firstname: user.firstname,
+        employeeStatus: user.employeeStatus, // ✅ Include this for frontend check
       },
     });
   } catch (error) {

@@ -23,7 +23,8 @@ import {
 import { PlusCircle } from "lucide-react";
 import { axiosInstance } from "../lib/axiosInstance"; // Assuming axiosInstance is configured correctly
 
-const AddEmployeeButton = () => {
+const AddEmployeeButton = ({ onEmployeeAdded }) => {
+  // Added prop for callback
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
@@ -147,7 +148,7 @@ const AddEmployeeButton = () => {
 
   const handleSubmit = async () => {
     // Convert employeeStatus string to boolean
-    const isEmployeeActive = employeeStatus === "Active";
+    const isEmployeeActive = employeeStatus === "1";
 
     // Prepare the data payload to match backend expectations
     const employeeData = {
@@ -243,6 +244,11 @@ const AddEmployeeButton = () => {
 
       clearForm(); // Clear form fields
       onClose(); // Close the modal
+
+      // Call the callback function to refresh the employee list
+      if (onEmployeeAdded) {
+        onEmployeeAdded();
+      }
     } catch (error) {
       console.error(
         "Error creating employee:",

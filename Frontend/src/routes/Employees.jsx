@@ -37,7 +37,8 @@ import {
 } from "@chakra-ui/icons";
 import { FiMoreVertical } from "react-icons/fi";
 import axiosInstance from "../lib/axiosInstance";
-
+import AddEmployeeButton from "../components/AddEmployeeButton"; // Import the AddEmployeeButton component
+import useDebounce from "../hooks/useDebounce"; // Import the useDebounce hook
 const Employees = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -45,6 +46,8 @@ const Employees = () => {
   const [allChecked, setAllChecked] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [searchTerm, setSearchTerm] = useState(""); // search state
+
   const toast = useToast();
 
   const ITEMS_PER_PAGE = 10;
@@ -59,6 +62,29 @@ const Employees = () => {
   useEffect(() => {
     fetchingEmployees(currentPage);
   }, [currentPage]);
+
+  // Function to refresh employees list (this will be passed to AddEmployeeButton)
+  const handleEmployeeAdded = () => {
+    fetchingEmployees(currentPage); // Refresh the current page
+    setSelectedIds([]); // Clear any selections
+    setAllChecked(false); // Reset select all checkbox
+  };
+
+  //search functionality with debounce
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+
+  // Filter employees based on search term
+  const filteredEmployees = employees.filter(
+    (employee) =>
+      employee.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      employee.email
+        .toLowerCase()
+        .includes(debouncedSearchTerm.toLowerCase()) ||
+      employee.department
+        .toLowerCase()
+        .includes(debouncedSearchTerm.toLowerCase()) ||
+      employee.role.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+  );
 
   // Pagination UI logic
   const renderPagination = () => (
@@ -161,7 +187,7 @@ const Employees = () => {
       const newSelection = isSelected
         ? prev.filter((sid) => sid !== id)
         : [...prev, id];
-      setAllChecked(newSelection.length === employees.length);
+      setAllChecked(newSelection.length === filteredEmployees.length);
       return newSelection;
     });
   };
@@ -172,7 +198,7 @@ const Employees = () => {
       setSelectedIds([]);
       setAllChecked(false);
     } else {
-      const allIds = employees.map((emp) => emp.id);
+      const allIds = filteredEmployees.map((emp) => emp.id);
       setSelectedIds(allIds);
       setAllChecked(true);
     }
@@ -223,13 +249,21 @@ const Employees = () => {
         <Flex justify="space-between" mb={6} flexWrap="wrap" gap={3}>
           <Heading size="lg">Employee List</Heading>
 
+          {/* Add the AddEmployeeButton component with callback */}
+        </Flex>
+
+        <Flex justify="space-between" mb={6} flexWrap="wrap" gap={3}>
           {buttonLayout === "vertical" ? (
             <Stack spacing={3} w="100%">
               <InputGroup>
                 <InputLeftElement pointerEvents="none">
                   <SearchIcon color="gray.400" />
                 </InputLeftElement>
-                <Input placeholder="Search employees..." />
+                <Input
+                  placeholder="Search employees..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </InputGroup>
 
               <Button
@@ -242,22 +276,29 @@ const Employees = () => {
               </Button>
             </Stack>
           ) : (
-            <HStack spacing={3}>
+            <HStack spacing={3} w="100%">
               <InputGroup w="300px">
                 <InputLeftElement pointerEvents="none">
                   <SearchIcon color="gray.400" />
                 </InputLeftElement>
-                <Input placeholder="Search employees..." />
+                <Input
+                  placeholder="Search employees..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </InputGroup>
 
-              <Button
-                colorScheme="red"
-                onClick={handleBulkDeactivate}
-                isDisabled={selectedIds.length === 0}
-                leftIcon={<DeleteIcon />}
-              >
-                Set Inactive ({selectedIds.length})
-              </Button>
+              <Flex justifyContent={"flex-end"} flexGrow={1} gap={3}>
+                <AddEmployeeButton onEmployeeAdded={handleEmployeeAdded} />
+                <Button
+                  colorScheme="red"
+                  onClick={handleBulkDeactivate}
+                  isDisabled={selectedIds.length === 0}
+                  leftIcon={<DeleteIcon />}
+                >
+                  Set Inactive ({selectedIds.length})
+                </Button>
+              </Flex>
             </HStack>
           )}
         </Flex>
@@ -277,7 +318,7 @@ const Employees = () => {
                       onChange={handleSelectAll}
                       isIndeterminate={
                         selectedIds.length > 0 &&
-                        selectedIds.length < employees.length
+                        selectedIds.length < filteredEmployees.length
                       }
                     />
                   </Th>
@@ -298,7 +339,7 @@ const Employees = () => {
                 </Tr>
               </Thead>
               <Tbody>
-                {employees.map((employee) => (
+                {filteredEmployees.map((employee) => (
                   <Tr key={employee.id}>
                     <Td>
                       <Checkbox
@@ -314,21 +355,25 @@ const Employees = () => {
                           name={employee.name}
                         />
                         <Tooltip label={employee.name}>
-                          {isMobile && employee.name.length > 3
-                            ? `${employee.name.slice(0, 3)}...`
-                            : employee.name}
+                          <Text>
+                            {isMobile && employee.name.length > 15
+                              ? `${employee.name.slice(0, 15)}...`
+                              : employee.name}
+                          </Text>
                         </Tooltip>
                       </HStack>
                     </Td>
-                    <Tooltip label={employee.email}>
-                      <Td
-                        display={{ base: "none", md: "none", lg: "table-cell" }}
-                      >
-                        {isMobile && employee.email.length > 5
-                          ? `${employee.email.slice(0, 5)}...`
-                          : employee.email}
-                      </Td>
-                    </Tooltip>
+                    <Td
+                      display={{ base: "none", md: "none", lg: "table-cell" }}
+                    >
+                      <Tooltip label={employee.email}>
+                        <Text>
+                          {isMobile && employee.email.length > 20
+                            ? `${employee.email.slice(0, 20)}...`
+                            : employee.email}
+                        </Text>
+                      </Tooltip>
+                    </Td>
                     <Td
                       display={{ base: "none", md: "none", lg: "table-cell" }}
                     >
@@ -370,11 +415,22 @@ const Employees = () => {
                 ))}
               </Tbody>
             </Table>
+
+            {/* Show message when no employees match search */}
+            {filteredEmployees.length === 0 && !loading && (
+              <Flex justify="center" py={10}>
+                <Text color="gray.500">
+                  {searchTerm
+                    ? "No employees found matching your search."
+                    : "No employees found."}
+                </Text>
+              </Flex>
+            )}
           </Box>
         )}
       </Box>
 
-      {renderPagination()}
+      {filteredEmployees.length > 0 && renderPagination()}
     </>
   );
 };
