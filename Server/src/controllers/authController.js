@@ -169,6 +169,7 @@ const register = async (req, res) => {
   }
 };
 
+
 // -------------------- Controller: Login -------------------- //
 const login = async (req, res) => {
   const { username, password, setEmployeeStatus } = req.body;

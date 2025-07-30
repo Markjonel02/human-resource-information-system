@@ -5,7 +5,7 @@ const jwt = require("jsonwebtoken");
 // @access Private (Admin)
 const createEmployee = async (req, res) => {
   // 1. Authorization Check: Ensure only administrators can create employees.
-  if (req.user.role !== "admin") {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res.status(403).json({
       message: "Forbidden: Only administrators can create employees.",
     });

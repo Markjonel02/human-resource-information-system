@@ -13,6 +13,7 @@ import {
   Heading,
   Link,
   useToast,
+  Tooltip,
   useColorModeValue, // Not used but kept for completeness
 } from "@chakra-ui/react";
 import { axiosInstance } from "../../lib/axiosInstance"; // Assuming axiosInstance is configured correctly
@@ -170,6 +171,7 @@ const Login = () => {
         w="full"
         maxW="md"
       >
+        Tooltip
         <Heading
           as="h2"
           size="xl"
