@@ -667,6 +667,9 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
                     <option value="supervisory employees">
                       Supervisory Employees
                     </option>
+                    <option value="rank-and-file employees">
+                      Rank and File Employees
+                    </option>
                     {/*    <option value="rankandfile employees">
                       Rank and File Employees
                     </option> */}

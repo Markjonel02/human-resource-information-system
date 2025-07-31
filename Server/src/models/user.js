@@ -62,16 +62,16 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: [
+      "rankandfile employee",
       "managerial employees",
       "managerial staff",
       "supervisory employees",
-      /*    "rankandfile employees", */
     ],
   },
   jobStatus: {
     type: String,
     required: true,
-    enum: ["Probationary", "Regular", "Full-time", "Part-time"],
+    enum: ["probationary", "regular", "Full-time", "Part-time"],
   },
 
   location: { type: String, required: true },
@@ -87,7 +87,6 @@ const UserSchema = new mongoose.Schema({
   bankAccountNumber: { type: String, required: true }, // allows dashes
   tinNumber: { type: String, required: true }, // e.g. 123-456-789
   sssNumber: { type: String, required: true }, // e.g. 01-2345678-9
-  pagibigNumber: { type: String, required: true }, // e.g. 1234-5678-9012
   philhealthNumber: { type: String, required: true }, // e.g. 12-3456789
   shcoolName: { type: String }, // Typo: Should be schoolName
   degree: { type: String },
@@ -112,20 +111,8 @@ const UserSchema = new mongoose.Schema({
   // Added for authorization roles
   role: {
     type: String,
-    enum: ["employee", "hr", "admin", "hr_manager"],
-  },
-
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now,
-  },
-  lastLogin: {
-    type: Date,
-    default: Date.now,
+    enum: ["employee", "manager", "admin"],
+    default: "employee",
   },
 });
 
