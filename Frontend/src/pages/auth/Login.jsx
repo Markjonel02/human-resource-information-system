@@ -171,7 +171,6 @@ const Login = () => {
         w="full"
         maxW="md"
       >
-        Tooltip
         <Heading
           as="h2"
           size="xl"

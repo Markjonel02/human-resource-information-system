@@ -18,10 +18,11 @@ const generateTokens = (user) => {
   const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_ACCESS_TOKEN_EXPIRATION || "15m",
   });
-
+  console.log("Access Token inside generateTokens:", accessToken); // Is it generated here?
   const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
     expiresIn: process.env.JWT_REFRESH_TOKEN_EXPIRATION || "7d",
   });
+  console.log("Refresh Token inside generateTokens:", refreshToken);
 
   return { accessToken, refreshToken };
 };
@@ -145,6 +146,8 @@ const register = async (req, res) => {
 
     // 5. Generate tokens and set refresh token cookie
     const { accessToken, refreshToken } = generateTokens(newUser);
+    console.log("Generated Access Token in register:", accessToken);
+    console.log("Generated Refresh Token in register:", refreshToken);
     setRefreshTokenCookie(res, refreshToken);
 
     return res.status(201).json({
@@ -168,7 +171,6 @@ const register = async (req, res) => {
     });
   }
 };
-
 
 // -------------------- Controller: Login -------------------- //
 const login = async (req, res) => {
