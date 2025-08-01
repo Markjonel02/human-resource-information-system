@@ -238,10 +238,9 @@ const getAllEmployees = async (req, res) => {
 const getEmployeeById = async (req, res) => {
   const { id } = req.params;
 
-  // Allow admin/manager to view any employee, or  employee to view  their own profile
   if (
     req.user.role !== "admin" &&
-    req.user.role !== "manager" &&
+    req.user.role !== "hr" &&
     req.user.id !== id
   ) {
     return res.status(403).json({
@@ -250,16 +249,19 @@ const getEmployeeById = async (req, res) => {
     });
   }
   try {
-    const employee = await User.findById(id).select("-password").lean().exect(); //exclue || ignore finding
+    const employee = await user.findById(id).select("-password").lean().exec();
+
     if (!employee) {
       return res.status(404).json({ message: "Employee not found" });
     }
-    res.status(200).json({ message: `found employee: ${emeployee}` });
+
+    // this reander the full data of employee
+    res.status(200).json(employee);
   } catch (error) {
     console.error(error);
     res
       .status(500)
-      .josn({ message: "Server error while fetching the employee" });
+      .json({ message: "Server error while fetching the employee" });
   }
 };
 
@@ -368,4 +370,5 @@ module.exports = {
   getEmployeeById,
   updateEmployee,
   createAdmin,
+  deactiveSingle,
 };

@@ -5,7 +5,7 @@ const router = express.Router();
 // Corrected paths for controllers and middleware
 // Please ensure these paths and filenames match your actual directory structure and file names.
 const authController = require("../controllers/authController"); // Assuming authController.js
-const employeecreationController = require("../controllers/Admin/userAdmin"); // Assuming employeecreationController.js
+const Useradmin = require("../controllers/Admin/userAdmin"); // Assuming Useradmin.js
 const verifyJWT = require("../middlewares/verifyJWT"); // Assuming middleware/verifyJWT.js
 const authorizeRoles = require("../middlewares/authorizeRole"); // Assuming middleware/authorizeRoles.js
 
@@ -24,33 +24,39 @@ router.use(verifyJWT);
 router.post(
   "/create-employees",
   authorizeRoles("admin", "hr"), // Only admin can create employees
-  employeecreationController.createEmployee
+  Useradmin.createEmployee
 );
 
 router.post(
   "/create-admin",
   authorizeRoles("admin"), // Only admin can create other admins
-  employeecreationController.createAdmin
+  Useradmin.createAdmin
 );
 
 // Employee update route - Admin and Manager can update
 router.put(
   "/employees/:id",
   authorizeRoles("admin", "manager"),
-  employeecreationController.updateEmployee
+  Useradmin.updateEmployee
 );
 
 // Routes for viewing employees - Admin and Manager can see all, Employee can see self
 router.get(
   "/employees",
   authorizeRoles("admin", "hr_manager", "hr"), // Admin and Manager can get all employees
-  employeecreationController.getAllEmployees
+  Useradmin.getAllEmployees
 );
 
 router.get(
   "/employees/:id",
-  authorizeRoles("admin", "manager", "employee"), // Admin, Manager, and Employee (for self) can get by ID
-  employeecreationController.getEmployeeById
+  authorizeRoles("admin", "employee", "hr"), // Admin, Manager, and Employee (for self) can get by ID
+  Useradmin.getEmployeeById
 );
 
+//deactivate single user
+router.put(
+  "/deactivate-user/:id",
+  authorizeRoles("admin", "hr"),
+  Useradmin.deactiveSingle
+);
 module.exports = router;

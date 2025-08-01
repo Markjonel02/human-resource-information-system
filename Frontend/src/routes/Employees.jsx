@@ -28,7 +28,7 @@ import {
   Button,
   useToast,
   Tooltip,
-  // Modal imports
+  // Modal imports (for Edit)
   Modal,
   ModalOverlay,
   ModalContent,
@@ -36,25 +36,67 @@ import {
   ModalFooter,
   ModalBody,
   ModalCloseButton,
-  // Alert Dialog imports
+  // Alert Dialog imports (for Deactivate)
   AlertDialog,
   AlertDialogBody,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogContent,
   AlertDialogOverlay,
+  Grid,
+  GridItem,
+  Icon,
+  // Drawer imports (for View)
+  Drawer,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerHeader,
+  DrawerBody,
+  DrawerCloseButton,
 } from "@chakra-ui/react";
 import {
   SearchIcon,
   DeleteIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  EmailIcon,
+  CalendarIcon,
+  InfoIcon,
 } from "@chakra-ui/icons";
 import { FiMoreVertical } from "react-icons/fi";
+import {
+  FaBuilding,
+  FaBriefcase,
+  FaCalendarAlt,
+  FaUserTie,
+  FaDollarSign,
+  FaIdCard,
+  FaPhoneAlt,
+  FaMapMarkerAlt,
+  FaHome,
+  FaRegListAlt,
+  FaUniversity,
+  FaCertificate,
+  FaHeart,
+  FaTransgender,
+} from "react-icons/fa";
 import axiosInstance from "../lib/axiosInstance";
 import AddEmployeeButton from "../components/AddEmployeeButton";
 import useDebounce from "../hooks/useDebounce";
 
+// Helper function to format date
+const formatDate = (dateString) => {
+  if (!dateString) return "N/A";
+  const date = new Date(dateString);
+  if (isNaN(date)) return "N/A";
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
+
+// Main component
 const Employees = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -67,9 +109,12 @@ const Employees = () => {
   // State for Modals and Dialogs
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeactivateAlertOpen, setIsDeactivateAlertOpen] = useState(false);
+  const [isViewDrawerOpen, setIsViewDrawerOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const cancelRef = useRef();
+  const [fullEmployeeDetails, setFullEmployeeDetails] = useState(null);
+  const [viewDetailsLoading, setViewDetailsLoading] = useState(false);
 
+  const cancelRef = useRef();
   const toast = useToast();
   const ITEMS_PER_PAGE = 10;
   const buttonLayout = useBreakpointValue({
@@ -95,6 +140,38 @@ const Employees = () => {
   const onCloseDeactivateAlert = () => {
     setIsDeactivateAlertOpen(false);
     setSelectedEmployee(null);
+  };
+
+  // New handlers for View Drawer
+  const onOpenViewDrawer = async (employee) => {
+    setSelectedEmployee(employee);
+    setIsViewDrawerOpen(true);
+    setViewDetailsLoading(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const response = await axiosInstance.get(`/employees/${employee.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setFullEmployeeDetails(response.data);
+    } catch (error) {
+      console.error("Error fetching full employee details:", error);
+      toast({
+        title: "Failed to load details",
+        description: "Could not fetch full employee information.",
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+        position: "top",
+      });
+      setFullEmployeeDetails(null);
+    } finally {
+      setViewDetailsLoading(false);
+    }
+  };
+  const onCloseViewDrawer = () => {
+    setIsViewDrawerOpen(false);
+    setSelectedEmployee(null);
+    setFullEmployeeDetails(null);
   };
 
   useEffect(() => {
@@ -270,7 +347,6 @@ const Employees = () => {
     }
   };
 
-  // New handler for single employee deactivation
   const handleDeactivateEmployee = async () => {
     if (!selectedEmployee) return;
 
@@ -470,6 +546,9 @@ const Employees = () => {
                           size="sm"
                         />
                         <MenuList>
+                          <MenuItem onClick={() => onOpenViewDrawer(employee)}>
+                            View
+                          </MenuItem>
                           <MenuItem onClick={() => onOpenEditModal(employee)}>
                             Edit
                           </MenuItem>
@@ -510,7 +589,6 @@ const Employees = () => {
           <ModalBody>
             {selectedEmployee ? (
               <Box>
-                {/* Placeholder for the edit form. You can add your form fields here. */}
                 <Text>Editing: {selectedEmployee.name}</Text>
                 <Text>Email: {selectedEmployee.email}</Text>
                 <Text mt={4}>
@@ -567,6 +645,322 @@ const Employees = () => {
           </AlertDialogContent>
         </AlertDialogOverlay>
       </AlertDialog>
+
+      {/* View Employee Drawer - Sliding from right */}
+      <Drawer
+        isOpen={isViewDrawerOpen}
+        placement="right"
+        onClose={onCloseViewDrawer}
+        size="lg"
+      >
+        <DrawerOverlay />
+        <DrawerContent bg="gray.100">
+          <DrawerCloseButton />
+          <DrawerHeader borderBottomWidth="1px" borderColor="gray.200">
+            <Heading size="lg">Employee Details</Heading>
+          </DrawerHeader>
+          <DrawerBody>
+            {viewDetailsLoading ? (
+              <Flex justify="center" align="center" minHeight="200px">
+                <Spinner size="xl" />
+              </Flex>
+            ) : !fullEmployeeDetails ? (
+              <Text>Failed to load employee details.</Text>
+            ) : (
+              <Stack spacing={6}>
+                {/* Employee Header Section (Top part of the image) */}
+                <Flex
+                  align="center"
+                  bg="white"
+                  p={6}
+                  borderRadius="lg"
+                  shadow="sm"
+                >
+                  <Avatar
+                    size="xl"
+                    src={`https://ui-avatars.com/api/?name=${fullEmployeeDetails.firstname}+${fullEmployeeDetails.lastname}&background=random`}
+                    name={`${fullEmployeeDetails.firstname} ${fullEmployeeDetails.lastname}`}
+                  />
+                  <Box ml={6} flexGrow={1}>
+                    <Text fontSize="md" fontWeight="bold" color="gray.600">
+                      EMP ID: {fullEmployeeDetails.employeeId || "N/A"}
+                    </Text>
+                    <Heading size="xl">
+                      {fullEmployeeDetails.firstname}{" "}
+                      {fullEmployeeDetails.lastname}
+                    </Heading>
+                    <Text fontSize="md" color="gray.500">
+                      {fullEmployeeDetails.jobposition || "N/A"} (
+                      {fullEmployeeDetails.jobStatus || "N/A"})
+                    </Text>
+                    <Tag
+                      mt={2}
+                      size="md"
+                      variant="solid"
+                      colorScheme={
+                        fullEmployeeDetails.employeeStatus === 1
+                          ? "green"
+                          : "red"
+                      }
+                    >
+                      {fullEmployeeDetails.employeeStatus === 1
+                        ? "Active"
+                        : "Inactive"}
+                    </Tag>
+                  </Box>
+                  <Box>
+                    <Menu>
+                      <MenuButton
+                        as={Button}
+                        rightIcon={<FiMoreVertical />}
+                        variant="outline"
+                      >
+                        View Details
+                      </MenuButton>
+                      <MenuList>
+                        <MenuItem>Action 1</MenuItem>
+                        <MenuItem>Action 2</MenuItem>
+                      </MenuList>
+                    </Menu>
+                  </Box>
+                </Flex>
+
+                {/* Main Details Grid (Middle of the image) */}
+                <Box p={6} bg="white" borderRadius="lg" shadow="sm">
+                  <Grid
+                    templateColumns={{
+                      base: "repeat(1, 1fr)",
+                      md: "repeat(2, 1fr)",
+                    }}
+                    gap={6}
+                  >
+                    {/* The existing details from your previous code */}
+                    {/* Column 1 */}
+                    <Stack spacing={4}>
+                      <Flex align="center">
+                        <Icon as={FaBriefcase} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">Department:</Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.department || "N/A"}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={FaUserTie} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">Role:</Text>
+                        <Text ml={2}>{fullEmployeeDetails.role || "N/A"}</Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={FaCalendarAlt} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">Job Status:</Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.jobStatus || "N/A"}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={FaDollarSign} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">Salary Rate:</Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.salaryRate
+                            ? `₱${fullEmployeeDetails.salaryRate.toLocaleString()}`
+                            : "N/A"}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={FaTransgender} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">Gender:</Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.gender || "N/A"}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={CalendarIcon} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">Birthday:</Text>
+                        <Text ml={2}>
+                          {formatDate(fullEmployeeDetails.birthday)}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={FaPhoneAlt} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">Mobile Number:</Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.mobileNumber || "N/A"}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={EmailIcon} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">Email:</Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.employeeEmail || "N/A"}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={FaHeart} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">Civil Status:</Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.civilStatus || "N/A"}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={FaUniversity} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">
+                          Educational Attainment:
+                        </Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.educationalAttainment || "N/A"}
+                        </Text>
+                      </Flex>
+                    </Stack>
+
+                    {/* Column 2 */}
+                    <Stack spacing={4}>
+                      <Flex align="center">
+                        <Icon as={FaIdCard} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">TIN Number:</Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.tinNumber || "N/A"}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={FaIdCard} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">SSS Number:</Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.sssNumber || "N/A"}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={FaIdCard} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">Philhealth Number:</Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.philhealthNumber || "N/A"}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={FaIdCard} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">Pag-IBIG Number:</Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.pagibigNumber || "N/A"}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={FaHome} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">Present Address:</Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.presentAddress || "N/A"},{" "}
+                          {fullEmployeeDetails.town || "N/A"},{" "}
+                          {fullEmployeeDetails.city || "N/A"},{" "}
+                          {fullEmployeeDetails.province || "N/A"}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={FaMapMarkerAlt} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">Location:</Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.location || "N/A"}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={FaBuilding} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">Business Unit:</Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.businessUnit || "N/A"}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={FaUserTie} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">Corporate Rank:</Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.corporaterank || "N/A"}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={FaRegListAlt} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">Religion:</Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.religion || "N/A"}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <Icon as={FaCertificate} color="blue.500" mr={3} />
+                        <Text fontWeight="semibold">Achievements:</Text>
+                        <Text ml={2}>
+                          {fullEmployeeDetails.achievements || "N/A"}
+                        </Text>
+                      </Flex>
+                    </Stack>
+                  </Grid>
+                </Box>
+
+                {/* Attendance Summary Section (Bottom part of the image) */}
+                <Box p={6} bg="white" borderRadius="lg" shadow="sm">
+                  <Heading size="md" mb={4}>
+                    Attendance Summary
+                  </Heading>
+                  <Grid
+                    templateColumns={{
+                      base: "repeat(2, 1fr)",
+                      md: "repeat(4, 1fr)",
+                    }}
+                    gap={4}
+                  >
+                    <Box>
+                      <Text color="gray.500">Year of Employment</Text>
+                      <Text fontWeight="bold" fontSize="xl" color="blue.500">
+                        2023
+                      </Text>
+                    </Box>
+                    <Box>
+                      <Text color="gray.500">Total Presents Days</Text>
+                      <Text fontWeight="bold" fontSize="xl" color="green.500">
+                        200 Days
+                      </Text>
+                    </Box>
+                    <Box>
+                      <Text color="gray.500">Total Absent Days</Text>
+                      <Text fontWeight="bold" fontSize="xl" color="red.500">
+                        3 Days
+                      </Text>
+                    </Box>
+                    <Box>
+                      <Text color="gray.500">Total Leave Days</Text>
+                      <Text fontWeight="bold" fontSize="xl" color="blue.500">
+                        7 Days
+                      </Text>
+                    </Box>
+                  </Grid>
+                </Box>
+
+                {/* Monthly Log Section (Footer of the image) */}
+                <Flex
+                  justify="space-between"
+                  align="center"
+                  bg="white"
+                  p={4}
+                  borderRadius="lg"
+                  shadow="sm"
+                >
+                  <Text fontWeight="semibold">March 2025 Log</Text>
+                  <HStack spacing={2}>
+                    <Button
+                      /*     leftIcon={<Icon as={FiDownload} />} */
+                      variant="outline"
+                      colorScheme="purple"
+                    >
+                      Export CSV
+                    </Button>
+                    <Button
+                      /*  leftIcon={<Icon as={FiFilter} />} */
+                      variant="solid"
+                      colorScheme="purple"
+                    >
+                      Filter
+                    </Button>
+                  </HStack>
+                </Flex>
+              </Stack>
+            )}
+          </DrawerBody>
+        </DrawerContent>
+      </Drawer>
     </>
   );
 };
