@@ -91,6 +91,7 @@ import {
 import axiosInstance from "../lib/axiosInstance";
 import AddEmployeeButton from "../components/AddEmployeeButton";
 import useDebounce from "../hooks/useDebounce";
+import { useAuth } from "../context/AuthContext";
 
 // Helper function to format date
 const formatDate = (dateString) => {
@@ -106,6 +107,7 @@ const formatDate = (dateString) => {
 
 // Main component
 const Employees = () => {
+  const { user: currentUser } = useAuth();
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -191,109 +193,165 @@ const Employees = () => {
   const [employmentTo, setEmploymentTo] = useState("");
 
   const handleSave = async () => {
-    // Basic client-side validation for empty fields
-    const isEmployeeStatus = employeeStatus === 1;
     if (!selectedEmployee) return;
-    // Prepare the data payload to match backend expectations
-    const employeeData = {
-      username,
-      password,
-      employeeEmail: email, // Map frontend 'email' to backend 'employeeEmail'
-
-      firstname: firstName, // Changed from firstName to firstname
-      lastname: lastName, // Changed from lastName to lastname
-      middleInitial,
-      suffix,
-      prefix,
-      gender: gender.toLowerCase(), // Convert to lowercase to match backend enum
-      birthday,
-      nationality,
-      civilStatus: civilStatus.toLowerCase(), // Convert to lowercase to match backend enum
-      religion: religion.toLowerCase(), // Convert to lowercase to match backend enum
-      age: Number(age),
-      presentAddress,
-      city,
-      town,
-      province,
-      mobileNumber,
-      companyName,
-      jobposition: jobPosition, // Match backend field name
-      corporaterank: corporateRank.toLowerCase() /* .replace(/\s+/g, "_") */, // Convert to snake_case
-      jobStatus,
-      location,
-      businessUnit,
-      department,
-      head,
-      employeeStatus: isEmployeeActive, // Send as boolean
-      salaryRate: Number(salaryRate), // Ensure salaryRate is a number
-      bankAccountNumber,
-      tinNumber,
-      sssNumber,
-      philhealthNumber,
-      pagibigNumber,
-      employeeRole, // This should match the backend's role field
-
-      // FIXED: Convert arrays to strings or handle according to backend schema
-      // If backend expects string, stringify the objects; if it expects array, ensure schema matches
-      educationalBackground: JSON.stringify({
-        schoolName,
-        achievements,
-        degree,
-        educationalAttainment,
-        educationFrom,
-        educationTo,
-      }),
-      dependants: JSON.stringify([
-        {
-          dependantName,
-          dependantRelationship,
-          dependantBirthdate,
-        },
-      ]),
-      employmentHistory: JSON.stringify([
-        {
-          employerName,
-          employerAddress,
-          employmentPosition,
-          employmentFrom,
-          employmentTo,
-        },
-      ]),
-    };
 
     try {
       const token = localStorage.getItem("accessToken");
+
+      // Prepare the updates object according to your controller's allowedFields
+      const updates = {
+        firstname: firstName,
+        lastname: lastName,
+        employeeEmail: email,
+        department,
+        employeeStatus: employeeStatus === "1" ? 1 : 0,
+        // Add other allowed fields here
+      };
+
+      // Only include password if it's provided
+      if (password) {
+        updates.password = password;
+      }
+
+      // Only admins can update roles (as per your controller)
+      if (currentUser?.role === "admin" && employeeRole) {
+        updates.role = employeeRole;
+      }
+
       const response = await axiosInstance.put(
-        `employees/${selectedEmployee.id}`,
+        `/employees/${selectedEmployee.id}`,
+        updates,
         {
           headers: {
             Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
           },
         }
       );
-      toast({
-        title: "Employee updated",
-        description: `${selectedEmployee.name}'s details have been updated.`,
-        status: "success",
-        duration: 4000,
-        isClosable: true,
-        position: "top",
-      });
-      fetchingEmployees(currentPage);
-      onCloseEditModal();
-      clearForm();
+
+      // Handle response based on your controller's return values
+      if (response.data.message.includes("No changes detected")) {
+        toast({
+          title: "No changes made",
+          description: response.data.message,
+          status: "info",
+          duration: 4000,
+          isClosable: true,
+          position: "top",
+        });
+      } else {
+        toast({
+          title: "Employee updated",
+          description: response.data.message || "Employee updated successfully",
+          status: "success",
+          duration: 4000,
+          isClosable: true,
+          position: "top",
+        });
+        fetchingEmployees(currentPage);
+        onCloseEditModal();
+        clearForm();
+      }
     } catch (error) {
-      console.error("Error updating employee", error);
+      console.error("Error updating employee:", error);
+
+      let errorMessage = "Could not update employee";
+      if (error.response) {
+        if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data.errors) {
+          errorMessage = error.response.data.errors.join(", ");
+        }
+      }
+
       toast({
-        title: "Employee updated",
-        description: `${selectedEmployee.name}'s details have been updated.`,
-        status: "success",
+        title: "Update failed",
+        description: errorMessage,
+        status: "error",
         duration: 4000,
         isClosable: true,
         position: "top",
       });
     }
   };
+
+  // Update the useEffect to populate form fields when editing:
+  useEffect(() => {
+    if (selectedEmployee && isEditModalOpen) {
+      const fetchEmployeeDetails = async () => {
+        try {
+          const token = localStorage.getItem("accessToken");
+          const response = await axiosInstance.get(
+            `/employees/${selectedEmployee.id}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+
+          const employeeData = response.data;
+
+          // Set all form fields with employee data
+          setFirstName(employeeData.firstname || "");
+          setLastName(employeeData.lastname || "");
+          setEmail(employeeData.employeeEmail || "");
+          setDepartment(employeeData.department || "");
+          setEmployeeStatus(employeeData.employeeStatus ? "1" : "0");
+          setEmployeeRole(employeeData.role || "");
+
+          // Set other fields if they exist in your form
+          setGender(employeeData.gender || "");
+          setBirthday(
+            employeeData.birthday
+              ? formatDateForInput(employeeData.birthday)
+              : ""
+          );
+          setNationality(employeeData.nationality || "");
+          setCivilStatus(employeeData.civilStatus || "");
+          setReligion(employeeData.religion || "");
+          setAge(employeeData.age || "");
+          setPresentAddress(employeeData.presentAddress || "");
+          setCity(employeeData.city || "");
+          setTown(employeeData.town || "");
+          setProvince(employeeData.province || "");
+          setMobileNumber(employeeData.mobileNumber || "");
+          setCompanyName(employeeData.companyName || "");
+          setJobPosition(employeeData.jobposition || "");
+          setCorporateRank(employeeData.corporaterank || "");
+          setJobStatus(employeeData.jobStatus || "");
+          setLocation(employeeData.location || "");
+          setBusinessUnit(employeeData.businessUnit || "");
+          setHead(employeeData.head || "");
+          setSalaryRate(employeeData.salaryRate || "");
+          setBankAccountNumber(employeeData.bankAccountNumber || "");
+          setTinNumber(employeeData.tinNumber || "");
+          setSssNumber(employeeData.sssNumber || "");
+          setPhilhealthNumber(employeeData.philhealthNumber || "");
+          setPagibigNumber(employeeData.pagibigNumber || "");
+        } catch (error) {
+          console.error("Error fetching employee details:", error);
+          toast({
+            title: "Failed to load details",
+            description: "Could not fetch employee information.",
+            status: "error",
+            duration: 4000,
+            isClosable: true,
+            position: "top",
+          });
+        }
+      };
+
+      fetchEmployeeDetails();
+    }
+  }, [selectedEmployee, isEditModalOpen]);
+
+  // Add this helper function for date formatting
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (isNaN(date)) return "";
+    return date.toISOString().split("T")[0];
+  };
+
   //clearing form when submit
   const clearForm = () => {
     setUsername("");
@@ -918,6 +976,7 @@ const Employees = () => {
                     <Input
                       placeholder="Enter username"
                       value={username}
+                      disabled
                       onChange={(e) => setUsername(e.target.value)}
                       borderRadius="lg"
                       focusBorderColor="blue.400"
@@ -1297,11 +1356,12 @@ const Employees = () => {
                       onChange={(e) => setEmployeeRole(e.target.value)}
                       borderRadius="lg"
                       focusBorderColor="blue.400"
+                      isDisabled={currentUser?.role !== "admin"} // Only admins can change roles
                     >
-                      <option value="admin">Admin</option>
-                      <option value="hr_manager">Manager</option>
-                      <option value="hr">HR Staff</option>
                       <option value="employee">Employee</option>
+                      <option value="hr">HR Staff</option>
+                      <option value="hr_manager">Manager</option>
+                      <option value="admin">Admin</option>
                     </Select>
                   </FormControl>
                 </SimpleGrid>
