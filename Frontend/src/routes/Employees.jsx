@@ -1275,9 +1275,6 @@ const Employees = () => {
                       <option value="supervisory employees">
                         Supervisory Employees
                       </option>
-                      <option value="rank-and-file employees">
-                        Rank and File Employees
-                      </option>
                     </Select>
                   </FormControl>
                   <FormControl id="job-status" isRequired>

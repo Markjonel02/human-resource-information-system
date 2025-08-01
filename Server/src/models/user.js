@@ -61,12 +61,7 @@ const UserSchema = new mongoose.Schema({
   corporaterank: {
     type: String,
     required: true,
-    enum: [
-      "rankandfile employee",
-      "managerial employees",
-      "managerial staff",
-      "supervisory employees",
-    ],
+    enum: ["managerial employees", "managerial staff", "supervisory employees"],
   },
   jobStatus: {
     type: String,
