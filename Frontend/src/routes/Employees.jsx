@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   Box,
   Flex,
@@ -28,6 +28,21 @@ import {
   Button,
   useToast,
   Tooltip,
+  // Modal imports
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  // Alert Dialog imports
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
 } from "@chakra-ui/react";
 import {
   SearchIcon,
@@ -37,8 +52,9 @@ import {
 } from "@chakra-ui/icons";
 import { FiMoreVertical } from "react-icons/fi";
 import axiosInstance from "../lib/axiosInstance";
-import AddEmployeeButton from "../components/AddEmployeeButton"; // Import the AddEmployeeButton component
-import useDebounce from "../hooks/useDebounce"; // Import the useDebounce hook
+import AddEmployeeButton from "../components/AddEmployeeButton";
+import useDebounce from "../hooks/useDebounce";
+
 const Employees = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -46,34 +62,53 @@ const Employees = () => {
   const [allChecked, setAllChecked] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [searchTerm, setSearchTerm] = useState(""); // search state
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // State for Modals and Dialogs
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeactivateAlertOpen, setIsDeactivateAlertOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const cancelRef = useRef();
 
   const toast = useToast();
-
   const ITEMS_PER_PAGE = 10;
-
   const buttonLayout = useBreakpointValue({
     base: "vertical",
     md: "horizontal",
   });
-  // Determine if the screen is mobile to conditionally shorten the email
   const isMobile = useBreakpointValue({ base: true, md: true, lg: false });
+
+  // Handlers for Modals and Dialogs
+  const onOpenEditModal = (employee) => {
+    setSelectedEmployee(employee);
+    setIsEditModalOpen(true);
+  };
+  const onCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setSelectedEmployee(null);
+  };
+
+  const onOpenDeactivateAlert = (employee) => {
+    setSelectedEmployee(employee);
+    setIsDeactivateAlertOpen(true);
+  };
+  const onCloseDeactivateAlert = () => {
+    setIsDeactivateAlertOpen(false);
+    setSelectedEmployee(null);
+  };
 
   useEffect(() => {
     fetchingEmployees(currentPage);
   }, [currentPage]);
 
-  // Function to refresh employees list (this will be passed to AddEmployeeButton)
   const handleEmployeeAdded = () => {
-    fetchingEmployees(currentPage); // Refresh the current page
-    setSelectedIds([]); // Clear any selections
-    setAllChecked(false); // Reset select all checkbox
+    fetchingEmployees(currentPage);
+    setSelectedIds([]);
+    setAllChecked(false);
   };
 
-  //search functionality with debounce
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  // Filter employees based on search term
   const filteredEmployees = employees.filter(
     (employee) =>
       employee.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
@@ -86,7 +121,6 @@ const Employees = () => {
       employee.role.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
   );
 
-  // Pagination UI logic
   const renderPagination = () => (
     <Flex justify="center" align="center" mt={6} gap={2}>
       <Button
@@ -135,7 +169,6 @@ const Employees = () => {
     </Flex>
   );
 
-  // Fetch employees from API
   const fetchingEmployees = async (page) => {
     setLoading(true);
     try {
@@ -147,13 +180,10 @@ const Employees = () => {
       });
 
       const data = response.data;
-
-      // Set pagination
       const start = (page - 1) * ITEMS_PER_PAGE;
       const end = start + ITEMS_PER_PAGE;
       setTotalPages(Math.ceil(data.length / ITEMS_PER_PAGE));
 
-      // Format data
       const formattedData = data.map((emp) => ({
         id: emp._id,
         name: `${emp.firstname} ${emp.lastname}`,
@@ -180,7 +210,6 @@ const Employees = () => {
     }
   };
 
-  // Handle single checkbox toggle
   const handleCheckboxChange = (id) => {
     setSelectedIds((prev) => {
       const isSelected = prev.includes(id);
@@ -192,7 +221,6 @@ const Employees = () => {
     });
   };
 
-  // Handle select-all toggle
   const handleSelectAll = () => {
     if (allChecked) {
       setSelectedIds([]);
@@ -204,7 +232,6 @@ const Employees = () => {
     }
   };
 
-  // Bulk deactivate selected employees
   const handleBulkDeactivate = async () => {
     try {
       const token = localStorage.getItem("accessToken");
@@ -243,13 +270,50 @@ const Employees = () => {
     }
   };
 
+  // New handler for single employee deactivation
+  const handleDeactivateEmployee = async () => {
+    if (!selectedEmployee) return;
+
+    try {
+      const token = localStorage.getItem("accessToken");
+      await axiosInstance.put(
+        `/employees/deactivate/${selectedEmployee.id}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      toast({
+        title: "Employee Deactivated",
+        description: `${selectedEmployee.name} has been marked as inactive.`,
+        status: "success",
+        duration: 4000,
+        isClosable: true,
+        position: "top",
+      });
+      fetchingEmployees(currentPage);
+      onCloseDeactivateAlert();
+    } catch (error) {
+      console.error("Error deactivating employee:", error);
+      toast({
+        title: "Deactivation failed",
+        description: "Could not deactivate the employee.",
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+        position: "top",
+      });
+      onCloseDeactivateAlert();
+    }
+  };
+
   return (
     <>
       <Box p={6}>
         <Flex justify="space-between" mb={6} flexWrap="wrap" gap={3}>
           <Heading size="lg">Employee List</Heading>
-
-          {/* Add the AddEmployeeButton component with callback */}
         </Flex>
 
         <Flex justify="space-between" mb={6} flexWrap="wrap" gap={3}>
@@ -406,8 +470,14 @@ const Employees = () => {
                           size="sm"
                         />
                         <MenuList>
-                          <MenuItem>Edit</MenuItem>
-                          <MenuItem>Deactivate</MenuItem>
+                          <MenuItem onClick={() => onOpenEditModal(employee)}>
+                            Edit
+                          </MenuItem>
+                          <MenuItem
+                            onClick={() => onOpenDeactivateAlert(employee)}
+                          >
+                            Deactivate
+                          </MenuItem>
                         </MenuList>
                       </Menu>
                     </Td>
@@ -416,7 +486,6 @@ const Employees = () => {
               </Tbody>
             </Table>
 
-            {/* Show message when no employees match search */}
             {filteredEmployees.length === 0 && !loading && (
               <Flex justify="center" py={10}>
                 <Text color="gray.500">
@@ -431,6 +500,73 @@ const Employees = () => {
       </Box>
 
       {filteredEmployees.length > 0 && renderPagination()}
+
+      {/* Edit Employee Modal */}
+      <Modal isOpen={isEditModalOpen} onClose={onCloseEditModal}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Edit Employee Details</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            {selectedEmployee ? (
+              <Box>
+                {/* Placeholder for the edit form. You can add your form fields here. */}
+                <Text>Editing: {selectedEmployee.name}</Text>
+                <Text>Email: {selectedEmployee.email}</Text>
+                <Text mt={4}>
+                  This is where your form to edit employee details would go.
+                </Text>
+              </Box>
+            ) : (
+              <Spinner />
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button colorScheme="blue" mr={3} onClick={onCloseEditModal}>
+              Save
+            </Button>
+            <Button variant="ghost" onClick={onCloseEditModal}>
+              Cancel
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Deactivate Employee Alert Dialog */}
+      <AlertDialog
+        isOpen={isDeactivateAlertOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onCloseDeactivateAlert}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Deactivate Employee
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              Are you sure you want to deactivate{" "}
+              <Text as="span" fontWeight="bold">
+                {selectedEmployee?.name}
+              </Text>
+              ? This action cannot be undone.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={onCloseDeactivateAlert}>
+                Cancel
+              </Button>
+              <Button
+                colorScheme="red"
+                onClick={handleDeactivateEmployee}
+                ml={3}
+              >
+                Deactivate
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </>
   );
 };

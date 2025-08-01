@@ -332,6 +332,36 @@ const updateEmployee = async (req, res) => {
   }
 };
 
+const deactiveSingle = async (req, res) => {
+  const { id } = req.params;
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res
+      .status(401)
+      .json({ message: "Error deactivating: unauthorized user!" });
+  }
+
+  try {
+    const deactivatingUser = await user.findById(id).exec();
+    if (!deactivatingUser) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    if (deactivatingUser.employeeStatus !== 1) {
+      deactivatingUser.employeeStatus = 0; // Deactivate the user
+      await deactivatingUser.save();
+      return res
+        .status(200)
+        .json({ message: "User deactivated successfully." });
+    } else {
+      return res.status(400).json({ message: "User is already deactivated." });
+    }
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ message: "Server error while deactivating user." });
+  }
+};
 module.exports = {
   createEmployee,
   getAllEmployees,
