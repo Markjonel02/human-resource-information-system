@@ -44,7 +44,9 @@ import {
   AlertDialogContent,
   AlertDialogOverlay,
   Grid,
+  SimpleGrid,
   GridItem,
+  FormControl,
   Icon,
   // Drawer imports (for View)
   Drawer,
@@ -53,7 +55,13 @@ import {
   DrawerHeader,
   DrawerBody,
   DrawerCloseButton,
+  VStack,
+  FormLabel,
+  Select,
+  useDisclosure,
+  ButtonGroup,
 } from "@chakra-ui/react";
+
 import {
   SearchIcon,
   DeleteIcon,
@@ -117,11 +125,244 @@ const Employees = () => {
   const cancelRef = useRef();
   const toast = useToast();
   const ITEMS_PER_PAGE = 10;
+
+  // State for authentication (username, password) - REQUIRED by backend
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+
+  // State for new form inputs (Personal Information)
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [middleInitial, setMiddleInitial] = useState("");
+  const [gender, setGender] = useState("");
+  const [birthday, setBirthday] = useState("");
+  const [nationality, setNationality] = useState("");
+  const [civilStatus, setCivilStatus] = useState("");
+  const [religion, setReligion] = useState("");
+  const [age, setAge] = useState("");
+  const [presentAddress, setPresentAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [town, setTown] = useState("");
+  const [province, setProvince] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [email, setEmail] = useState(""); // This will map to employeeEmail in backend
+  const [suffix, setSuffix] = useState("");
+  const [prefix, setPrefix] = useState("");
+
+  // States for Corporate Details
+  const [companyName, setCompanyName] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
+  const [jobPosition, setJobPosition] = useState("");
+  const [corporateRank, setCorporateRank] = useState("");
+  const [jobStatus, setJobStatus] = useState("");
+  const [location, setLocation] = useState("");
+  const [businessUnit, setBusinessUnit] = useState("");
+  const [department, setDepartment] = useState("");
+  const [head, setHead] = useState("");
+  const [employeeStatus, setEmployeeStatus] = useState(""); // Will be converted to boolean
+  const [employeeRole, setEmployeeRole] = useState("");
+
+  // States for Salary and Government IDs
+  const [salaryRate, setSalaryRate] = useState("");
+  const [bankAccountNumber, setBankAccountNumber] = useState("");
+  const [tinNumber, setTinNumber] = useState("");
+  const [sssNumber, setSssNumber] = useState("");
+  const [philhealthNumber, setPhilhealthNumber] = useState("");
+  const [pagibigNumber, setPagibigNumber] = useState("");
+
+  // New states for Educational Background
+  const [schoolName, setSchoolName] = useState("");
+  const [achievements, setAchievements] = useState("");
+  const [degree, setDegree] = useState("");
+  const [educationalAttainment, setEducationalAttainment] = useState("");
+  const [educationFrom, setEducationFrom] = useState("");
+  const [educationTo, setEducationTo] = useState("");
+
+  // New states for Dependants
+  const [dependantName, setDependantName] = useState("");
+  const [dependantRelationship, setDependantRelationship] = useState("");
+  const [dependantBirthdate, setDependantBirthdate] = useState("");
+
+  // New states for Employment History
+  const [employerName, setEmployerName] = useState("");
+  const [employerAddress, setEmployerAddress] = useState("");
+  const [employmentPosition, setEmploymentPosition] = useState("");
+  const [employmentFrom, setEmploymentFrom] = useState("");
+  const [employmentTo, setEmploymentTo] = useState("");
+
+  const handleSave = async () => {
+    // Basic client-side validation for empty fields
+    const isEmployeeStatus = employeeStatus === 1;
+    if (!selectedEmployee) return;
+    // Prepare the data payload to match backend expectations
+    const employeeData = {
+      username,
+      password,
+      employeeEmail: email, // Map frontend 'email' to backend 'employeeEmail'
+
+      firstname: firstName, // Changed from firstName to firstname
+      lastname: lastName, // Changed from lastName to lastname
+      middleInitial,
+      suffix,
+      prefix,
+      gender: gender.toLowerCase(), // Convert to lowercase to match backend enum
+      birthday,
+      nationality,
+      civilStatus: civilStatus.toLowerCase(), // Convert to lowercase to match backend enum
+      religion: religion.toLowerCase(), // Convert to lowercase to match backend enum
+      age: Number(age),
+      presentAddress,
+      city,
+      town,
+      province,
+      mobileNumber,
+      companyName,
+      jobposition: jobPosition, // Match backend field name
+      corporaterank: corporateRank.toLowerCase() /* .replace(/\s+/g, "_") */, // Convert to snake_case
+      jobStatus,
+      location,
+      businessUnit,
+      department,
+      head,
+      employeeStatus: isEmployeeActive, // Send as boolean
+      salaryRate: Number(salaryRate), // Ensure salaryRate is a number
+      bankAccountNumber,
+      tinNumber,
+      sssNumber,
+      philhealthNumber,
+      pagibigNumber,
+      employeeRole, // This should match the backend's role field
+
+      // FIXED: Convert arrays to strings or handle according to backend schema
+      // If backend expects string, stringify the objects; if it expects array, ensure schema matches
+      educationalBackground: JSON.stringify({
+        schoolName,
+        achievements,
+        degree,
+        educationalAttainment,
+        educationFrom,
+        educationTo,
+      }),
+      dependants: JSON.stringify([
+        {
+          dependantName,
+          dependantRelationship,
+          dependantBirthdate,
+        },
+      ]),
+      employmentHistory: JSON.stringify([
+        {
+          employerName,
+          employerAddress,
+          employmentPosition,
+          employmentFrom,
+          employmentTo,
+        },
+      ]),
+    };
+
+    try {
+      const token = localStorage.getItem("accessToken");
+      const response = await axiosInstance.put(
+        `employees/${selectedEmployee.id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      toast({
+        title: "Employee updated",
+        description: `${selectedEmployee.name}'s details have been updated.`,
+        status: "success",
+        duration: 4000,
+        isClosable: true,
+        position: "top",
+      });
+      fetchingEmployees(currentPage);
+      onCloseEditModal();
+      clearForm();
+    } catch (error) {
+      console.error("Error updating employee", error);
+      toast({
+        title: "Employee updated",
+        description: `${selectedEmployee.name}'s details have been updated.`,
+        status: "success",
+        duration: 4000,
+        isClosable: true,
+        position: "top",
+      });
+    }
+  };
+  //clearing form when submit
+  const clearForm = () => {
+    setUsername("");
+    setPassword("");
+    setFirstName("");
+    setLastName("");
+    setMiddleInitial("");
+    setSuffix("");
+    setPrefix("");
+    setGender("");
+    setBirthday("");
+    setNationality("");
+    setCivilStatus("");
+    setReligion("");
+    setAge("");
+    setEmployeeRole("");
+    setPresentAddress("");
+    setCity("");
+    setTown("");
+    setProvince("");
+    setMobileNumber("");
+    setEmail("");
+    setCompanyName("");
+    setEmployeeId("");
+    setJobPosition("");
+    setCorporateRank("");
+    setJobStatus("");
+    setLocation("");
+    setBusinessUnit("");
+    setDepartment("");
+    setHead("");
+    setEmployeeStatus("");
+    setSalaryRate("");
+    setBankAccountNumber("");
+    setTinNumber("");
+    setSssNumber("");
+    setPhilhealthNumber("");
+    setPagibigNumber("");
+    setSchoolName("");
+    setAchievements("");
+    setDegree("");
+    setEducationalAttainment("");
+    setEducationFrom("");
+    setEducationTo("");
+    setDependantName("");
+    setDependantRelationship("");
+    setDependantBirthdate("");
+    setEmployerName("");
+    setEmployerAddress("");
+    setEmploymentPosition("");
+    setEmploymentFrom("");
+    setEmploymentTo("");
+  };
+
+  // Move all useBreakpointValue calls to the top level
   const buttonLayout = useBreakpointValue({
     base: "vertical",
     md: "horizontal",
   });
   const isMobile = useBreakpointValue({ base: true, md: true, lg: false });
+
+  // Pre-calculate the business unit display value
+  const businessUnitDisplay = useBreakpointValue({
+    base:
+      fullEmployeeDetails?.businessUnit?.length > 5
+        ? `${fullEmployeeDetails.businessUnit.substring(0, 5)}...`
+        : fullEmployeeDetails?.businessUnit || "N/A",
+    md: fullEmployeeDetails?.businessUnit || "N/A",
+  });
 
   // Handlers for Modals and Dialogs
   const onOpenEditModal = (employee) => {
@@ -133,6 +374,44 @@ const Employees = () => {
     setSelectedEmployee(null);
   };
 
+  // useEffect to populate the form when the selected employee changes
+  /* useEffect(() => {
+    if (selectedEmployee) {
+      const fullDetails = mockEmployees.find(
+        (emp) => emp._id === selectedEmployee.id
+      );
+      if (fullDetails) {
+        setFirstName(fullDetails.firstname || "");
+        setLastName(fullDetails.lastname || "");
+        setEmail(fullDetails.employeeEmail || "");
+        setDepartment(fullDetails.department || "");
+        setJobPosition(fullDetails.role || "");
+        setCorporateRank(fullDetails.corporateRank || "");
+        setJobStatus(fullDetails.jobStatus || "");
+        setLocation(fullDetails.location || "");
+        setBusinessUnit(fullDetails.businessUnit || "");
+        setHead(fullDetails.head || "");
+        setMobileNumber(fullDetails.mobileNumber || "");
+        setGender(fullDetails.gender || "");
+        setBirthday(fullDetails.birthday || "");
+        setNationality(fullDetails.nationality || "");
+        setCivilStatus(fullDetails.civilStatus || "");
+        setReligion(fullDetails.religion || "");
+        setAge(fullDetails.age || "");
+        setPresentAddress(fullDetails.presentAddress || "");
+        setCity(fullDetails.city || "");
+        setTown(fullDetails.town || "");
+        setProvince(fullDetails.province || "");
+        setSalaryRate(fullDetails.salaryRate || "");
+        setBankAccountNumber(fullDetails.bankAccountNumber || "");
+        setTinNumber(fullDetails.tinNumber || "");
+        setSssNumber(fullDetails.sssNumber || "");
+        setPhilhealthNumber(fullDetails.philhealthNumber || "");
+        setPagibigNumber(fullDetails.pagibigNumber || "");
+      }
+    }
+  }, [selectedEmployee]);
+ */
   const onOpenDeactivateAlert = (employee) => {
     setSelectedEmployee(employee);
     setIsDeactivateAlertOpen(true);
@@ -168,6 +447,7 @@ const Employees = () => {
       setViewDetailsLoading(false);
     }
   };
+
   const onCloseViewDrawer = () => {
     setIsViewDrawerOpen(false);
     setSelectedEmployee(null);
@@ -346,6 +626,8 @@ const Employees = () => {
       });
     }
   };
+
+  //hadlessave for update
 
   const handleDeactivateEmployee = async () => {
     if (!selectedEmployee) return;
@@ -581,30 +863,732 @@ const Employees = () => {
       {filteredEmployees.length > 0 && renderPagination()}
 
       {/* Edit Employee Modal */}
-      <Modal isOpen={isEditModalOpen} onClose={onCloseEditModal}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Edit Employee Details</ModalHeader>
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={onCloseEditModal}
+        isCentered
+        motionPreset="slideInBottom"
+        size="xl"
+        scrollBehavior="inside"
+      >
+        <ModalOverlay
+          bg="blackAlpha.300"
+          backdropFilter="blur(10px) hue-rotate(90deg)"
+        />
+        <ModalContent
+          borderRadius="xl"
+          boxShadow="2xl"
+          p={6}
+          bg="white"
+          maxW="4xl"
+          mx={4}
+        >
+          <ModalHeader fontSize="2xl" fontWeight="bold" pb={2}>
+            Edit Employee Details
+          </ModalHeader>
           <ModalCloseButton />
-          <ModalBody>
-            {selectedEmployee ? (
-              <Box>
-                <Text>Editing: {selectedEmployee.name}</Text>
-                <Text>Email: {selectedEmployee.email}</Text>
-                <Text mt={4}>
-                  This is where your form to edit employee details would go.
-                </Text>
+
+          {!selectedEmployee ? (
+            <ModalBody>
+              <Box textAlign="center" py={10}>
+                <Spinner size="xl" color="blue.500" />
+                <Text mt={4}>Loading employee details...</Text>
               </Box>
-            ) : (
-              <Spinner />
-            )}
-          </ModalBody>
-          <ModalFooter>
-            <Button colorScheme="blue" mr={3} onClick={onCloseEditModal}>
-              Save
-            </Button>
-            <Button variant="ghost" onClick={onCloseEditModal}>
+            </ModalBody>
+          ) : (
+            <ModalBody>
+              {/* Authentication Fields */}
+              <Text
+                fontSize="lg"
+                fontWeight="semibold"
+                color="blue.600"
+                textAlign="start"
+                mb={4}
+              >
+                Authentication Details
+              </Text>
+              <VStack spacing={4} mb={6}>
+                <SimpleGrid
+                  columns={{ base: 1, md: 2 }}
+                  spacing={4}
+                  width="100%"
+                >
+                  <FormControl id="username" isRequired>
+                    <FormLabel>Username</FormLabel>
+                    <Input
+                      placeholder="Enter username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  {/* For a real app, do not pre-fill or allow editing of password directly in this form without
+                    proper security measures. This is included for form structure completeness. */}
+                  <FormControl id="password">
+                    <FormLabel>Password</FormLabel>
+                    <Input
+                      type="password"
+                      placeholder="Leave blank to keep current"
+                      onChange={(e) => setPassword(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                </SimpleGrid>
+              </VStack>
+
+              {/* Personal Information Fields */}
+              <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
+                Personal Information
+              </Text>
+              <VStack spacing={4} mb={6}>
+                <SimpleGrid
+                  columns={{ base: 1, md: 2 }}
+                  spacing={4}
+                  width="100%"
+                >
+                  <FormControl id="first-name" isRequired>
+                    <FormLabel>First Name</FormLabel>
+                    <Input
+                      placeholder="Enter first name"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="last-name" isRequired>
+                    <FormLabel>Last Name</FormLabel>
+                    <Input
+                      placeholder="Enter last name"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="middle-initial">
+                    <FormLabel>Middle Initial (MI)</FormLabel>
+                    <Input
+                      placeholder="Enter middle initial"
+                      value={middleInitial}
+                      onChange={(e) =>
+                        setMiddleInitial(
+                          e.target.value.toUpperCase().slice(0, 1)
+                        )
+                      }
+                      maxLength={1}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="suffix">
+                    <FormLabel>Suffix</FormLabel>
+                    <Input
+                      placeholder="ex: Jr,Sr,II and etc..."
+                      value={suffix}
+                      onChange={(e) => setSuffix(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="prefix">
+                    <FormLabel>Prefix</FormLabel>
+                    <Input
+                      placeholder="ex:Mr,Ms,Msr,and etc..."
+                      value={prefix}
+                      onChange={(e) => setPrefix(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="gender" isRequired>
+                    <FormLabel>Gender</FormLabel>
+                    <Select
+                      placeholder="Select gender"
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    >
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="prefer not to say">
+                        Prefer not to say
+                      </option>
+                    </Select>
+                  </FormControl>
+                  <FormControl id="birthday" isRequired>
+                    <FormLabel>Birthday</FormLabel>
+                    <Input
+                      type="date"
+                      value={birthday}
+                      onChange={(e) => setBirthday(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="nationality" isRequired>
+                    <FormLabel>Nationality</FormLabel>
+                    <Input
+                      placeholder="Enter nationality"
+                      value={nationality}
+                      onChange={(e) => setNationality(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="civil-status" isRequired>
+                    <FormLabel>Civil Status</FormLabel>
+                    <Select
+                      placeholder="Select civil status"
+                      value={civilStatus}
+                      onChange={(e) => setCivilStatus(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    >
+                      <option value="single">Single</option>
+                      <option value="married">Married</option>
+                      <option value="divorced">Divorced</option>
+                      <option value="widowed">Widowed</option>
+                    </Select>
+                  </FormControl>
+                  <FormControl id="religion" isRequired>
+                    <FormLabel>Religion</FormLabel>
+                    <Select
+                      placeholder="Select religion"
+                      value={religion}
+                      onChange={(e) => setReligion(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    >
+                      <option value="catholic">Catholic</option>
+                      <option value="christian">Christian</option>
+                      <option value="others">Others</option>
+                    </Select>
+                  </FormControl>
+                  <FormControl id="age" isRequired>
+                    <FormLabel>Age</FormLabel>
+                    <Input
+                      type="number"
+                      placeholder="Enter age"
+                      value={age}
+                      onChange={(e) => setAge(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                </SimpleGrid>
+              </VStack>
+
+              {/* Address Information Fields */}
+              <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
+                Address Information
+              </Text>
+              <VStack spacing={4} mb={6}>
+                <SimpleGrid
+                  columns={{ base: 1, md: 2 }}
+                  spacing={4}
+                  width="100%"
+                >
+                  <FormControl id="present-address" isRequired>
+                    <FormLabel>Present Address</FormLabel>
+                    <Input
+                      placeholder="House No., Street, Barangay"
+                      value={presentAddress}
+                      onChange={(e) => setPresentAddress(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="province" isRequired>
+                    <FormLabel>Province</FormLabel>
+                    <Input
+                      placeholder="Enter province"
+                      value={province}
+                      onChange={(e) => setProvince(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="city" isRequired>
+                    <FormLabel>City</FormLabel>
+                    <Input
+                      placeholder="Enter city"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="town" isRequired>
+                    <FormLabel>Town</FormLabel>
+                    <Input
+                      placeholder="Enter town"
+                      value={town}
+                      onChange={(e) => setTown(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                </SimpleGrid>
+              </VStack>
+
+              {/* Contact Fields */}
+              <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
+                Contact Information
+              </Text>
+              <VStack spacing={4} mb={6}>
+                <SimpleGrid
+                  columns={{ base: 1, md: 2 }}
+                  spacing={4}
+                  width="100%"
+                >
+                  <FormControl id="mobile-number" isRequired>
+                    <FormLabel>Mobile Number</FormLabel>
+                    <Input
+                      type="tel"
+                      placeholder="e.g., 09XX-XXX-XXXX"
+                      value={mobileNumber}
+                      onChange={(e) => setMobileNumber(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="employee-email" isRequired>
+                    <FormLabel>Employee Email</FormLabel>
+                    <Input
+                      type="email"
+                      placeholder="Enter employee email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                </SimpleGrid>
+              </VStack>
+
+              {/* Corporate Details Fields */}
+              <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
+                Corporate Details
+              </Text>
+              <VStack spacing={4} mb={6}>
+                <SimpleGrid
+                  columns={{ base: 1, md: 2 }}
+                  spacing={4}
+                  width="100%"
+                >
+                  <FormControl id="company-name" isRequired>
+                    <FormLabel>Company Name</FormLabel>
+                    <Input
+                      placeholder="Enter company name"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="job-position" isRequired>
+                    <FormLabel>Job Position</FormLabel>
+                    <Input
+                      placeholder="Enter job position"
+                      value={jobPosition}
+                      onChange={(e) => setJobPosition(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="corporate-rank" isRequired>
+                    <FormLabel>Corporate Rank</FormLabel>
+                    <Select
+                      placeholder="Select corporate rank"
+                      value={corporateRank}
+                      onChange={(e) => setCorporateRank(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    >
+                      <option value="managerial employees">
+                        Managerial Employees
+                      </option>
+                      <option value="managerial staff">Managerial Staff</option>
+                      <option value="supervisory employees">
+                        Supervisory Employees
+                      </option>
+                      <option value="rank-and-file employees">
+                        Rank and File Employees
+                      </option>
+                    </Select>
+                  </FormControl>
+                  <FormControl id="job-status" isRequired>
+                    <FormLabel>Job Status</FormLabel>
+                    <Select
+                      placeholder="Select job status"
+                      value={jobStatus}
+                      onChange={(e) => setJobStatus(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    >
+                      <option value="Probationary">Probationary</option>
+                      <option value="Regular">Regular</option>
+                      <option value="Full-time">Full-time</option>
+                      <option value="Part-time">Part-time</option>
+                    </Select>
+                  </FormControl>
+                  <FormControl id="location" isRequired>
+                    <FormLabel>Location</FormLabel>
+                    <Input
+                      placeholder="Enter location"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="business-unit" isRequired>
+                    <FormLabel>Business Unit</FormLabel>
+                    <Input
+                      placeholder="Enter business unit"
+                      value={businessUnit}
+                      onChange={(e) => setBusinessUnit(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="department" isRequired>
+                    <FormLabel>Department</FormLabel>
+                    <Input
+                      placeholder="Enter department"
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="head" isRequired>
+                    <FormLabel>Head</FormLabel>
+                    <Input
+                      placeholder="Enter department head"
+                      value={head}
+                      onChange={(e) => setHead(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="employee-status" isRequired>
+                    <FormLabel>Employee Status</FormLabel>
+                    <Select
+                      placeholder="Select employee status"
+                      value={employeeStatus}
+                      onChange={(e) => setEmployeeStatus(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    >
+                      <option value="1">Active</option>
+                      <option value="0">Inactive</option>
+                    </Select>
+                  </FormControl>
+                  <FormControl id="role" isRequired>
+                    <FormLabel>Employee Role</FormLabel>
+                    <Select
+                      placeholder="Select employee role"
+                      value={employeeRole}
+                      onChange={(e) => setEmployeeRole(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    >
+                      <option value="admin">Admin</option>
+                      <option value="hr_manager">Manager</option>
+                      <option value="hr">HR Staff</option>
+                      <option value="employee">Employee</option>
+                    </Select>
+                  </FormControl>
+                </SimpleGrid>
+              </VStack>
+
+              {/* Salary and Government IDs Fields */}
+              <Text mb={4} fontSize="lg" fontWeight="semibold" color="blue.600">
+                Salary & Government IDs
+              </Text>
+              <VStack spacing={4} mb={6}>
+                <SimpleGrid
+                  columns={{ base: 1, md: 2 }}
+                  spacing={4}
+                  width="100%"
+                >
+                  <FormControl id="salary-rate" isRequired>
+                    <FormLabel>Salary Rate</FormLabel>
+                    <Input
+                      type="number"
+                      placeholder="Enter salary rate"
+                      value={salaryRate}
+                      onChange={(e) => setSalaryRate(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="bank-account-number" isRequired>
+                    <FormLabel>Bank Account Number</FormLabel>
+                    <Input
+                      placeholder="Enter bank account number"
+                      value={bankAccountNumber}
+                      onChange={(e) => setBankAccountNumber(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="tin-number" isRequired>
+                    <FormLabel>TIN Number</FormLabel>
+                    <Input
+                      placeholder="Enter TIN number"
+                      value={tinNumber}
+                      onChange={(e) => setTinNumber(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="sss-number" isRequired>
+                    <FormLabel>SSS Number</FormLabel>
+                    <Input
+                      placeholder="Enter SSS number"
+                      value={sssNumber}
+                      onChange={(e) => setSssNumber(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="philhealth-number" isRequired>
+                    <FormLabel>Philhealth Number</FormLabel>
+                    <Input
+                      placeholder="Enter Philhealth number"
+                      value={philhealthNumber}
+                      onChange={(e) => setPhilhealthNumber(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="pagibig-number" isRequired>
+                    <FormLabel>Pag-IBIG Number</FormLabel>
+                    <Input
+                      placeholder="Enter Pag-IBIG number"
+                      value={pagibigNumber}
+                      onChange={(e) => setPagibigNumber(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                </SimpleGrid>
+              </VStack>
+
+              {/* Educational Background Fields */}
+              <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
+                Educational Background
+              </Text>
+              <VStack spacing={4} mb={6}>
+                <SimpleGrid
+                  columns={{ base: 1, md: 2 }}
+                  spacing={4}
+                  width="100%"
+                >
+                  <FormControl id="school-name">
+                    <FormLabel>School Name</FormLabel>
+                    <Input
+                      placeholder="Enter school name"
+                      value={schoolName}
+                      onChange={(e) => setSchoolName(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="degree">
+                    <FormLabel>Degree</FormLabel>
+                    <Input
+                      placeholder="Enter degree"
+                      value={degree}
+                      onChange={(e) => setDegree(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="educational-attainment">
+                    <FormLabel>Educational Attainment</FormLabel>
+                    <Input
+                      placeholder="e.g., College Graduate, Master's Degree"
+                      value={educationalAttainment}
+                      onChange={(e) => setEducationalAttainment(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="education-from">
+                    <FormLabel>Education From (Year)</FormLabel>
+                    <Input
+                      type="number"
+                      placeholder="Start Year"
+                      value={educationFrom}
+                      onChange={(e) => setEducationFrom(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="education-to">
+                    <FormLabel>Education To (Year)</FormLabel>
+                    <Input
+                      type="number"
+                      placeholder="End Year (or Present)"
+                      value={educationTo}
+                      onChange={(e) => setEducationTo(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="achievements">
+                    <FormLabel>Achievements (Optional)</FormLabel>
+                    <Input
+                      placeholder="Enter achievements"
+                      value={achievements}
+                      onChange={(e) => setAchievements(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                </SimpleGrid>
+              </VStack>
+
+              {/* Dependants Fields */}
+              <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
+                Dependants Information
+              </Text>
+              <VStack spacing={4} mb={6}>
+                <SimpleGrid
+                  columns={{ base: 1, md: 2 }}
+                  spacing={4}
+                  width="100%"
+                >
+                  <FormControl id="dependant-name">
+                    <FormLabel>Dependant Name</FormLabel>
+                    <Input
+                      placeholder="Enter dependant's name"
+                      value={dependantName}
+                      onChange={(e) => setDependantName(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="dependant-relationship">
+                    <FormLabel>Dependant Relationship</FormLabel>
+                    <Input
+                      placeholder="e.g., Son, Daughter, Spouse"
+                      value={dependantRelationship}
+                      onChange={(e) => setDependantRelationship(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="dependant-birthdate">
+                    <FormLabel>Dependant Birthdate</FormLabel>
+                    <Input
+                      type="date"
+                      value={dependantBirthdate}
+                      onChange={(e) => setDependantBirthdate(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                </SimpleGrid>
+              </VStack>
+
+              {/* Employment History Fields */}
+              <Text fontSize="lg" fontWeight="semibold" color="blue.600" mb={4}>
+                Employment History
+              </Text>
+              <VStack spacing={4} mb={6}>
+                <SimpleGrid
+                  columns={{ base: 1, md: 2 }}
+                  spacing={4}
+                  width="100%"
+                >
+                  <FormControl id="employer-name">
+                    <FormLabel>Employer Name</FormLabel>
+                    <Input
+                      placeholder="Enter previous employer name"
+                      value={employerName}
+                      onChange={(e) => setEmployerName(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="employer-address">
+                    <FormLabel>Employer Address</FormLabel>
+                    <Input
+                      placeholder="Enter previous employer address"
+                      value={employerAddress}
+                      onChange={(e) => setEmployerAddress(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="employment-position">
+                    <FormLabel>Position</FormLabel>
+                    <Input
+                      placeholder="Enter position held"
+                      value={employmentPosition}
+                      onChange={(e) => setEmploymentPosition(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="employment-from">
+                    <FormLabel>Employment From (Date)</FormLabel>
+                    <Input
+                      type="date"
+                      value={employmentFrom}
+                      onChange={(e) => setEmploymentFrom(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                  <FormControl id="employment-to">
+                    <FormLabel>Employment To (Date)</FormLabel>
+                    <Input
+                      type="date"
+                      value={employmentTo}
+                      onChange={(e) => setEmploymentTo(e.target.value)}
+                      borderRadius="lg"
+                      focusBorderColor="blue.400"
+                    />
+                  </FormControl>
+                </SimpleGrid>
+              </VStack>
+            </ModalBody>
+          )}
+
+          <ModalFooter pt={6}>
+            <Button
+              variant="ghost"
+              onClick={onCloseEditModal}
+              mr={3}
+              borderRadius="lg"
+              _hover={{ bg: "gray.100" }}
+            >
               Cancel
+            </Button>
+
+            {/*   // Update the Save Changes button in the Edit Modal to use this handler: */}
+
+            <Button
+              colorScheme="blue"
+              onClick={handleSave}
+              borderRadius="lg"
+              px={6}
+              _hover={{
+                boxShadow: "md",
+                transform: "translateY(-1px)",
+              }}
+              transition="all 0.2s ease-in-out"
+            >
+              Save Changes
             </Button>
           </ModalFooter>
         </ModalContent>
@@ -709,7 +1693,7 @@ const Employees = () => {
                     </Tag>
                   </Box>
                   <Box>
-                    <Menu>
+                    {/* <Menu>
                       <MenuButton
                         as={Button}
                         rightIcon={<FiMoreVertical />}
@@ -721,7 +1705,7 @@ const Employees = () => {
                         <MenuItem>Action 1</MenuItem>
                         <MenuItem>Action 2</MenuItem>
                       </MenuList>
-                    </Menu>
+                    </Menu> */}
                   </Box>
                 </Flex>
 
@@ -741,7 +1725,15 @@ const Employees = () => {
                         <Icon as={FaBriefcase} color="blue.500" mr={3} />
                         <Text fontWeight="semibold">Department:</Text>
                         <Text ml={2}>
-                          {fullEmployeeDetails.department || "N/A"}
+                          <Tooltip
+                            label={fullEmployeeDetails.department || "N/A"}
+                            hasArrow
+                          >
+                            {`${fullEmployeeDetails.department.substring(
+                              0,
+                              10
+                            )}...` || "N/A"}
+                          </Tooltip>
                         </Text>
                       </Flex>
                       <Flex align="center">
@@ -831,12 +1823,15 @@ const Employees = () => {
                         <Icon as={FaIdCard} color="blue.500" mr={3} />
                         <Text fontWeight="semibold">Philhealth Number:</Text>
                         <Text ml={2}>
-                          {fullEmployeeDetails.philhealthNumber || "N/A"}
+                          {`${fullEmployeeDetails.philhealthNumber.substring(
+                            0,
+                            5
+                          )}...` || "N/A"}
                         </Text>
                       </Flex>
                       <Flex align="center">
                         <Icon as={FaIdCard} color="blue.500" mr={3} />
-                        <Text fontWeight="semibold">Pag-IBIG Number:</Text>
+                        <Text fontWeight="semibold">Pag-IBIG #</Text>
                         <Text ml={2}>
                           {fullEmployeeDetails.pagibigNumber || "N/A"}
                         </Text>
@@ -845,10 +1840,15 @@ const Employees = () => {
                         <Icon as={FaHome} color="blue.500" mr={3} />
                         <Text fontWeight="semibold">Present Address:</Text>
                         <Text ml={2}>
-                          {fullEmployeeDetails.presentAddress || "N/A"},{" "}
-                          {fullEmployeeDetails.town || "N/A"},{" "}
-                          {fullEmployeeDetails.city || "N/A"},{" "}
-                          {fullEmployeeDetails.province || "N/A"}
+                          <Tooltip
+                            label={fullEmployeeDetails.presentAddress || "N/A"}
+                            hasArrow
+                          >
+                            {`${fullEmployeeDetails.presentAddress.substring(
+                              0,
+                              10
+                            )}...` || "N/A"}
+                          </Tooltip>
                         </Text>
                       </Flex>
                       <Flex align="center">
@@ -862,28 +1862,59 @@ const Employees = () => {
                         <Icon as={FaBuilding} color="blue.500" mr={3} />
                         <Text fontWeight="semibold">Business Unit:</Text>
                         <Text ml={2}>
-                          {fullEmployeeDetails.businessUnit || "N/A"}
+                          <Tooltip
+                            label={fullEmployeeDetails.businessUnit || "N/A"}
+                            hasArrow
+                          >
+                            {businessUnitDisplay}
+                          </Tooltip>
                         </Text>
                       </Flex>
                       <Flex align="center">
                         <Icon as={FaUserTie} color="blue.500" mr={3} />
                         <Text fontWeight="semibold">Corporate Rank:</Text>
                         <Text ml={2}>
-                          {fullEmployeeDetails.corporaterank || "N/A"}
+                          <Tooltip
+                            label={fullEmployeeDetails.corporaterank || "N/A"}
+                            hasArrow
+                          >
+                            {`${fullEmployeeDetails.corporaterank.substring(
+                              0,
+                              10
+                            )}...` || "N/A"}
+                          </Tooltip>
                         </Text>
                       </Flex>
                       <Flex align="center">
                         <Icon as={FaRegListAlt} color="blue.500" mr={3} />
                         <Text fontWeight="semibold">Religion:</Text>
                         <Text ml={2}>
-                          {fullEmployeeDetails.religion || "N/A"}
+                          <Tooltip
+                            label={fullEmployeeDetails.religion || "N/A"}
+                            hasArrow
+                          >
+                            {`${fullEmployeeDetails.religion.substring(
+                              0,
+                              5
+                            )}...` || "N/A"}
+                          </Tooltip>
                         </Text>
                       </Flex>
                       <Flex align="center">
                         <Icon as={FaCertificate} color="blue.500" mr={3} />
                         <Text fontWeight="semibold">Achievements:</Text>
                         <Text ml={2}>
-                          {fullEmployeeDetails.achievements || "N/A"}
+                          <Tooltip
+                            label={fullEmployeeDetails.achievements || "N/A"}
+                            hasArrow
+                          >
+                            {fullEmployeeDetails.achievements
+                              ? `${fullEmployeeDetails.achievements.substring(
+                                  0,
+                                  5
+                                )}...`
+                              : "N/A"}
+                          </Tooltip>
                         </Text>
                       </Flex>
                     </Stack>

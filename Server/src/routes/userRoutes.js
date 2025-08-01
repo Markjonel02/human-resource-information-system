@@ -36,7 +36,7 @@ router.post(
 // Employee update route - Admin and Manager can update
 router.put(
   "/employees/:id",
-  authorizeRoles("admin", "manager"),
+  authorizeRoles("admin", "hr"),
   Useradmin.updateEmployee
 );
 
