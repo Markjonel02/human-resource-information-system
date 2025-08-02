@@ -614,8 +614,8 @@ const Employees = () => {
   const handleBulkDeactivate = async () => {
     try {
       const token = localStorage.getItem("accessToken");
-      await axiosInstance.put(
-        `/deactivate-bulk-user/${selectedIds.id}`,
+      const response = await axiosInstance.put(
+        "/deactivate-bulk-user/:",
         { ids: selectedIds },
         {
           headers: {
@@ -626,7 +626,7 @@ const Employees = () => {
 
       toast({
         title: "Employees updated",
-        description: "Selected employees were marked as inactive.",
+        description: response.data.message, // 🔥 Dynamic from backend
         status: "success",
         duration: 4000,
         isClosable: true,
@@ -638,9 +638,12 @@ const Employees = () => {
       fetchingEmployees(currentPage);
     } catch (error) {
       console.error("Error during bulk deactivate:", error);
+
       toast({
         title: "Update failed",
-        description: "Could not deactivate selected employees.",
+        description:
+          error.response?.data?.message ||
+          "Could not deactivate selected employees.",
         status: "error",
         duration: 4000,
         isClosable: true,

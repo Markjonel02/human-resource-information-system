@@ -472,12 +472,13 @@ const deactiveSingle = async (req, res) => {
 };
 
 const deactivateBulk = async (req, res) => {
-  const { ids } = req.params;
-  const { userId } = req.user.id;
+  const { ids } = req.body;
+  const userId = req.user.id;
 
   if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res.status(401).json({
-      message: "Forbidden cannot deactives this users without permisions",
+      message:
+        "Forbidden: you do not have permission to deactivate these users.",
     });
   }
 
@@ -488,30 +489,41 @@ const deactivateBulk = async (req, res) => {
   }
 
   try {
+    const users = await user.find({ _id: { $in: ids } });
+
+    const activeIds = users
+      .filter((u) => u.employeeStatus === 1)
+      .map((u) => u._id);
+
+    const alreadyInactive = users.length - activeIds.length;
+
+    // 🛡 Check if this would remove all active admins
+    const activeAdminCount = await user.countDocuments({
+      role: "admin",
+      employeeStatus: 1,
+      _id: { $nin: ids }, // Ensure we exclude those being deactivated
+    });
+
+    if (activeAdminCount === 0) {
+      return res.status(400).json({
+        message: "Operation blocked: must keep at least one active admin.",
+      });
+    }
+
     const result = await user.updateMany(
-      {
-        _id: { $in: ids },
-        employeeStatus: 1,
-      },
+      { _id: { $in: activeIds } },
       { $set: { employeeStatus: 0 } }
     );
 
-    if (result.modifiedCount === 0) {
-      return res.status(400).json({
-        message: "No users were deactivated. They may already be inactive.",
-      });
-    }
     return res.status(200).json({
-      message: `${result.modifiedCount} user(s) successfully deactivated)`,
+      message: `${result.modifiedCount} employee(s) deactivated. ${alreadyInactive} already inactive.`,
     });
   } catch (error) {
     console.error("Bulk deactivation error:", error);
-    console.log("message:", error);
-    return res.status(500).json({
-      message: "Server error while deactivating users. Please try again later.",
-    });
+    return res.status(500).json({ message: "Server error. Please try again." });
   }
 };
+
 module.exports = {
   createEmployee,
   getAllEmployees,
@@ -519,5 +531,5 @@ module.exports = {
   updateEmployee,
   createAdmin,
   deactiveSingle,
-  deactivateBulk
+  deactivateBulk,
 };
