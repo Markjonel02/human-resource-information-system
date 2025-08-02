@@ -61,12 +61,18 @@ const UserSchema = new mongoose.Schema({
   corporaterank: {
     type: String,
     required: true,
-    enum: ["managerial employees", "managerial staff", "supervisory employees"],
+    enum: [
+      "managerial employees",
+      "managerial staff",
+      "supervisory employees",
+      "rank-and-file employees",
+    ],
   },
+
   jobStatus: {
     type: String,
     required: true,
-    enum: ["probationary", "regular", "Full-time", "Part-time"],
+    enum: ["Probitionary", "Regular", "Full-time", "Part-time"], // Corrected spelling
   },
 
   location: { type: String, required: true },
@@ -139,6 +145,17 @@ UserSchema.pre("save", async function (next) {
   } catch (err) {
     next(err);
   }
+});
+UserSchema.pre("validate", function (next) {
+  if (this.corporaterank) {
+    const input = this.corporaterank.toLowerCase().trim();
+
+    if (input.includes("rank") && input.includes("file")) {
+      this.corporaterank = "rank-and-file employees";
+    }
+  }
+
+  next();
 });
 
 // Method to compare password (for login)

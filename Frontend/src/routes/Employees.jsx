@@ -213,8 +213,10 @@ const Employees = () => {
         updates.password = password;
       }
 
-      // Only admins can update roles (as per your controller)
-      if (currentUser?.role === "admin" && employeeRole) {
+      if (
+        (currentUser?.role === "admin" || currentUser?.role === "hr") &&
+        employeeRole
+      ) {
         updates.role = employeeRole;
       }
 
@@ -232,8 +234,8 @@ const Employees = () => {
       // Handle response based on your controller's return values
       if (response.data.message.includes("No changes detected")) {
         toast({
-          title: "No changes made",
-          description: response.data.message,
+          title: "Nothing was updated",
+          description: "You submitted the form, but no fields were changed.",
           status: "info",
           duration: 4000,
           isClosable: true,
