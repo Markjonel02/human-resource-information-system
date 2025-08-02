@@ -615,7 +615,7 @@ const Employees = () => {
     try {
       const token = localStorage.getItem("accessToken");
       await axiosInstance.put(
-        "/employees/bulk-deactivate",
+        `/deactivate-bulk-user/${selectedIds.id}`,
         { ids: selectedIds },
         {
           headers: {

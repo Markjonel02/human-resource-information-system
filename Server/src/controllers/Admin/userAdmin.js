@@ -473,10 +473,43 @@ const deactiveSingle = async (req, res) => {
 
 const deactivateBulk = async (req, res) => {
   const { ids } = req.params;
+  const { userId } = req.user.id;
+
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res.status(401).json({
+      message: "Forbidden cannot deactives this users without permisions",
+    });
+  }
+
+  if (!userId || !Array.isArray(ids) || ids.length === 0) {
+    return res
+      .status(400)
+      .json({ message: "Invalid request. Expected non-empty array of IDs." });
+  }
+
   try {
-    
+    const result = await user.updateMany(
+      {
+        _id: { $in: ids },
+        employeeStatus: 1,
+      },
+      { $set: { employeeStatus: 0 } }
+    );
+
+    if (result.modifiedCount === 0) {
+      return res.status(400).json({
+        message: "No users were deactivated. They may already be inactive.",
+      });
+    }
+    return res.status(200).json({
+      message: `${result.modifiedCount} user(s) successfully deactivated)`,
+    });
   } catch (error) {
-    
+    console.error("Bulk deactivation error:", error);
+    console.log("message:", error);
+    return res.status(500).json({
+      message: "Server error while deactivating users. Please try again later.",
+    });
   }
 };
 module.exports = {
@@ -486,4 +519,5 @@ module.exports = {
   updateEmployee,
   createAdmin,
   deactiveSingle,
+  deactivateBulk
 };
