@@ -174,7 +174,7 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
       mobileNumber,
       companyName,
       jobposition: jobPosition, // Match backend field name
-      corporaterank: corporateRank.toLowerCase() /* .replace(/\s+/g, "_") */, // Convert to snake_case
+      corporaterank: corporateRank.toLowerCase() /* .replace(/\s+/g, "-") */,
       jobStatus,
       location,
       businessUnit,
@@ -667,9 +667,8 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
                     <option value="supervisory employees">
                       Supervisory Employees
                     </option>
-                    <option value="rank-and-file employees">
-                      Rank and File Employees
-                    </option>
+                    <option value="Rank-and-file">Rank & File Employee</option>
+
                     {/*    <option value="rankandfile employees">
                       Rank and File Employees
                     </option> */}
@@ -685,7 +684,7 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
                     borderRadius="lg"
                     focusBorderColor="blue.400"
                   >
-                    <option value="Probationary">Probationary</option>
+                    <option value="Probitionary">Probitionary</option>
                     <option value="Regular">Regular</option>
                     <option value="Full-time">Full-time</option>
                     <option value="Part-time">Part-time</option>

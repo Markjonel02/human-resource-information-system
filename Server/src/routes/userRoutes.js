@@ -10,7 +10,7 @@ const verifyJWT = require("../middlewares/verifyJWT"); // Assuming middleware/ve
 const authorizeRoles = require("../middlewares/authorizeRole"); // Assuming middleware/authorizeRoles.js
 
 // Authentication routes (public access) - These do NOT need JWT verification
-router.post("/auth/register", authController.register);
+/* router.post("/auth/register", authController.register); */
 router.post("/auth/login", authController.login);
 router.get("/auth/refresh", authController.refreshToken);
 router.post("/auth/logout", authController.logout);
@@ -36,7 +36,7 @@ router.post(
 // Employee update route - Admin and Manager can update
 router.put(
   "/employees/:id",
-  authorizeRoles("admin", "manager"),
+  authorizeRoles("admin", "hr"),
   Useradmin.updateEmployee
 );
 
@@ -58,5 +58,10 @@ router.put(
   "/deactivate-user/:id",
   authorizeRoles("admin", "hr"),
   Useradmin.deactiveSingle
+);
+router.put(
+  "/deactivate-bulk-user/:id",
+  authorizeRoles("admin", "hr"),
+  Useradmin.deactivateBulk
 );
 module.exports = router;

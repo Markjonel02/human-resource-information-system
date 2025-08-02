@@ -270,9 +270,9 @@ const getEmployeeById = async (req, res) => {
 // @access Private (Admin, Manager)
 const updateEmployee = async (req, res) => {
   const { id } = req.params;
-  const { password, role, ...updates } = req.body; // Exclude password from direct updates here
+  const { password, role, ...updates } = req.body;
 
-  // Only admins and managers can update employee profiles
+  // Permission check
   if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res.status(403).json({
       message:
@@ -281,59 +281,165 @@ const updateEmployee = async (req, res) => {
   }
 
   try {
-    const employee = await User.findById(id).exec();
+    const employee = await user.findById(id).exec();
     if (!employee) {
       return res.status(404).json({ message: "Employee not found." });
     }
 
-    // Prevent non-admins from changing roles
-    if (
-      req.user.role !== "admin" &&
-      updates.role &&
-      updates.role !== employee.role
-    ) {
+    // Check if any data is actually being changed
+    let hasChanges = false;
+    const unchangedFields = [];
+    const changedFields = [];
+
+    // Check role change permission first
+    if (req.user.role !== "admin" && role && role !== employee.role) {
       return res.status(403).json({
         message: "Forbidden: Only administrators can change employee roles.",
       });
     }
-    // If an admin is updating the role, apply it
+
+    // Check for actual changes in all fields
+    const updatableFields = [
+      // Personal Information
+      "firstname",
+      "lastname",
+      "username",
+      "suffix",
+      "prefix",
+      "gender",
+      "birthday",
+      "nationality",
+      "civilStatus",
+      "religion",
+      "presentAddress",
+      "province",
+      "town",
+      "city",
+      "mobileNumber",
+      "employeeEmail",
+      // Corporate Details
+      "companyName",
+      "employeeId",
+      "jobposition",
+      "corporaterank",
+      "jobStatus",
+      "location",
+      "businessUnit",
+      "department",
+      "head",
+      "employeeStatus",
+      // Salary and Government IDs
+      "salaryRate",
+      "bankAccountNumber",
+      "tinNumber",
+      "sssNumber",
+      "philhealthNumber",
+      // Educational Background
+      "shcoolName",
+      "degree",
+      "educationalAttainment",
+      "educationFromYear",
+      "educationToYear",
+      "achievements",
+      // Dependants
+      "dependants",
+      "dependentsRelation",
+      "dependentbirthDate",
+      // Employment History
+      "employerName",
+      "employeeAddress",
+      "prevPosition",
+      "employmentfromDate",
+      "employmenttoDate",
+    ];
+
+    Object.keys(updates).forEach((key) => {
+      if (updatableFields.includes(key)) {
+        if (employee[key]?.toString() !== updates[key]?.toString()) {
+          hasChanges = true;
+          changedFields.push(key);
+        } else {
+          unchangedFields.push(key);
+        }
+      }
+    });
+
+    // Check if password is being changed
+    if (password && !(await employee.comparePassword(password))) {
+      hasChanges = true;
+      changedFields.push("password");
+    }
+
+    // Check if role is being changed (admin only)
+    if (req.user.role === "admin" && role && role !== employee.role) {
+      hasChanges = true;
+      changedFields.push("role");
+    }
+
+    // If no changes detected
+    if (!hasChanges) {
+      return res.status(200).json({
+        message: "No changes detected. Employee data remains unchanged.",
+        unchangedFields,
+        changedFields,
+      });
+    }
+
+    // Apply changes
     if (req.user.role === "admin" && role) {
       employee.role = role;
     }
-    // Define allowed fields for update
-    const allowedFields = [
-      "firstname",
-      "lastname",
-      "employeeEmail",
-      "department",
-      "employeeStatus",
-    ];
-    // Apply updates
-    Object.keys(updates).forEach((key) => {
-      if (allowedFields.includes(key)) {
+
+    changedFields.forEach((key) => {
+      if (key !== "role" && key !== "password") {
         employee[key] = updates[key];
       }
     });
 
-    // If password is provided, hash it
     if (password) {
-      employee.password = password; // The pre-save hook will hash this
+      employee.password = password;
     }
 
-    await employee.save(); // This will trigger the pre-save hook for password hashing and age calculation
+    const updatedEmployee = await employee.save();
 
-    res
-      .status(200)
-      .json({ message: "Employee updated successfully", employee });
+    res.status(200).json({
+      message: "Employee updated successfully",
+      changedFields,
+      unchangedFields,
+      employee: {
+        _id: updatedEmployee._id,
+        firstname: updatedEmployee.firstname,
+        lastname: updatedEmployee.lastname,
+        employeeEmail: updatedEmployee.employeeEmail,
+        role: updatedEmployee.role,
+        employeeStatus: updatedEmployee.employeeStatus,
+      },
+    });
   } catch (error) {
     console.error(error);
-    if (error.name === "ValidationError") {
-      return res.status(400).json({ message: error.message });
+
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({
+        message: `${field} already exists`,
+        field,
+      });
     }
-    res.status(500).json({ message: "Server error while updating employee." });
+
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((val) => val.message);
+      return res.status(400).json({
+        message: "Validation error",
+        errors: messages,
+      });
+    }
+
+    res.status(500).json({
+      message: "Server error while updating employee.",
+      error: error.message,
+    });
   }
 };
-
 const deactiveSingle = async (req, res) => {
   const { id } = req.params;
   if (req.user.role !== "admin" && req.user.role !== "hr") {
@@ -348,8 +454,8 @@ const deactiveSingle = async (req, res) => {
       return res.status(404).json({ message: "User not found." });
     }
 
-    if (deactivatingUser.employeeStatus !== 1) {
-      deactivatingUser.employeeStatus = 0; // Deactivate the user
+    if (deactivatingUser.employeeStatus === 1) {
+      deactivatingUser.employeeStatus = 0; // Deactivate
       await deactivatingUser.save();
       return res
         .status(200)
@@ -364,6 +470,60 @@ const deactiveSingle = async (req, res) => {
       .json({ message: "Server error while deactivating user." });
   }
 };
+
+const deactivateBulk = async (req, res) => {
+  const { ids } = req.body;
+  const userId = req.user.id;
+
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res.status(401).json({
+      message:
+        "Forbidden: you do not have permission to deactivate these users.",
+    });
+  }
+
+  if (!userId || !Array.isArray(ids) || ids.length === 0) {
+    return res
+      .status(400)
+      .json({ message: "Invalid request. Expected non-empty array of IDs." });
+  }
+
+  try {
+    const users = await user.find({ _id: { $in: ids } });
+
+    const activeIds = users
+      .filter((u) => u.employeeStatus === 1)
+      .map((u) => u._id);
+
+    const alreadyInactive = users.length - activeIds.length;
+
+    // 🛡 Check if this would remove all active admins
+    const activeAdminCount = await user.countDocuments({
+      role: "admin",
+      employeeStatus: 1,
+      _id: { $nin: ids }, // Ensure we exclude those being deactivated
+    });
+
+    if (activeAdminCount === 0) {
+      return res.status(400).json({
+        message: "Operation blocked: must keep at least one active admin.",
+      });
+    }
+
+    const result = await user.updateMany(
+      { _id: { $in: activeIds } },
+      { $set: { employeeStatus: 0 } }
+    );
+
+    return res.status(200).json({
+      message: `${result.modifiedCount} employee(s) deactivated. ${alreadyInactive} already inactive.`,
+    });
+  } catch (error) {
+    console.error("Bulk deactivation error:", error);
+    return res.status(500).json({ message: "Server error. Please try again." });
+  }
+};
+
 module.exports = {
   createEmployee,
   getAllEmployees,
@@ -371,4 +531,5 @@ module.exports = {
   updateEmployee,
   createAdmin,
   deactiveSingle,
+  deactivateBulk,
 };
