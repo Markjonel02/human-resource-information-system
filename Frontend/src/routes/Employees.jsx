@@ -434,44 +434,6 @@ const Employees = () => {
     setSelectedEmployee(null);
   };
 
-  // useEffect to populate the form when the selected employee changes
-  /* useEffect(() => {
-    if (selectedEmployee) {
-      const fullDetails = mockEmployees.find(
-        (emp) => emp._id === selectedEmployee.id
-      );
-      if (fullDetails) {
-        setFirstName(fullDetails.firstname || "");
-        setLastName(fullDetails.lastname || "");
-        setEmail(fullDetails.employeeEmail || "");
-        setDepartment(fullDetails.department || "");
-        setJobPosition(fullDetails.role || "");
-        setCorporateRank(fullDetails.corporateRank || "");
-        setJobStatus(fullDetails.jobStatus || "");
-        setLocation(fullDetails.location || "");
-        setBusinessUnit(fullDetails.businessUnit || "");
-        setHead(fullDetails.head || "");
-        setMobileNumber(fullDetails.mobileNumber || "");
-        setGender(fullDetails.gender || "");
-        setBirthday(fullDetails.birthday || "");
-        setNationality(fullDetails.nationality || "");
-        setCivilStatus(fullDetails.civilStatus || "");
-        setReligion(fullDetails.religion || "");
-        setAge(fullDetails.age || "");
-        setPresentAddress(fullDetails.presentAddress || "");
-        setCity(fullDetails.city || "");
-        setTown(fullDetails.town || "");
-        setProvince(fullDetails.province || "");
-        setSalaryRate(fullDetails.salaryRate || "");
-        setBankAccountNumber(fullDetails.bankAccountNumber || "");
-        setTinNumber(fullDetails.tinNumber || "");
-        setSssNumber(fullDetails.sssNumber || "");
-        setPhilhealthNumber(fullDetails.philhealthNumber || "");
-        setPagibigNumber(fullDetails.pagibigNumber || "");
-      }
-    }
-  }, [selectedEmployee]);
- */
   const onOpenDeactivateAlert = (employee) => {
     setSelectedEmployee(employee);
     setIsDeactivateAlertOpen(true);
@@ -692,10 +654,22 @@ const Employees = () => {
   const handleDeactivateEmployee = async () => {
     if (!selectedEmployee) return;
 
+    if (selectedEmployee.status === 0) {
+      toast({
+        title: "Employee is already deactivated!",
+        description: `this user "${selectedEmployee.name}" is aldready deactivated.`,
+        status: "warning",
+        duration: 4000,
+        isClosable: true,
+        position: "top",
+      });
+      return;
+    }
+
     try {
       const token = localStorage.getItem("accessToken");
       await axiosInstance.put(
-        `/employees/deactivate/${selectedEmployee.id}`,
+        `/deactivate-user/${selectedEmployee.id}`,
         {},
         {
           headers: {
@@ -976,14 +950,14 @@ const Employees = () => {
                   <FormControl id="username" isRequired>
                     <FormLabel>Username</FormLabel>
                     <Input
-                      placeholder="Enter username"
-                      value={username}
-                      disabled
-                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="username"
+                      value={username || ""}
+                      // can also use "disabled" as you've done
                       borderRadius="lg"
                       focusBorderColor="blue.400"
                     />
                   </FormControl>
+
                   {/* For a real app, do not pre-fill or allow editing of password directly in this form without
                     proper security measures. This is included for form structure completeness. */}
                   <FormControl id="password">

@@ -454,8 +454,8 @@ const deactiveSingle = async (req, res) => {
       return res.status(404).json({ message: "User not found." });
     }
 
-    if (deactivatingUser.employeeStatus !== 1) {
-      deactivatingUser.employeeStatus = 0; // Deactivate the user
+    if (deactivatingUser.employeeStatus === 1) {
+      deactivatingUser.employeeStatus = 0; // Deactivate
       await deactivatingUser.save();
       return res
         .status(200)
@@ -468,6 +468,15 @@ const deactiveSingle = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Server error while deactivating user." });
+  }
+};
+
+const deactivateBulk = async (req, res) => {
+  const { ids } = req.params;
+  try {
+    
+  } catch (error) {
+    
   }
 };
 module.exports = {
