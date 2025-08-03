@@ -18,12 +18,12 @@ import {
 import { FaUser, FaUserMinus, FaCalendarAlt, FaFileAlt } from "react-icons/fa";
 import { ResponsiveBar } from "@nivo/bar";
 import { employeeTrackerData } from "../lib/api"; // Your data source
-
+import { useAuth } from "../context/AuthContext";
 const MetricCard = ({ title, value, percentageChange, type, icon }) => {
   const cardBg = useColorModeValue("white", "gray.700");
   const textColor = useColorModeValue("gray.800", "white");
   const helpTextColor = useColorModeValue("gray.600", "gray.300");
-
+ 
   return (
     <Stat
       p={5}
@@ -36,7 +36,7 @@ const MetricCard = ({ title, value, percentageChange, type, icon }) => {
       <Flex justify="space-between" align="center">
         <Box>
           <StatLabel fontWeight="medium" isTruncated color={helpTextColor}>
-            {title}
+            Employees
           </StatLabel>
           <StatNumber fontSize="2xl" fontWeight="bold" color={textColor}>
             {value}

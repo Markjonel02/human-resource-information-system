@@ -659,8 +659,8 @@ const Employees = () => {
 
     if (selectedEmployee.status === 0) {
       toast({
-        title: "Employee is already deactivated!",
-        description: `this user "${selectedEmployee.name}" is aldready deactivated.`,
+        title: "Already Deactivated",
+        description: `The user "${selectedEmployee.name}" is already inactive.`,
         status: "warning",
         duration: 4000,
         isClosable: true,
@@ -671,7 +671,7 @@ const Employees = () => {
 
     try {
       const token = localStorage.getItem("accessToken");
-      await axiosInstance.put(
+      const response = await axiosInstance.put(
         `/deactivate-user/${selectedEmployee.id}`,
         {},
         {
@@ -680,26 +680,34 @@ const Employees = () => {
           },
         }
       );
+
       toast({
-        title: "Employee Deactivated",
+        title: "Deactivated Successfully",
         description: `${selectedEmployee.name} has been marked as inactive.`,
         status: "success",
         duration: 4000,
         isClosable: true,
         position: "top",
       });
-      fetchingEmployees(currentPage);
-      onCloseDeactivateAlert();
+
+      fetchingEmployees(currentPage); // Refresh employee list
+      onCloseDeactivateAlert(); // Close modal
     } catch (error) {
       console.error("Error deactivating employee:", error);
+
+      const msg =
+        error?.response?.data?.message ||
+        "Could not deactivate the employee. Please try again.";
+
       toast({
-        title: "Deactivation failed",
-        description: "Could not deactivate the employee.",
+        title: "Deactivation Failed",
+        description: msg,
         status: "error",
         duration: 4000,
         isClosable: true,
         position: "top",
       });
+
       onCloseDeactivateAlert();
     }
   };
