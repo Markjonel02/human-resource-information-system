@@ -5,6 +5,7 @@ const EmployeeTracker = lazy(() => import("../components/EmployeeTracker"));
 const UpcomingSchcedule = lazy(() => import("../components/UpcomingSchcedule"));
 const Announcements = lazy(() => import("../components/Announcements"));
 const EmployeeStatus = lazy(() => import("../components/EmployeeStatus"));
+
 const Dashboard = () => {
   return (
     <Flex
