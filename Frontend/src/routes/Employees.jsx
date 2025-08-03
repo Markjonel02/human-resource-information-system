@@ -346,7 +346,7 @@ const Employees = () => {
     }
   }, [selectedEmployee, isEditModalOpen]);
 
-  // Add this helper function for date formatting
+  // helper function for date formatting
   const formatDateForInput = (dateString) => {
     if (!dateString) return "";
     const date = new Date(dateString);

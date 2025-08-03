@@ -1,4 +1,4 @@
-import React from "react";
+import { useEffect, useState } from "react";
 import {
   ChakraProvider,
   Box,
@@ -18,12 +18,13 @@ import {
 import { FaUser, FaUserMinus, FaCalendarAlt, FaFileAlt } from "react-icons/fa";
 import { ResponsiveBar } from "@nivo/bar";
 import { employeeTrackerData } from "../lib/api"; // Your data source
-import { useAuth } from "../context/AuthContext";
+import { axiosInstance } from "../lib/axiosInstance";
+
 const MetricCard = ({ title, value, percentageChange, type, icon }) => {
   const cardBg = useColorModeValue("white", "gray.700");
   const textColor = useColorModeValue("gray.800", "white");
   const helpTextColor = useColorModeValue("gray.600", "gray.300");
- 
+
   return (
     <Stat
       p={5}
@@ -36,7 +37,7 @@ const MetricCard = ({ title, value, percentageChange, type, icon }) => {
       <Flex justify="space-between" align="center">
         <Box>
           <StatLabel fontWeight="medium" isTruncated color={helpTextColor}>
-            Employees
+            {title}
           </StatLabel>
           <StatNumber fontSize="2xl" fontWeight="bold" color={textColor}>
             {value}
@@ -45,21 +46,15 @@ const MetricCard = ({ title, value, percentageChange, type, icon }) => {
         {icon && (
           <Icon
             as={icon}
-            w={{ base: 10, md: 5 }}
+            w={{ base: 10, md: 10 }}
             h={7}
             color="teal.500"
             fontSize="xs"
-            ml={{ base: 1, md: 5 }}
+            ml={{ base: 1, md: 0 }}
           />
         )}
       </Flex>
-      <StatHelpText>
-        <StatArrow type={type} />
-        <Text as="span" color={type === "increase" ? "green.500" : "red.500"}>
-          {percentageChange}
-        </Text>{" "}
-        last month
-      </StatHelpText>
+      <StatHelpText></StatHelpText>
     </Stat>
   );
 };
@@ -68,6 +63,70 @@ const EmployeeTracker = () => {
   const chartBgColor = useColorModeValue("white", "gray.700");
   const chartBorderColor = useColorModeValue("gray.200", "gray.700");
   const chartTitleColor = useColorModeValue("gray.800", "white");
+  const [metrics, setMetrics] = useState({
+    current: {
+      newEmployees: 0,
+      inactiveEmployees: 0,
+      onLeave: 0,
+      total: 0,
+    },
+    previous: {
+      newEmployees: 0,
+      inactiveEmployees: 0,
+      onLeave: 0,
+      total: 0,
+    },
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [newEmployee, setNewEmployee] = useState(0);
+  const [allEmployee, setAllEmployee] = useState(0);
+  const [employeeOnLeave, setEmployeeOnLeave] = useState(0);
+  const [inactiveEmployee, setInactiveEmployee] = useState(0);
+
+  const fetchingEmployees = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const response = await axiosInstance.get("/employees", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const employees = response.data;
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      let newEmp = 0;
+      let onLeave = 0;
+      let inactive = 0;
+
+      employees.forEach((emp) => {
+        if (emp.CreatedAt && new Date(emp.CreatedAt) >= startOfMonth) {
+          newEmp++;
+        }
+
+        if (emp.onLeave === true) {
+          onLeave++;
+        }
+
+        if (emp.employeeStatus === 0) {
+          inactive++;
+        }
+      });
+
+      setNewEmployee(newEmp);
+      setAllEmployee(employees.length);
+      setEmployeeOnLeave(onLeave);
+      setInactiveEmployee(inactive);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchingEmployees();
+  }, []);
 
   const isMobile = useBreakpointValue({ base: true, md: false });
   const axisBottomLabel = useBreakpointValue({
@@ -92,41 +151,29 @@ const EmployeeTracker = () => {
   return (
     <Box pt={4}>
       <SimpleGrid columns={{ base: 1, md: 2, lg: 2, xl: 4 }} spacing={4} mb={6}>
-        <MetricCard
-          title="New Employee"
-          value="1012"
-          percentageChange="30%"
-          type="increase"
-          icon={FaUser}
-        />
+        <MetricCard title="New Employee" value={newEmployee} icon={FaUser} />
         <MetricCard
           title="Resign Employee"
-          value="102"
-          percentageChange="22%"
-          type="decrease"
+          value={inactiveEmployee}
           icon={FaUserMinus}
         />
         <MetricCard
           title="Employee on Leave"
-          value="23"
-          percentageChange="18%"
-          type="increase"
+          value={employeeOnLeave}
           icon={FaCalendarAlt}
         />
         <MetricCard
-          title="New Application"
-          value="200"
-          percentageChange="30%"
-          type="decrease"
+          title="Total Employees"
+          value={allEmployee}
           icon={FaFileAlt}
         />
       </SimpleGrid>
 
+      {/* Rest of your component remains the same */}
       <Box
         height="350px"
         width="100%"
         p={4}
-        background="black"
         shadow="sm"
         border="1px solid"
         borderColor={chartBorderColor}
@@ -157,7 +204,6 @@ const EmployeeTracker = () => {
           axisBottom={{
             tickSize: 4,
             tickPadding: 4,
-
             legendPosition: "middle",
             legendOffset: 28,
           }}
@@ -192,5 +238,4 @@ const EmployeeTracker = () => {
     </Box>
   );
 };
-
 export default EmployeeTracker;
