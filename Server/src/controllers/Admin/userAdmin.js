@@ -442,29 +442,48 @@ const updateEmployee = async (req, res) => {
 };
 const deactiveSingle = async (req, res) => {
   const { id } = req.params;
+
+  // Authorization check
   if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res
       .status(401)
-      .json({ message: "Error deactivating: unauthorized user!" });
+      .json({ message: "Unauthorized: insufficient permissions." });
   }
 
   try {
-    const deactivatingUser = await user.findById(id).exec();
-    if (!deactivatingUser) {
+    const userToDeactivate = await user.findById(id).exec();
+    if (!userToDeactivate) {
       return res.status(404).json({ message: "User not found." });
     }
 
-    if (deactivatingUser.employeeStatus === 1) {
-      deactivatingUser.employeeStatus = 0; // Deactivate
-      await deactivatingUser.save();
-      return res
-        .status(200)
-        .json({ message: "User deactivated successfully." });
-    } else {
-      return res.status(400).json({ message: "User is already deactivated." });
+    if (userToDeactivate.employeeStatus === 0) {
+      return res.status(400).json({
+        message: "Warning: User is already inactive.",
+      });
     }
+
+    // If the user being deactivated is an admin, check how many active admins are left
+    if (userToDeactivate.role === "admin") {
+      const activeAdmins = await user.countDocuments({
+        role: "admin",
+        employeeStatus: 1, // active
+        _id: { $ne: userToDeactivate._id }, // exclude the one being deactivated
+      });
+
+      if (activeAdmins < 1) {
+        return res.status(400).json({
+          message: "Cannot deactivate. At least one active admin must remain.",
+        });
+      }
+    }
+
+    // Deactivate user
+    userToDeactivate.employeeStatus = 0;
+    await userToDeactivate.save();
+
+    return res.status(200).json({ message: "User deactivated successfully." });
   } catch (error) {
-    console.error(error);
+    console.error("Error during deactivation:", error);
     return res
       .status(500)
       .json({ message: "Server error while deactivating user." });
@@ -510,7 +529,7 @@ const deactivateBulk = async (req, res) => {
       });
     }
 
-    const result = await user.updateMany(
+    const result = await ser.updateMany(
       { _id: { $in: activeIds } },
       { $set: { employeeStatus: 0 } }
     );
