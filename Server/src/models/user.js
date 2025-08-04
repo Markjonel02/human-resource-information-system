@@ -69,13 +69,11 @@ const UserSchema = new mongoose.Schema(
         "rank-and-file employees",
       ],
     },
-
     jobStatus: {
       type: String,
       required: true,
-      enum: ["probationary", "regular", "full-time", "part-time"], // Fixed spelling and case
+      enum: ["probationary", "regular"],
     },
-
     location: { type: String, required: true },
     businessUnit: { type: String, required: true },
     department: { type: String, required: true },
