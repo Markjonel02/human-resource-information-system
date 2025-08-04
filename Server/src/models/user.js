@@ -73,7 +73,7 @@ const UserSchema = new mongoose.Schema(
     jobStatus: {
       type: String,
       required: true,
-      enum: ["Probitionary", "Regular", "Full-time", "Part-time"], // Corrected spelling
+      enum: ["probationary", "regular", "full-time", "part-time"], // Fixed spelling and case
     },
 
     location: { type: String, required: true },
@@ -102,7 +102,7 @@ const UserSchema = new mongoose.Schema(
       match: /^\d{4}$/,
     },
     achievements: { type: String },
-    dependants: { type: String }, // Consider making this an array of objects for multiple dependents
+    dependants: { type: String }, // Consider making this an array of objects  for multiple dependents
     dependentsRelation: { type: String },
     dependentbirthDate: { type: Date },
     employerName: { type: String },
@@ -113,7 +113,7 @@ const UserSchema = new mongoose.Schema(
     // Added for authorization roles
     role: {
       type: String,
-      enum: ["employee", "manager", "admin"],
+      enum: ["employee", "manager", "admin", "hr"],
       default: "employee",
     },
   },

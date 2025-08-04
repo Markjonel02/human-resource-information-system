@@ -204,8 +204,31 @@ const Employees = () => {
         lastname: lastName,
         employeeEmail: email,
         department,
+        jobStatus,
         employeeStatus: employeeStatus === "1" ? 1 : 0,
-        // Add other allowed fields here
+        gender,
+        birthday,
+        nationality,
+        civilStatus,
+        religion,
+        presentAddress,
+        province,
+        town,
+        city,
+        mobileNumber,
+        companyName,
+        location,
+        businessUnit,
+        head,
+        salaryRate,
+        bankAccountNumber,
+        tinNumber,
+        sssNumber,
+        philhealthNumber,
+        shcoolName,
+        degree,
+        educationalAttainment,
+        educationFromYear,
       };
 
       // Only include password if it's provided
@@ -1262,9 +1285,12 @@ const Employees = () => {
                       <option value="supervisory employees">
                         Supervisory Employees
                       </option>
+                      <option value="rank-and-file employees">
+                        Rank & File Employees
+                      </option>
                     </Select>
                   </FormControl>
-                  <FormControl id="job-status" isRequired>
+                  <FormControl id="jobStatus" isRequired>
                     <FormLabel>Job Status</FormLabel>
                     <Select
                       placeholder="Select job status"
@@ -1273,10 +1299,11 @@ const Employees = () => {
                       borderRadius="lg"
                       focusBorderColor="blue.400"
                     >
-                      <option value="Probationary">Probationary</option>
-                      <option value="Regular">Regular</option>
-                      <option value="Full-time">Full-time</option>
-                      <option value="Part-time">Part-time</option>
+                      <option value="probitionary">Probitionary</option>{" "}
+                      {/* Keep "Probitionary" */}
+                      <option value="regular">Regular</option>
+                      <option value="full-time">Full-time</option>
+                      <option value="part-time">Part-time</option>
                     </Select>
                   </FormControl>
                   <FormControl id="location" isRequired>

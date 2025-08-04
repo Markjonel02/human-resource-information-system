@@ -355,7 +355,10 @@ const updateEmployee = async (req, res) => {
 
     Object.keys(updates).forEach((key) => {
       if (updatableFields.includes(key)) {
-        if (employee[key]?.toString() !== updates[key]?.toString()) {
+        if (
+          employee[key]?.toString().toLowerCase() !==
+          updates[key]?.toString().toLowerCase()
+        ) {
           hasChanges = true;
           changedFields.push(key);
         } else {
@@ -529,7 +532,7 @@ const deactivateBulk = async (req, res) => {
       });
     }
 
-    const result = await ser.updateMany(
+    const result = await user.updateMany(
       { _id: { $in: activeIds } },
       { $set: { employeeStatus: 0 } }
     );

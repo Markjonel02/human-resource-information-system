@@ -114,7 +114,7 @@ const EmployeeTracker = () => {
       });
 
       setNewEmployee(newEmp);
-      setAllEmployee(employees.length);
+      setAllEmployee(employees.length - inactive);
       setEmployeeOnLeave(onLeave);
       setInactiveEmployee(inactive);
     } catch (error) {
