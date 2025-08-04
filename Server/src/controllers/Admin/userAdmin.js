@@ -290,13 +290,22 @@ const updateEmployee = async (req, res) => {
     const unchangedFields = [];
     let hasChanges = false;
 
-    const isDifferent = (a, b) =>
-      a instanceof Date
-        ? new Date(a).getTime() !== new Date(b).getTime()
-        : typeof a === "object" && a !== null
-        ? JSON.stringify(a) !== JSON.stringify(b)
-        : String(a) !== String(b);
+    const isDifferent = (a, b) => {
+      if (a instanceof Date && b instanceof Date) {
+        return a.getTime() !== b.getTime();
+      }
+      if (
+        typeof a === "object" &&
+        a !== null &&
+        typeof b === "object" &&
+        b !== null
+      ) {
+        return JSON.stringify(a) !== JSON.stringify(b);
+      }
+      return String(a) !== String(b);
+    };
 
+    // Check regular fields first
     for (const [key, newValue] of Object.entries(updates)) {
       const currentValue = employee[key];
       if (isDifferent(currentValue, newValue)) {
@@ -307,17 +316,8 @@ const updateEmployee = async (req, res) => {
       }
     }
 
-    if (password) {
-      const isSamePassword = await employee.comparePassword(password);
-      if (!isSamePassword) {
-        changedFields.push("password");
-        hasChanges = true;
-      } else {
-        unchangedFields.push("password");
-      }
-    }
-
-    if (role) {
+    // Check role separately
+    if (role !== undefined) {
       if (!isAdmin && role !== employee.role) {
         return res
           .status(403)
@@ -332,6 +332,17 @@ const updateEmployee = async (req, res) => {
       }
     }
 
+    // Check password separately
+    if (password !== undefined) {
+      const isSamePassword = await employee.comparePassword(password);
+      if (!isSamePassword) {
+        changedFields.push("password");
+        hasChanges = true;
+      } else {
+        unchangedFields.push("password");
+      }
+    }
+
     if (!hasChanges) {
       return res.status(200).json({
         message: "No changes detected. Employee data remains unchanged.",
@@ -342,9 +353,13 @@ const updateEmployee = async (req, res) => {
 
     // Apply changes
     for (const field of changedFields) {
-      if (field === "password") employee.password = password;
-      else if (field === "role") employee.role = role;
-      else employee[field] = updates[field];
+      if (field === "password") {
+        employee.password = password;
+      } else if (field === "role") {
+        employee.role = role;
+      } else {
+        employee[field] = updates[field];
+      }
     }
 
     const updatedEmployee = await employee.save();

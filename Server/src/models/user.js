@@ -13,7 +13,6 @@ const UserSchema = new mongoose.Schema(
     gender: {
       type: String,
       enum: ["male", "female", "nonbinary", "prefer not to say"],
-      default: "prefer not to say",
       required: true,
     },
     birthday: { type: Date, required: true },
@@ -72,7 +71,7 @@ const UserSchema = new mongoose.Schema(
     jobStatus: {
       type: String,
       required: true,
-      enum: ["probationary", "regular"],
+      enum: ["probitionary", "regular"],
     },
     location: { type: String, required: true },
     businessUnit: { type: String, required: true },
@@ -112,7 +111,6 @@ const UserSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ["employee", "manager", "admin", "hr"],
-      default: "employee",
     },
   },
   { timestamps: true }
