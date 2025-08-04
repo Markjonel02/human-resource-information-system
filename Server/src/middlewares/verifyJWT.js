@@ -1,49 +1,42 @@
 // middleware/verifyJWT.js
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
+const User = require("../models/user"); // ✅ Import your User model
 
 dotenv.config(); // Load environment variables from .env
 
 /**
  * Middleware to verify JWT access tokens
+ * and force logout if user is inactive
  */
-const verifyJWT = (req, res, next) => {
-  // ----------------------------
-  // Step 1: Extract Authorization Header
-  // ----------------------------
+const verifyJWT = async (req, res, next) => {
   const authHeader = req.headers.authorization || req.headers.Authorization;
 
-  // Header must exist and start with "Bearer "
   if (!authHeader?.startsWith("Bearer ")) {
     return res.status(401).json({
       message:
         "Unauthorized: Missing or improperly formatted Authorization header.",
+      logout: true,
     });
   }
 
-  // ----------------------------
-  // Step 2: Extract Token from Header
-  // ----------------------------
   const token = authHeader.split(" ")[1];
 
   if (!token || token === "null" || token === "undefined") {
     return res.status(401).json({
       message: "Unauthorized: Malformed token.",
+      logout: true,
     });
   }
 
-  // ----------------------------
-  // Step 3: Verify Token
-  // ----------------------------
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
     if (err) {
       const { name } = err;
 
-      // Handle common JWT errors explicitly
       if (name === "TokenExpiredError") {
         return res.status(401).json({
           message: "Token expired. Please log in again.",
-          logout: true, // Trigger frontend logout
+          logout: true,
         });
       }
 
@@ -54,26 +47,53 @@ const verifyJWT = (req, res, next) => {
         });
       }
 
-      // Catch-all for other JWT errors
       return res.status(403).json({
         message: "Forbidden: Token verification failed.",
         logout: true,
       });
     }
 
-    // ----------------------------
-    // Step 4: Check Decoded Payload
-    // ----------------------------
-    if (!decoded?.UserInfo) {
+    if (!decoded?.UserInfo?.id) {
       return res.status(500).json({
         message: "Server Error: Token does not contain required user info.",
+        logout: true,
       });
     }
 
-    // Attach user info to the request object for downstream use
-    req.user = decoded.UserInfo;
+    try {
+      // ✅ Check if user is still active
+      const user = await User.findById(decoded.UserInfo.id).lean();
 
-    next(); // Proceed to the next middleware or route handler
+      if (!user) {
+        return res.status(401).json({
+          message: "User not found. Please log in again.",
+          logout: true,
+        });
+      }
+
+      if (user.employeeStatus !== 1) {
+        return res.status(403).json({
+          message:
+            "Your account has been disabled. Please contact administration.",
+          logout: true,
+        });
+      }
+
+      // Attach live user info (optional but more accurate)
+      req.user = {
+        id: user._id,
+        username: user.username,
+        role: user.role,
+      };
+
+      next();
+    } catch (dbError) {
+      console.error("verifyJWT DB error:", dbError);
+      return res.status(500).json({
+        message: "Internal server error while verifying user status.",
+        logout: true,
+      });
+    }
   });
 };
 

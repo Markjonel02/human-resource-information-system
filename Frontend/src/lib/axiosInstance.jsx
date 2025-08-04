@@ -1,26 +1,17 @@
-// lib/axiosInstance.js
 import axios from "axios";
+import { showToast } from "../lib/toastService";
 
-// ----------------------
-// BASE URL Configuration
-// ----------------------
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-// ----------------------
-// Axios Instance Setup
-// ----------------------
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, // Needed for sending cookies (like refresh tokens)
+  withCredentials: true,
 });
 
-// ----------------------
-// Request Interceptor
-// ----------------------
 axiosInstance.interceptors.request.use(
   (config) => {
     const accessToken = localStorage.getItem("accessToken");
@@ -38,9 +29,6 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ----------------------
-// Response Interceptor
-// ----------------------
 axiosInstance.interceptors.response.use(
   (response) => response,
 
@@ -50,12 +38,19 @@ axiosInstance.interceptors.response.use(
     const status = error?.response?.status;
     const logoutFlag = error?.response?.data?.logout;
 
-    // --- Case 1: Forced logout (invalid token or refresh token expired) ---
+    // ✅ Case 1: Force logout due to status change or expired token
     if (logoutFlag && status === 401) {
+      showToast({
+        title: "Session Ended",
+        description:
+          error.response.data.message ||
+          "You have been logged out automatically.",
+        status: "warning",
+      });
+
       localStorage.removeItem("accessToken");
       localStorage.removeItem("user");
 
-      // Don't reload if already on login page
       if (!isLoginPage) {
         window.location.href = "/login";
       }
@@ -63,7 +58,7 @@ axiosInstance.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // --- Case 2: Try refreshing access token ---
+    // ✅ Case 2: Attempt token refresh
     if (status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
@@ -72,10 +67,16 @@ axiosInstance.interceptors.response.use(
         const newAccessToken = res.data.accessToken;
 
         localStorage.setItem("accessToken", newAccessToken);
-
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
         return axiosInstance(originalRequest);
       } catch (refreshError) {
+        showToast({
+          title: "Session Expired",
+          description: "Please log in again.",
+          status: "error",
+        });
+
         localStorage.removeItem("accessToken");
         localStorage.removeItem("user");
 
