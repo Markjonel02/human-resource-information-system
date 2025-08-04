@@ -13,7 +13,6 @@ const UserSchema = new mongoose.Schema(
     gender: {
       type: String,
       enum: ["male", "female", "nonbinary", "prefer not to say"],
-      default: "prefer not to say",
       required: true,
     },
     birthday: { type: Date, required: true },
@@ -69,13 +68,11 @@ const UserSchema = new mongoose.Schema(
         "rank-and-file employees",
       ],
     },
-
     jobStatus: {
       type: String,
       required: true,
-      enum: ["Probitionary", "Regular", "Full-time", "Part-time"], // Corrected spelling
+      enum: ["probitionary", "regular"],
     },
-
     location: { type: String, required: true },
     businessUnit: { type: String, required: true },
     department: { type: String, required: true },
@@ -102,7 +99,7 @@ const UserSchema = new mongoose.Schema(
       match: /^\d{4}$/,
     },
     achievements: { type: String },
-    dependants: { type: String }, // Consider making this an array of objects for multiple dependents
+    dependants: { type: String }, // Consider making this an array of objects  for multiple dependents
     dependentsRelation: { type: String },
     dependentbirthDate: { type: Date },
     employerName: { type: String },
@@ -113,8 +110,7 @@ const UserSchema = new mongoose.Schema(
     // Added for authorization roles
     role: {
       type: String,
-      enum: ["employee", "manager", "admin"],
-      default: "employee",
+      enum: ["employee", "manager", "admin", "hr"],
     },
   },
   { timestamps: true }

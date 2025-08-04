@@ -198,14 +198,54 @@ const Employees = () => {
     try {
       const token = localStorage.getItem("accessToken");
 
-      // Prepare the updates object according to your controller's allowedFields
+      // Prepare the updates object with all fields
       const updates = {
+        username,
         firstname: firstName,
         lastname: lastName,
         employeeEmail: email,
         department,
+        jobStatus: jobStatus.toLowerCase(), // Ensure consistent casing
         employeeStatus: employeeStatus === "1" ? 1 : 0,
-        // Add other allowed fields here
+        gender,
+        birthday,
+        nationality,
+        civilStatus,
+        religion,
+        age: Number(age),
+        presentAddress,
+        province,
+        town,
+        city,
+        mobileNumber,
+        companyName,
+        jobposition: jobPosition,
+        corporaterank: corporateRank,
+        location,
+        businessUnit,
+        head,
+        salaryRate: Number(salaryRate),
+        bankAccountNumber,
+        tinNumber,
+        sssNumber,
+        philhealthNumber,
+        pagibigNumber,
+        shcoolName: schoolName, // Note: Fix typo in backend if possible
+        degree,
+        educationalAttainment,
+        educationFromYear: educationFrom,
+        educationToYear: educationTo,
+        achievements,
+        dependants: dependantName,
+        dependentsRelation: dependantRelationship,
+        dependentbirthDate: dependantBirthdate,
+        employerName,
+        employeeAddress: employerAddress,
+        prevPosition: employmentPosition,
+        employmentfromDate: employmentFrom,
+        employmenttoDate: employmentTo,
+        suffix,
+        prefix,
       };
 
       // Only include password if it's provided
@@ -220,6 +260,8 @@ const Employees = () => {
         updates.role = employeeRole;
       }
 
+      console.log("Update payload:", updates); // Debugging
+
       const response = await axiosInstance.put(
         `/employees/${selectedEmployee.id}`,
         updates,
@@ -228,10 +270,10 @@ const Employees = () => {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
+          withCredentials: true,
         }
       );
 
-      // Handle response based on your controller's return values
       if (response.data.message.includes("No changes detected")) {
         toast({
           title: "Nothing was updated",
@@ -262,8 +304,12 @@ const Employees = () => {
         if (error.response.data.message) {
           errorMessage = error.response.data.message;
         } else if (error.response.data.errors) {
-          errorMessage = error.response.data.errors.join(", ");
+          // Handle validation errors
+          errorMessage = Object.entries(error.response.data.errors)
+            .map(([field, message]) => `${field}: ${message}`)
+            .join(", ");
         }
+        console.error("Server response:", error.response.data);
       }
 
       toast({
@@ -293,14 +339,16 @@ const Employees = () => {
           const employeeData = response.data;
 
           // Set all form fields with employee data
+          setUsername(employeeData.username || "");
           setFirstName(employeeData.firstname || "");
           setLastName(employeeData.lastname || "");
           setEmail(employeeData.employeeEmail || "");
           setDepartment(employeeData.department || "");
           setEmployeeStatus(employeeData.employeeStatus ? "1" : "0");
           setEmployeeRole(employeeData.role || "");
+          setJobStatus(employeeData.jobStatus?.toLowerCase() || "");
 
-          // Set other fields if they exist in your form
+          // Set other fields
           setGender(employeeData.gender || "");
           setBirthday(
             employeeData.birthday
@@ -310,7 +358,7 @@ const Employees = () => {
           setNationality(employeeData.nationality || "");
           setCivilStatus(employeeData.civilStatus || "");
           setReligion(employeeData.religion || "");
-          setAge(employeeData.age || "");
+          setAge(employeeData.age?.toString() || "");
           setPresentAddress(employeeData.presentAddress || "");
           setCity(employeeData.city || "");
           setTown(employeeData.town || "");
@@ -319,16 +367,35 @@ const Employees = () => {
           setCompanyName(employeeData.companyName || "");
           setJobPosition(employeeData.jobposition || "");
           setCorporateRank(employeeData.corporaterank || "");
-          setJobStatus(employeeData.jobStatus || "");
           setLocation(employeeData.location || "");
           setBusinessUnit(employeeData.businessUnit || "");
           setHead(employeeData.head || "");
-          setSalaryRate(employeeData.salaryRate || "");
+          setSalaryRate(employeeData.salaryRate?.toString() || "");
           setBankAccountNumber(employeeData.bankAccountNumber || "");
           setTinNumber(employeeData.tinNumber || "");
           setSssNumber(employeeData.sssNumber || "");
           setPhilhealthNumber(employeeData.philhealthNumber || "");
           setPagibigNumber(employeeData.pagibigNumber || "");
+          setSchoolName(employeeData.shcoolName || ""); // Note typo
+          setDegree(employeeData.degree || "");
+          setEducationalAttainment(employeeData.educationalAttainment || "");
+          setEducationFrom(employeeData.educationFromYear || "");
+          setEducationTo(employeeData.educationToYear || "");
+          setAchievements(employeeData.achievements || "");
+          setDependantName(employeeData.dependants || "");
+          setDependantRelationship(employeeData.dependentsRelation || "");
+          setDependantBirthdate(
+            employeeData.dependentbirthDate
+              ? formatDateForInput(employeeData.dependentbirthDate)
+              : ""
+          );
+          setEmployerName(employeeData.employerName || "");
+          setEmployerAddress(employeeData.employeeAddress || "");
+          setEmploymentPosition(employeeData.prevPosition || "");
+          setEmploymentFrom(employeeData.employmentfromDate || "");
+          setEmploymentTo(employeeData.employmenttoDate || "");
+          setSuffix(employeeData.suffix || "");
+          setPrefix(employeeData.prefix || "");
         } catch (error) {
           console.error("Error fetching employee details:", error);
           toast({
@@ -345,7 +412,6 @@ const Employees = () => {
       fetchEmployeeDetails();
     }
   }, [selectedEmployee, isEditModalOpen]);
-
   // helper function for date formatting
   const formatDateForInput = (dateString) => {
     if (!dateString) return "";
@@ -962,8 +1028,9 @@ const Employees = () => {
                     <FormLabel>Username</FormLabel>
                     <Input
                       placeholder="username"
-                      value={username || ""}
-                      // can also use "disabled" as you've done
+                      value={username}
+                      readOnly
+                      onChange={(e) => setUsername(e.target.value)}
                       borderRadius="lg"
                       focusBorderColor="blue.400"
                     />
@@ -1262,21 +1329,20 @@ const Employees = () => {
                       <option value="supervisory employees">
                         Supervisory Employees
                       </option>
+                      <option value="rank-and-file employees">
+                        Rank & File Employees
+                      </option>
                     </Select>
                   </FormControl>
-                  <FormControl id="job-status" isRequired>
+                  <FormControl id="jobStatus" isRequired>
                     <FormLabel>Job Status</FormLabel>
                     <Select
                       placeholder="Select job status"
                       value={jobStatus}
                       onChange={(e) => setJobStatus(e.target.value)}
-                      borderRadius="lg"
-                      focusBorderColor="blue.400"
                     >
-                      <option value="Probationary">Probationary</option>
-                      <option value="Regular">Regular</option>
-                      <option value="Full-time">Full-time</option>
-                      <option value="Part-time">Part-time</option>
+                      <option value="probitionary">Probitionary</option>
+                      <option value="regular">Regular</option>
                     </Select>
                   </FormControl>
                   <FormControl id="location" isRequired>

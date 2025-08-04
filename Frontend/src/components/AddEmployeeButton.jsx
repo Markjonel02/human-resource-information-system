@@ -21,7 +21,7 @@ import {
   SimpleGrid,
 } from "@chakra-ui/react";
 import { PlusCircle } from "lucide-react";
-import { axiosInstance } from "../lib/axiosInstance"; // Assuming axiosInstance is configured correctly
+import axiosInstance from "../lib/axiosInstance"; // Assuming axiosInstance is configured correctly
 
 const AddEmployeeButton = ({ onEmployeeAdded }) => {
   // Added prop for callback
@@ -684,10 +684,8 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
                     borderRadius="lg"
                     focusBorderColor="blue.400"
                   >
-                    <option value="Probitionary">Probitionary</option>
-                    <option value="Regular">Regular</option>
-                    <option value="Full-time">Full-time</option>
-                    <option value="Part-time">Part-time</option>
+                    <option value="probitionary">Probitionary</option>
+                    <option value="regular">Regular</option>
                   </Select>
                 </FormControl>
                 <FormControl id="location" isRequired>

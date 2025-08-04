@@ -18,7 +18,7 @@ import {
 import { FaUser, FaUserMinus, FaCalendarAlt, FaFileAlt } from "react-icons/fa";
 import { ResponsiveBar } from "@nivo/bar";
 import { employeeTrackerData } from "../lib/api"; // Your data source
-import { axiosInstance } from "../lib/axiosInstance";
+import axiosInstance from "../lib/axiosInstance";
 
 const MetricCard = ({ title, value, percentageChange, type, icon }) => {
   const cardBg = useColorModeValue("white", "gray.700");
@@ -114,7 +114,7 @@ const EmployeeTracker = () => {
       });
 
       setNewEmployee(newEmp);
-      setAllEmployee(employees.length);
+      setAllEmployee(employees.length - inactive);
       setEmployeeOnLeave(onLeave);
       setInactiveEmployee(inactive);
     } catch (error) {

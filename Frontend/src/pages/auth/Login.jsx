@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-// import Bg from "../../assets/pexels-cowomen-1058097-2041627.jpg"; // Assuming this is for background image, not directly used in logic
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Input,
@@ -8,31 +7,43 @@ import {
   FormControl,
   FormLabel,
   Button,
-  Text, // Not used but kept for completeness
   VStack,
   Heading,
   Link,
   useToast,
-  Tooltip,
-  useColorModeValue, // Not used but kept for completeness
 } from "@chakra-ui/react";
-import { axiosInstance } from "../../lib/axiosInstance"; // Assuming axiosInstance is configured correctly
-import { useNavigate } from "react-router-dom";
 import { Mail, Lock } from "lucide-react";
-import { useAuth } from "../../context/AuthContext"; // Corrected import path for Auth context
+import { useNavigate, useLocation } from "react-router-dom";
+import  axiosInstance  from "../../lib/axiosInstance";
+import { useAuth } from "../../context/AuthContext";
 
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [employeeStatus, setEmployeeStatus] = useState(1); // Assuming default status is active
+
   const toast = useToast();
   const navigate = useNavigate();
-  const { login: authLogin } = useAuth(); // Destructure login function from Auth context
+  const location = useLocation();
+  const { login: authLogin } = useAuth();
+
+  // Show session expired toast if redirected with sessionExpired flag
+  useEffect(() => {
+    if (location.state?.sessionExpired) {
+      toast({
+        title: "Session expired",
+        description: "Please login again.",
+        status: "warning",
+        duration: 4000,
+        isClosable: true,
+        position: "top",
+      });
+    }
+  }, [location, toast]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Basic client-side validation for empty fields
+    // Client-side field check
     if (!username || !password) {
       toast({
         title: "Missing Fields",
@@ -42,25 +53,17 @@ const Login = () => {
         isClosable: true,
         position: "top",
       });
-      return; // Stop execution if fields are missing
+      return;
     }
 
     try {
-      // Make API call to the backend login endpoint
-      // FIX: Corrected syntax for axios.post options
-      const response = await axiosInstance.post(
-        `/auth/login`, // Endpoint for login
-        { username, password }, // Send username and password in the request body
-        {
-          withCredentials: true, // Important for sending/receiving HTTP-only cookies (refresh token)
-          // No need to manually add Authorization header here for login,
-          // as the login endpoint *provides* the token.
-        }
+      const { data } = await axiosInstance.post(
+        "/auth/login",
+        { username, password },
+        { withCredentials: true }
       );
 
-      // Extract accessToken and user data from the successful response
-      // IMPORTANT: Ensure your backend's /auth/login endpoint sends 'role' in this 'user' object
-      const { accessToken, user } = response.data;
+      const { accessToken, user } = data;
 
       if (user.employeeStatus !== 1) {
         toast({
@@ -71,14 +74,12 @@ const Login = () => {
           isClosable: true,
           position: "top",
         });
-        return; // Stop login flow if inactive
+        return;
       }
 
-      // Update authentication state using the Auth context's login function
-      // This function should store the accessToken (e.g., in localStorage or state)
+      // Save token and user info to context
       authLogin(accessToken, user);
 
-      // Display success toast
       toast({
         title: "Login Successful",
         description: "Welcome back!",
@@ -88,31 +89,19 @@ const Login = () => {
         position: "top",
       });
 
-      // Redirect based on user role after a short delay
+      // Redirect user based on role
       setTimeout(() => {
-        if (user.role === "employee") {
-          navigate("/employee-dashboard"); // Redirect employees to /employee-dashboard
-        } else {
-          navigate("/"); // Redirect others (e.g., admins) to the general dashboard
-        }
+        navigate(user.role === "employee" ? "/employee-dashboard" : "/");
       }, 1500);
 
-      // Clear input fields after successful login
+      // Optional: clear form
       setUsername("");
       setPassword("");
     } catch (error) {
-      // Log the full error for debugging purposes
-      console.error(
-        "Login error:",
-        error.response ? error.response.data : error.message
-      );
-
-      // Determine the error message to display to the user
       const errorMessage =
         error.response?.data?.message ||
         "An unexpected error occurred. Please try again.";
 
-      // Display error toast
       toast({
         title: "Login Failed",
         description: errorMessage,
@@ -120,8 +109,6 @@ const Login = () => {
         duration: 5000,
         isClosable: true,
         position: "top",
-        variant: "subtle",
-        colorScheme: "red",
       });
     }
   };
@@ -129,15 +116,15 @@ const Login = () => {
   return (
     <Box
       minH="100vh"
-      position="relative"
       display="flex"
       alignItems="center"
       justifyContent="center"
       bg="whiteAlpha.900"
       p={4}
+      position="relative"
       overflow="hidden"
     >
-      {/* Gradient Background Shapes */}
+      {/* Background gradients */}
       <Box
         position="absolute"
         top="0"
@@ -161,9 +148,9 @@ const Login = () => {
         zIndex={0}
       />
 
-      {/* Login Card */}
+      {/* Login form */}
       <Box
-        zIndex={10}
+        zIndex={1}
         bg="whiteAlpha.900"
         p={8}
         rounded="2xl"
@@ -184,7 +171,7 @@ const Login = () => {
 
         <form onSubmit={handleSubmit}>
           <VStack spacing={6}>
-            {/* Username Input */}
+            {/* Username */}
             <FormControl isRequired>
               <FormLabel color="blue.600">Username</FormLabel>
               <InputGroup>
@@ -202,7 +189,7 @@ const Login = () => {
               </InputGroup>
             </FormControl>
 
-            {/* Password Input */}
+            {/* Password */}
             <FormControl isRequired>
               <FormLabel color="blue.600">Password</FormLabel>
               <InputGroup>
@@ -220,7 +207,7 @@ const Login = () => {
               </InputGroup>
             </FormControl>
 
-            {/* Forgot Password Link */}
+            {/* Forgot password (optional link) */}
             <Box w="full" textAlign="center">
               <Link
                 href="#"
@@ -233,7 +220,7 @@ const Login = () => {
               </Link>
             </Box>
 
-            {/* Submit Button */}
+            {/* Submit button */}
             <Button
               type="submit"
               colorScheme="blue"
