@@ -1343,6 +1343,7 @@ const Employees = () => {
                     >
                       <option value="probationary">Probitionary</option>
                       <option value="regular">Regular</option>
+                      
                     </Select>
                   </FormControl>
                   <FormControl id="location" isRequired>

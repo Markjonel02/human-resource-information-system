@@ -215,7 +215,7 @@ const createAdmin = async (req, res) => {
 // @route GET /employees
 // @access Private (Admin, Manager)
 const getAllEmployees = async (req, res) => {
-  if (req.user.role !== "admin" && req.user.role !== "manager") {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res.status(403).json({
       message: "Forbidden: You do not have a permission to view all employees",
     });
@@ -272,140 +272,84 @@ const updateEmployee = async (req, res) => {
   const { id } = req.params;
   const { password, role, ...updates } = req.body;
 
-  // Permission check
-  if (req.user.role !== "admin" && req.user.role !== "hr") {
+  const isAdmin = req.user.role === "admin";
+  const isHR = req.user.role === "hr";
+
+  if (!isAdmin && !isHR) {
     return res.status(403).json({
-      message:
-        "Forbidden: You do not have permission to update employee profiles.",
+      message: "Forbidden: No permission to update employee profiles.",
     });
   }
 
   try {
     const employee = await user.findById(id).exec();
-    if (!employee) {
+    if (!employee)
       return res.status(404).json({ message: "Employee not found." });
-    }
 
-    // Check if any data is actually being changed
-    let hasChanges = false;
-    const unchangedFields = [];
     const changedFields = [];
+    const unchangedFields = [];
+    let hasChanges = false;
 
-    // Check role change permission first
-    if (req.user.role !== "admin" && role && role !== employee.role) {
-      return res.status(403).json({
-        message: "Forbidden: Only administrators can change employee roles.",
-      });
-    }
+    const isDifferent = (a, b) =>
+      a instanceof Date
+        ? new Date(a).getTime() !== new Date(b).getTime()
+        : typeof a === "object" && a !== null
+        ? JSON.stringify(a) !== JSON.stringify(b)
+        : String(a) !== String(b);
 
-    // Check for actual changes in all fields
-    const updatableFields = [
-      // Personal Information
-      "firstname",
-      "lastname",
-      "username",
-      "suffix",
-      "prefix",
-      "gender",
-      "birthday",
-      "nationality",
-      "civilStatus",
-      "religion",
-      "presentAddress",
-      "province",
-      "town",
-      "city",
-      "mobileNumber",
-      "employeeEmail",
-      // Corporate Details
-      "companyName",
-      "employeeId",
-      "jobposition",
-      "corporaterank",
-      "jobStatus",
-      "location",
-      "businessUnit",
-      "department",
-      "head",
-      "employeeStatus",
-      // Salary and Government IDs
-      "salaryRate",
-      "bankAccountNumber",
-      "tinNumber",
-      "sssNumber",
-      "philhealthNumber",
-      // Educational Background
-      "shcoolName",
-      "degree",
-      "educationalAttainment",
-      "educationFromYear",
-      "educationToYear",
-      "achievements",
-      // Dependants
-      "dependants",
-      "dependentsRelation",
-      "dependentbirthDate",
-      // Employment History
-      "employerName",
-      "employeeAddress",
-      "prevPosition",
-      "employmentfromDate",
-      "employmenttoDate",
-    ];
-
-    Object.keys(updates).forEach((key) => {
-      if (updatableFields.includes(key)) {
-        if (
-          employee[key]?.toString().toLowerCase() !==
-          updates[key]?.toString().toLowerCase()
-        ) {
-          hasChanges = true;
-          changedFields.push(key);
-        } else {
-          unchangedFields.push(key);
-        }
+    for (const [key, newValue] of Object.entries(updates)) {
+      const currentValue = employee[key];
+      if (isDifferent(currentValue, newValue)) {
+        changedFields.push(key);
+        hasChanges = true;
+      } else {
+        unchangedFields.push(key);
       }
-    });
-
-    // Check if password is being changed
-    if (password && !(await employee.comparePassword(password))) {
-      hasChanges = true;
-      changedFields.push("password");
     }
 
-    // Check if role is being changed (admin only)
-    if (req.user.role === "admin" && role && role !== employee.role) {
-      hasChanges = true;
-      changedFields.push("role");
+    if (password) {
+      const isSamePassword = await employee.comparePassword(password);
+      if (!isSamePassword) {
+        changedFields.push("password");
+        hasChanges = true;
+      } else {
+        unchangedFields.push("password");
+      }
     }
 
-    // If no changes detected
+    if (role) {
+      if (!isAdmin && role !== employee.role) {
+        return res
+          .status(403)
+          .json({ message: "Only administrators can change roles." });
+      }
+
+      if (role !== employee.role) {
+        changedFields.push("role");
+        hasChanges = true;
+      } else {
+        unchangedFields.push("role");
+      }
+    }
+
     if (!hasChanges) {
       return res.status(200).json({
         message: "No changes detected. Employee data remains unchanged.",
+        changedFields: [],
         unchangedFields,
-        changedFields,
       });
     }
 
     // Apply changes
-    if (req.user.role === "admin" && role) {
-      employee.role = role;
-    }
-
-    changedFields.forEach((key) => {
-      if (key !== "role" && key !== "password") {
-        employee[key] = updates[key];
-      }
-    });
-
-    if (password) {
-      employee.password = password;
+    for (const field of changedFields) {
+      if (field === "password") employee.password = password;
+      else if (field === "role") employee.role = role;
+      else employee[field] = updates[field];
     }
 
     const updatedEmployee = await employee.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Employee updated successfully",
       changedFields,
       unchangedFields,
@@ -423,26 +367,25 @@ const updateEmployee = async (req, res) => {
 
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
-      return res.status(400).json({
-        message: `${field} already exists`,
-        field,
-      });
+      return res
+        .status(400)
+        .json({ message: `${field} already exists`, field });
     }
 
     if (error.name === "ValidationError") {
       const messages = Object.values(error.errors).map((val) => val.message);
-      return res.status(400).json({
-        message: "Validation error",
-        errors: messages,
-      });
+      return res
+        .status(400)
+        .json({ message: "Validation error", errors: messages });
     }
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Server error while updating employee.",
       error: error.message,
     });
   }
 };
+
 const deactiveSingle = async (req, res) => {
   const { id } = req.params;
 
