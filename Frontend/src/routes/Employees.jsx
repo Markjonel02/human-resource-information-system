@@ -1341,8 +1341,8 @@ const Employees = () => {
                       value={jobStatus}
                       onChange={(e) => setJobStatus(e.target.value)}
                     >
-                      <option value="Probationary">Probitionary</option>
-                      <option value="Regular">Regular</option>
+                      <option value="probitionary">Probitionary</option>
+                      <option value="regular">Regular</option>
                     </Select>
                   </FormControl>
                   <FormControl id="location" isRequired>

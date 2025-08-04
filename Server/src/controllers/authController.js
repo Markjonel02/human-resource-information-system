@@ -317,7 +317,6 @@ const logout = (req, res) => {
   if (!req.cookies?.jwt) {
     return res.status(204).json({ message: "No refresh token to clear." });
   }
-  
   res.clearCookie("jwt", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
