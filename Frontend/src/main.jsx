@@ -7,7 +7,7 @@ import { BrowserRouter } from "react-router-dom";
 import { useToast } from "@chakra-ui/react";
 import { useEffect } from "react";
 import { setToast } from "./lib/toastService.jsx";
-import SessionPing from "./lib/SessionPing.jsx";
+/* import SessionPing from "./lib/SessionPing.jsx"; */
 const ToastManager = () => {
   const toast = useToast();
 
@@ -22,7 +22,7 @@ createRoot(document.getElementById("root")).render(
     <BrowserRouter>
       <ChakraProvider>
         <ToastManager />
-        <SessionPing />
+        {/* <SessionPing /> */}
         {/* AuthProvider wraps the entire app to provide authentication context */}
         <App />
       </ChakraProvider>{" "}

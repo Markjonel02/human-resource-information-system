@@ -38,7 +38,7 @@ axiosInstance.interceptors.response.use(
     const status = error?.response?.status;
     const logoutFlag = error?.response?.data?.logout;
 
-    // ✅ Case 1: Force logout due to status change or expired token
+    // ✅ Case 1: Force logout due to deactivation or manual logout
     if (logoutFlag && status === 401) {
       showToast({
         title: "Session Ended",
@@ -54,12 +54,10 @@ axiosInstance.interceptors.response.use(
       if (!isLoginPage) {
         window.location.href = "/login";
       }
-
-      return Promise.reject(error);
     }
 
-    // ✅ Case 2: Attempt token refresh
-    if (status === 401 && !originalRequest._retry) {
+    // ✅ Case 2: Token expired – attempt refresh
+    else if (status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
@@ -88,6 +86,7 @@ axiosInstance.interceptors.response.use(
       }
     }
 
+    // ✅ Default fallback
     return Promise.reject(error);
   }
 );

@@ -328,6 +328,7 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
         px={4}
         py={5}
         boxShadow="lg"
+        display={{ base: "flex", md: "flex" }}
         _hover={{
           boxShadow: "xl",
           transform: "translateY(-2px)",

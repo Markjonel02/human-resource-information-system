@@ -453,54 +453,48 @@ const deactiveSingle = async (req, res) => {
 
 const deactivateBulk = async (req, res) => {
   const { ids } = req.body;
-  const userId = req.user.id;
+  const userId = req.user?.id;
 
-  if (req.user.role !== "admin" && req.user.role !== "hr") {
-    return res.status(401).json({
-      message:
-        "Forbidden: you do not have permission to deactivate these users.",
-    });
-  }
-
-  if (!userId || !Array.isArray(ids) || ids.length === 0) {
-    return res
-      .status(400)
-      .json({ message: "Invalid request. Expected non-empty array of IDs." });
-  }
+  // Basic validation
+  if (!userId) return res.status(401).json({ message: "Unauthorized" });
+  if (!Array.isArray(ids))
+    return res.status(400).json({ message: "Invalid IDs" });
 
   try {
-    const users = await user.find({ _id: { $in: ids } });
-
-    const activeIds = users
-      .filter((u) => u.employeeStatus === 1)
-      .map((u) => u._id);
-
-    const alreadyInactive = users.length - activeIds.length;
-
-    // 🛡 Check if this would remove all active admins
-    const activeAdminCount = await user.countDocuments({
+    // Get active admins being deactivated
+    const activeAdmins = await user.find({
+      _id: { $in: ids },
       role: "admin",
       employeeStatus: 1,
-      _id: { $nin: ids }, // Ensure we exclude those being deactivated
     });
 
-    if (activeAdminCount === 0) {
+    // Count other active admins not being deactivated
+    const otherActiveAdmins = await user.countDocuments({
+      role: "admin",
+      employeeStatus: 1,
+      _id: { $nin: ids },
+    });
+
+    // Block if this would deactivate all admins
+    if (activeAdmins.length > 0 && otherActiveAdmins === 0) {
       return res.status(400).json({
-        message: "Operation blocked: must keep at least one active admin.",
+        message: "Must keep at least one active admin",
       });
     }
 
+    // Deactivate the users
     const result = await user.updateMany(
-      { _id: { $in: activeIds } },
+      { _id: { $in: ids }, employeeStatus: 1 },
       { $set: { employeeStatus: 0 } }
     );
 
-    return res.status(200).json({
-      message: `${result.modifiedCount} employee(s) deactivated. ${alreadyInactive} already inactive.`,
+    return res.json({
+      message: `Deactivated ${result.modifiedCount} users`,
+      deactivated: result.modifiedCount,
     });
   } catch (error) {
-    console.error("Bulk deactivation error:", error);
-    return res.status(500).json({ message: "Server error. Please try again." });
+    console.error("Deactivation error:", error);
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
