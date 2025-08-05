@@ -3,7 +3,8 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@chakra-ui/react";
 
-const useInactivityLogout = (timeout = 900000) => {
+const useInactivityLogout = (timeout = 100000) => {
+  //5mminutes inactivity time
   const navigate = useNavigate();
   const toast = useToast();
   const timer = useRef();

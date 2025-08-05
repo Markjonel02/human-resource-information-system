@@ -891,16 +891,40 @@ const Employees = () => {
                     />
                   </Th>
                   <Th>Employee</Th>
-                  <Th display={{ base: "none", md: "none", lg: "table-cell" }}>
+                  <Th
+                    display={{
+                      base: "none",
+                      xl: "table-cell",
+                    }}
+                  >
                     Email
                   </Th>
-                  <Th display={{ base: "none", md: "none", lg: "table-cell" }}>
+                  <Th
+                    display={{
+                      base: "none",
+                      md: "none",
+                      lg: "none",
+                      xl: "table-cell",
+                    }}
+                  >
                     Department
                   </Th>
-                  <Th display={{ base: "none", md: "none", lg: "table-cell" }}>
+                  <Th
+                    display={{
+                      base: "none",
+                      md: "table-cell",
+                      lg: "table-cell",
+                    }}
+                  >
                     Role
                   </Th>
-                  <Th display={{ base: "none", md: "none", lg: "table-cell" }}>
+                  <Th
+                    display={{
+                      base: "tavle-cell",
+                      md: "none",
+                      lg: "table-cell",
+                    }}
+                  >
                     Status
                   </Th>
                   <Th>Actions</Th>
@@ -932,28 +956,45 @@ const Employees = () => {
                       </HStack>
                     </Td>
                     <Td
-                      display={{ base: "none", md: "none", lg: "table-cell" }}
+                      display={{
+                        base: "none",
+
+                        xl: "table-cell",
+                      }}
                     >
                       <Tooltip label={employee.email}>
                         <Text>
-                          {isMobile && employee.email.length > 20
+                          {isMobile && employee.email.length > 10
                             ? `${employee.email.slice(0, 20)}...`
                             : employee.email}
                         </Text>
                       </Tooltip>
                     </Td>
                     <Td
-                      display={{ base: "none", md: "none", lg: "table-cell" }}
+                      display={{
+                        base: "none",
+                        md: "none",
+                        lg: "none",
+                        xl: "table-cell",
+                      }}
                     >
                       {employee.department}
                     </Td>
                     <Td
-                      display={{ base: "none", md: "none", lg: "table-cell" }}
+                      display={{
+                        base: "none",
+                        md: "table-cell",
+                        lg: "table-cell",
+                      }}
                     >
                       {employee.role}
                     </Td>
                     <Td
-                      display={{ base: "none", md: "none", lg: "table-cell" }}
+                      display={{
+                        base: "table-cell",
+                        md: "none",
+                        lg: "table-cell",
+                      }}
                     >
                       <Tag
                         size="sm"

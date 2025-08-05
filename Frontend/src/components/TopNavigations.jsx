@@ -79,7 +79,7 @@ const TopNavigations = () => {
           {/* Add Employee Button */}
           {(role === "admin" || role === "hr") && (
             <Tooltip label="Add Employee" openDelay={500}>
-              <Box display={{ base: "none", md: "block" }}>
+              <Box display="block">
                 <AddEmployeeButton />
               </Box>
             </Tooltip>
