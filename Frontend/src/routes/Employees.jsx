@@ -192,6 +192,17 @@ const Employees = () => {
   const [employmentFrom, setEmploymentFrom] = useState("");
   const [employmentTo, setEmploymentTo] = useState("");
 
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [confirmAction, setConfirmAction] = useState(() => () => {});
+  const [employeeCount, setEmployeeCount] = useState(0);
+  const handleOpenConfirm = (ids, onConfirmCallback) => {
+    setEmployeeCount(ids.length);
+    setConfirmAction(() => () => {
+      onConfirmCallback(); // your actual deactivation function
+      onClose();
+    });
+    onOpen();
+  };
   const handleSave = async () => {
     if (!selectedEmployee) return;
 
@@ -677,47 +688,71 @@ const Employees = () => {
     }
   };
 
-  const handleBulkDeactivate = async () => {
-    try {
-      const token = localStorage.getItem("accessToken");
-      const response = await axiosInstance.put(
-        "/deactivate-bulk-user/:",
-        { ids: selectedIds },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+  const handleBulkDeactivate = () => {
+    if (selectedIds.length === 0) return;
+
+    handleOpenConfirm(selectedIds, async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem("accessToken");
+
+        const response = await axiosInstance.post(
+          "/deactivate-bulk",
+          { ids: selectedIds },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        // Handle case where some admins were protected
+        if (response.data.protectedCount > 0) {
+          toast({
+            title: "Partial deactivation",
+            description: response.data.message,
+            status: "warning",
+            duration: 5000,
+            isClosable: true,
+            position: "top",
+          });
+        } else {
+          toast({
+            title: "Employees deactivated",
+            description: response.data.message,
+            status: "success",
+            duration: 4000,
+            isClosable: true,
+            position: "top",
+          });
         }
-      );
 
-      toast({
-        title: "Employees updated",
-        description: response.data.message, // 🔥 Dynamic from backend
-        status: "success",
-        duration: 4000,
-        isClosable: true,
-        position: "top",
-      });
+        setSelectedIds([]);
+        setAllChecked(false);
+        fetchingEmployees(currentPage);
+      } catch (error) {
+        console.error("Error during bulk deactivate:", error);
 
-      setSelectedIds([]);
-      setAllChecked(false);
-      fetchingEmployees(currentPage);
-    } catch (error) {
-      console.error("Error during bulk deactivate:", error);
+        let errorMessage = "Could not deactivate employees.";
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        }
 
-      toast({
-        title: "Update failed",
-        description:
-          error.response?.data?.message ||
-          "Could not deactivate selected employees.",
-        status: "error",
-        duration: 4000,
-        isClosable: true,
-        position: "top",
-      });
-    }
+        toast({
+          title: "Deactivation failed",
+          description: errorMessage,
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+          position: "top",
+        });
+
+        fetchingEmployees(currentPage);
+      } finally {
+        setLoading(false);
+      }
+    });
   };
-
   //hadlessave for update
 
   const handleDeactivateEmployee = async () => {
@@ -1341,7 +1376,7 @@ const Employees = () => {
                       value={jobStatus}
                       onChange={(e) => setJobStatus(e.target.value)}
                     >
-                      <option value="probitionary">Probitionary</option>
+                      <option value="probationary">Probitionary</option>
                       <option value="regular">Regular</option>
                     </Select>
                   </FormControl>
@@ -1703,6 +1738,35 @@ const Employees = () => {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      {/* deativated bulk */}
+      <AlertDialog
+        isOpen={isOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onClose}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Confirm Deactivation
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              Are you sure you want to deactivate {employeeCount} employee(s)?
+              This action cannot be undone.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={onClose}>
+                Cancel
+              </Button>
+              <Button colorScheme="red" onClick={confirmAction} ml={3}>
+                Deactivate
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
 
       {/* Deactivate Employee Alert Dialog */}
       <AlertDialog

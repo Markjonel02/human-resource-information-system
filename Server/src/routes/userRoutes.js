@@ -82,4 +82,9 @@ router.put(
   authorizeRoles("admin", "hr"),
   Useradmin.deactiveSingle
 );
+router.post(
+  "/deactivate-bulk",
+  authorizeRoles("admin", "hr"),
+  Useradmin.deactivateBulk
+);
 module.exports = router;
