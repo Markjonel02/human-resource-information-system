@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { calculateAge } from "../uitls/AgeCalulator";
 import {
   Box,
   Flex,
@@ -448,7 +449,7 @@ const Employees = () => {
   };
   //function for automatically calcualte age
 
-  const calculateAge = (birthday) => {
+  /*   const calculateAge = (birthday) => {
     if (!birthday) return 0;
 
     const birthDate = new Date(birthday);
@@ -467,7 +468,7 @@ const Employees = () => {
 
     return age;
   };
-
+ */
   //clearing form when submit
   const clearForm = () => {
     setUsername("");
@@ -1306,7 +1307,7 @@ const Employees = () => {
                       onChange={(e) => setAge(e.target.value)}
                       borderRadius="lg"
                       focusBorderColor="blue.400"
-                      isDisabled // This disables the input
+                    
                       readOnly // This prevents manual editing
                     />
                   </FormControl>
