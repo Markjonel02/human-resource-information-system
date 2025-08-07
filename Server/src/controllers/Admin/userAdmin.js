@@ -268,343 +268,77 @@ const getEmployeeById = async (req, res) => {
 // @desc Update an employee (admin/manager only)
 // @route PUT /employees/:id
 // @access Private (Admin, Manager)
-/* const updateEmployee = async (req, res) => {
-  const { id } = req.params;
-  const { password, role, ...updates } = req.body;
-
-  const isAdmin = req.user.role === "admin";
-  const isHR = req.user.role === "hr";
-
-  if (!isAdmin && !isHR) {
-    return res.status(403).json({
-      message: "Forbidden: No permission to update employee profiles.",
-    });
-  }
-
-  try {
-    const employee = await user.findById(id).exec();
-    if (!employee)
-      return res.status(404).json({ message: "Employee not found." });
-
-    const changedFields = [];
-    const unchangedFields = [];
-    let hasChanges = false;
-
-    const isDifferent = (a, b) => {
-      if (a instanceof Date && b instanceof Date) {
-        return a.getTime() !== b.getTime();
-      }
-      if (
-        typeof a === "object" &&
-        a !== null &&
-        typeof b === "object" &&
-        b !== null
-      ) {
-        return JSON.stringify(a) !== JSON.stringify(b);
-      }
-      return String(a) !== String(b);
-    };
-
-    // Check regular fields first
-    for (const [key, newValue] of Object.entries(updates)) {
-      const currentValue = employee[key];
-      if (isDifferent(currentValue, newValue)) {
-        changedFields.push(key);
-        hasChanges = true;
-      } else {
-        unchangedFields.push(key);
-      }
-    }
-
-    // Check role separately
-    if (role !== undefined) {
-      if (!isAdmin && role !== employee.role) {
-        return res
-          .status(403)
-          .json({ message: "Only administrators can change roles." });
-      }
-
-      if (role !== employee.role) {
-        changedFields.push("role");
-        hasChanges = true;
-      } else {
-        unchangedFields.push("role");
-      }
-    }
-
-    // Check password separately
-    if (password !== undefined) {
-      const isSamePassword = await employee.comparePassword(password);
-      if (!isSamePassword) {
-        changedFields.push("password");
-        hasChanges = true;
-      } else {
-        unchangedFields.push("password");
-      }
-    }
-
-    if (!hasChanges) {
-      return res.status(200).json({
-        message: "No changes detected. Employee data remains unchanged.",
-        changedFields: [],
-        unchangedFields,
-      });
-    }
-
-    // Apply changes
-    for (const field of changedFields) {
-      if (field === "password") {
-        employee.password = password;
-      } else if (field === "role") {
-        employee.role = role;
-      } else {
-        employee[field] = updates[field];
-      }
-    }
-
-    const updatedEmployee = await employee.save();
-
-    return res.status(200).json({
-      message: "Employee updated successfully",
-      changedFields,
-      unchangedFields,
-      employee: {
-        _id: updatedEmployee._id,
-        firstname: updatedEmployee.firstname,
-        lastname: updatedEmployee.lastname,
-        employeeEmail: updatedEmployee.employeeEmail,
-        role: updatedEmployee.role,
-        employeeStatus: updatedEmployee.employeeStatus,
-      },
-    });
-  } catch (error) {
-    console.error(error);
-
-    if (error.code === 11000) {
-      const field = Object.keys(error.keyPattern)[0];
-      return res
-        .status(400)
-        .json({ message: `${field} already exists`, field });
-    }
-
-    if (error.name === "ValidationError") {
-      const messages = Object.values(error.errors).map((val) => val.message);
-      return res
-        .status(400)
-        .json({ message: "Validation error", errors: messages });
-    }
-
-    return res.status(500).json({
-      message: "Server error while updating employee.",
-      error: error.message,
-    });
-  }
-}; */
 const updateEmployee = async (req, res) => {
   const { id } = req.params;
-  const { password, role, ...updates } = req.body;
+  const updates = req.body;
 
-  // Enhanced permission check
-  if (!["admin", "hr"].includes(req.user.role)) {
-    return res.status(403).json({
-      message:
-        "Forbidden: You do not have permission to update employee profiles.",
-    });
+  if (!id || !updates || Object.keys(updates).length === 0) {
+    return res.status(400).json({ message: "Invalid update payload." });
   }
 
   try {
-    const employee = await user.findById(id).exec();
-    if (!employee) {
+    const existingUser = await user.findById(id);
+    if (!existingUser) {
       return res.status(404).json({ message: "Employee not found." });
     }
 
-    // Debug logging
-    console.log(`Update request by ${req.user.role} for employee ${id}`);
-    console.log("Requested role change:", role);
-    console.log("Current employee role:", employee.role);
-
-    // Check if any data is actually being changed
-    let hasChanges = false;
-    const unchangedFields = [];
-    const changedFields = [];
-
-    // Validate role first
-    if (role) {
-      const validRoles = ["employee", "hr", "manager", "admin"];
-      if (!validRoles.includes(role)) {
-        return res.status(400).json({
-          message: `Invalid role. Must be one of: ${validRoles.join(", ")}`,
+    // Prevent last active admin from being deactivated
+    if (updates.employeeStatus === 0 || updates.employeeStatus === "0") {
+      const isTargetAdmin =
+        existingUser.role === "admin" && existingUser.employeeStatus === 1;
+      if (isTargetAdmin) {
+        const activeAdminCount = await user.countDocuments({
+          role: "admin",
+          employeeStatus: 1,
+          _id: { $ne: existingUser._id },
         });
-      }
 
-      // Check role change permission
-      if (role !== employee.role) {
-        if (req.user.role !== "admin") {
-          return res.status(403).json({
+        if (activeAdminCount === 0) {
+          return res.status(400).json({
             message:
-              "Forbidden: Only administrators can change employee roles.",
+              "Operation blocked: at least one active admin must remain.",
           });
         }
-        hasChanges = true;
-        changedFields.push("role");
       }
     }
 
-    // Define updatable fields that match the schema exactly
-    const updatableFields = [
-      // Personal Information
-      "firstname",
-      "lastname",
-      "username",
-      "suffix",
-      "prefix",
-      "gender",
-      "birthday",
-      "nationality",
-      "civilStatus",
-      "religion",
-      "presentAddress",
-      "province",
-      "town",
-      "age",
-      "city",
-      "mobileNumber",
-      "employeeEmail",
-      // Corporate Details
-      "companyName",
-      "employeeId",
-      "jobposition",
-      "corporaterank",
-      "jobStatus",
-      "location",
-      "businessUnit",
-      "department",
-      "head",
-      "employeeStatus",
-      // Salary and Government IDs
-      "salaryRate",
-      "bankAccountNumber",
-      "tinNumber",
-      "sssNumber",
-      "philhealthNumber",
-      // Educational Background
-      "schoolName",
-      "degree",
-      "educationalAttainment",
-      "educationFromYear",
-      "educationToYear",
-      "achievements",
-      // Dependants (corrected to match schema)
-      "dependantsName",
-      "dependentsRelation",
-      "dependentbirthDate",
-      // Employment History (corrected to match schema)
-      "employerName",
-      "employeeAddress",
-      "prevPosition",
-      "employmentfromDate",
-      "employmenttoDate",
-      "pagibigNumber", // Added missing field
-    ];
+    let hasChanges = false;
+    for (const key in updates) {
+      const newValue = updates[key];
+      const oldValue = existingUser[key];
 
-    // Check for changes in regular fields
-    Object.keys(updates).forEach((key) => {
-      if (updatableFields.includes(key)) {
-        const currentValue = employee[key]?.toString();
-        const newValue = updates[key]?.toString();
+      // Skip undefined or null values
+      if (newValue === undefined || newValue === null) continue;
 
-        if (currentValue !== newValue) {
-          hasChanges = true;
-          changedFields.push(key);
-        } else {
-          unchangedFields.push(key);
-        }
-      }
-    });
-
-    // Check password change
-    if (password) {
-      const isSamePassword = await employee.comparePassword(password);
-      if (!isSamePassword) {
+      // Special handling for numbers and dates
+      if (
+        (typeof newValue === "number" &&
+          Number(oldValue) !== Number(newValue)) ||
+        (typeof newValue === "string" &&
+          String(oldValue) !== String(newValue)) ||
+        (Array.isArray(newValue) &&
+          JSON.stringify(oldValue) !== JSON.stringify(newValue))
+      ) {
         hasChanges = true;
-        changedFields.push("password");
+        existingUser[key] = newValue;
       }
     }
 
-    // If no changes detected
     if (!hasChanges) {
-      return res.status(204).json({
-        message: "No changes detected. Employee data remains unchanged.",
-        unchangedFields,
-        changedFields,
-      });
+      return res
+        .status(200)
+        .json({ message: "No changes detected. Nothing was updated." });
     }
 
-    // Apply changes
-    if (changedFields.includes("role")) {
-      employee.role = role;
-    }
-
-    changedFields.forEach((key) => {
-      if (key !== "role" && key !== "password") {
-        employee[key] = updates[key];
-      }
-    });
-
-    if (changedFields.includes("password")) {
-      employee.password = password;
-    }
-
-    const updatedEmployee = await employee.save();
-
-    // Enhanced response
-    res.status(200).json({
-      message: "Employee updated successfully",
-      changedFields,
-      unchangedFields,
-      employee: {
-        _id: updatedEmployee._id,
-        username: updatedEmployee.username,
-        firstname: updatedEmployee.firstname,
-        lastname: updatedEmployee.lastname,
-        employeeEmail: updatedEmployee.employeeEmail,
-        role: updatedEmployee.role,
-        employeeStatus: updatedEmployee.employeeStatus,
-        department: updatedEmployee.department,
-        jobposition: updatedEmployee.jobposition,
-      },
-    });
+    await existingUser.save();
+    return res.status(200).json({ message: "Employee updated successfully." });
   } catch (error) {
-    console.error("Update error:", error);
-
-    // Enhanced error handling
-    if (error.code === 11000) {
-      const field = Object.keys(error.keyPattern)[0];
-      return res.status(409).json({
-        message: `${field} already exists`,
-        field,
-        value: error.keyValue[field],
-      });
-    }
-
-    if (error.name === "ValidationError") {
-      const errors = Object.entries(error.errors).reduce((acc, [key, val]) => {
-        acc[key] = val.message;
-        return acc;
-      }, {});
-
-      return res.status(422).json({
-        message: "Validation failed",
-        errors,
-      });
-    }
-
-    res.status(500).json({
-      message: "Server error while updating employee",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+    console.error("Update employee error:", error);
+    return res.status(500).json({ message: "Server error. Please try again." });
   }
 };
+
+
 
 const deactiveSingle = async (req, res) => {
   const { id } = req.params;
