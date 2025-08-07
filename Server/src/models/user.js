@@ -87,7 +87,7 @@ const UserSchema = new mongoose.Schema(
     tinNumber: { type: String, required: true }, // e.g. 123-456-789
     sssNumber: { type: String, required: true }, // e.g. 01-2345678-9
     philhealthNumber: { type: String, required: true }, // e.g. 12-3456789
-    shcoolName: { type: String }, // Typo: Should be schoolName
+    schoolName: { type: String }, // Typo: Should be schoolName
     degree: { type: String },
     educationalAttainment: { type: String },
     educationFromYear: {
@@ -99,7 +99,7 @@ const UserSchema = new mongoose.Schema(
       match: /^\d{4}$/,
     },
     achievements: { type: String },
-    dependants: { type: String }, // Consider making this an array of objects  for multiple dependents
+    dependantsName: { type: String }, // Consider making this an array of objects  for multiple dependents
     dependentsRelation: { type: String },
     dependentbirthDate: { type: Date },
     employerName: { type: String },

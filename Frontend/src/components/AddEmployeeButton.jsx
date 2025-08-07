@@ -1,5 +1,6 @@
 import { useState } from "react";
 import axios from "axios"; // Import axios
+import { calculateAge } from "../uitls/AgeCalulator";
 import {
   Button,
   Modal,
@@ -481,7 +482,10 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
                   <Input
                     type="date"
                     value={birthday}
-                    onChange={(e) => setBirthday(e.target.value)}
+                    onChange={(e) => {
+                      setBirthday(e.target.value);
+                      setAge(calculateAge(e.target.value)); // Update age when birthday changes
+                    }}
                     borderRadius="lg"
                     focusBorderColor="blue.400"
                   />
@@ -540,6 +544,7 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
                     onChange={(e) => setAge(e.target.value)}
                     borderRadius="lg"
                     focusBorderColor="blue.400"
+                    readOnly // This prevents manual editing
                   />
                 </FormControl>
               </SimpleGrid>

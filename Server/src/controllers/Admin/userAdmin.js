@@ -270,136 +270,75 @@ const getEmployeeById = async (req, res) => {
 // @access Private (Admin, Manager)
 const updateEmployee = async (req, res) => {
   const { id } = req.params;
-  const { password, role, ...updates } = req.body;
+  const updates = req.body;
 
-  const isAdmin = req.user.role === "admin";
-  const isHR = req.user.role === "hr";
-
-  if (!isAdmin && !isHR) {
-    return res.status(403).json({
-      message: "Forbidden: No permission to update employee profiles.",
-    });
+  if (!id || !updates || Object.keys(updates).length === 0) {
+    return res.status(400).json({ message: "Invalid update payload." });
   }
 
   try {
-    const employee = await user.findById(id).exec();
-    if (!employee)
+    const existingUser = await user.findById(id);
+    if (!existingUser) {
       return res.status(404).json({ message: "Employee not found." });
+    }
 
-    const changedFields = [];
-    const unchangedFields = [];
+    // Prevent last active admin from being deactivated
+    if (updates.employeeStatus === 0 || updates.employeeStatus === "0") {
+      const isTargetAdmin =
+        existingUser.role === "admin" && existingUser.employeeStatus === 1;
+      if (isTargetAdmin) {
+        const activeAdminCount = await user.countDocuments({
+          role: "admin",
+          employeeStatus: 1,
+          _id: { $ne: existingUser._id },
+        });
+
+        if (activeAdminCount === 0) {
+          return res.status(400).json({
+            message:
+              "Operation blocked: at least one active admin must remain.",
+          });
+        }
+      }
+    }
+
     let hasChanges = false;
+    for (const key in updates) {
+      const newValue = updates[key];
+      const oldValue = existingUser[key];
 
-    const isDifferent = (a, b) => {
-      if (a instanceof Date && b instanceof Date) {
-        return a.getTime() !== b.getTime();
-      }
+      // Skip undefined or null values
+      if (newValue === undefined || newValue === null) continue;
+
+      // Special handling for numbers and dates
       if (
-        typeof a === "object" &&
-        a !== null &&
-        typeof b === "object" &&
-        b !== null
+        (typeof newValue === "number" &&
+          Number(oldValue) !== Number(newValue)) ||
+        (typeof newValue === "string" &&
+          String(oldValue) !== String(newValue)) ||
+        (Array.isArray(newValue) &&
+          JSON.stringify(oldValue) !== JSON.stringify(newValue))
       ) {
-        return JSON.stringify(a) !== JSON.stringify(b);
-      }
-      return String(a) !== String(b);
-    };
-
-    // Check regular fields first
-    for (const [key, newValue] of Object.entries(updates)) {
-      const currentValue = employee[key];
-      if (isDifferent(currentValue, newValue)) {
-        changedFields.push(key);
         hasChanges = true;
-      } else {
-        unchangedFields.push(key);
-      }
-    }
-
-    // Check role separately
-    if (role !== undefined) {
-      if (!isAdmin && role !== employee.role) {
-        return res
-          .status(403)
-          .json({ message: "Only administrators can change roles." });
-      }
-
-      if (role !== employee.role) {
-        changedFields.push("role");
-        hasChanges = true;
-      } else {
-        unchangedFields.push("role");
-      }
-    }
-
-    // Check password separately
-    if (password !== undefined) {
-      const isSamePassword = await employee.comparePassword(password);
-      if (!isSamePassword) {
-        changedFields.push("password");
-        hasChanges = true;
-      } else {
-        unchangedFields.push("password");
+        existingUser[key] = newValue;
       }
     }
 
     if (!hasChanges) {
-      return res.status(200).json({
-        message: "No changes detected. Employee data remains unchanged.",
-        changedFields: [],
-        unchangedFields,
-      });
+      return res
+        .status(200)
+        .json({ message: "No changes detected. Nothing was updated." });
     }
 
-    // Apply changes
-    for (const field of changedFields) {
-      if (field === "password") {
-        employee.password = password;
-      } else if (field === "role") {
-        employee.role = role;
-      } else {
-        employee[field] = updates[field];
-      }
-    }
-
-    const updatedEmployee = await employee.save();
-
-    return res.status(200).json({
-      message: "Employee updated successfully",
-      changedFields,
-      unchangedFields,
-      employee: {
-        _id: updatedEmployee._id,
-        firstname: updatedEmployee.firstname,
-        lastname: updatedEmployee.lastname,
-        employeeEmail: updatedEmployee.employeeEmail,
-        role: updatedEmployee.role,
-        employeeStatus: updatedEmployee.employeeStatus,
-      },
-    });
+    await existingUser.save();
+    return res.status(200).json({ message: "Employee updated successfully." });
   } catch (error) {
-    console.error(error);
-
-    if (error.code === 11000) {
-      const field = Object.keys(error.keyPattern)[0];
-      return res
-        .status(400)
-        .json({ message: `${field} already exists`, field });
-    }
-
-    if (error.name === "ValidationError") {
-      const messages = Object.values(error.errors).map((val) => val.message);
-      return res
-        .status(400)
-        .json({ message: "Validation error", errors: messages });
-    }
-
-    return res.status(500).json({
-      message: "Server error while updating employee.",
-      error: error.message,
-    });
+    console.error("Update employee error:", error);
+    return res.status(500).json({ message: "Server error. Please try again." });
   }
 };
+
+
 
 const deactiveSingle = async (req, res) => {
   const { id } = req.params;

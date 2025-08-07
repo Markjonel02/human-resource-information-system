@@ -18,7 +18,7 @@ import {
 import { FaUser, FaUserMinus, FaCalendarAlt, FaFileAlt } from "react-icons/fa";
 import { ResponsiveBar } from "@nivo/bar";
 import { employeeTrackerData } from "../lib/api"; // Your data source
-import  axiosInstance  from "../lib/axiosInstance";
+import axiosInstance from "../lib/axiosInstance";
 
 const MetricCard = ({ title, value, percentageChange, type, icon }) => {
   const cardBg = useColorModeValue("white", "gray.700");
@@ -79,7 +79,7 @@ const EmployeeTracker = () => {
   });
 
   const [loading, setLoading] = useState(false);
-  const [newEmployee, setNewEmployee] = useState(0);
+  const [TotalAdmin, setTotalAdmin] = useState(0);
   const [allEmployee, setAllEmployee] = useState(0);
   const [employeeOnLeave, setEmployeeOnLeave] = useState(0);
   const [inactiveEmployee, setInactiveEmployee] = useState(0);
@@ -95,14 +95,14 @@ const EmployeeTracker = () => {
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      let newEmp = 0;
+      const totalAdmin = employees.filter(
+        (emp) => emp.role === "admin" && emp.employeeStatus !== 0
+      ).length;
       let onLeave = 0;
       let inactive = 0;
 
       employees.forEach((emp) => {
-        if (emp.CreatedAt && new Date(emp.CreatedAt) >= startOfMonth) {
-          newEmp++;
-        }
+        // Count only active admins (employeeStatus !== 0)
 
         if (emp.onLeave === true) {
           onLeave++;
@@ -113,7 +113,7 @@ const EmployeeTracker = () => {
         }
       });
 
-      setNewEmployee(newEmp);
+      setTotalAdmin(totalAdmin);
       setAllEmployee(employees.length - inactive);
       setEmployeeOnLeave(onLeave);
       setInactiveEmployee(inactive);
@@ -150,8 +150,8 @@ const EmployeeTracker = () => {
 
   return (
     <Box pt={4}>
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 2, xl: 4 }} spacing={4} mb={6}>
-        <MetricCard title="New Employee" value={newEmployee} icon={FaUser} />
+      <SimpleGrid columns={{ base: 2, md: 2, lg: 2, xl: 4 }} spacing={4} mb={6}>
+        <MetricCard title="Total Admin" value={TotalAdmin} icon={FaUser} />
         <MetricCard
           title="Resign Employee"
           value={inactiveEmployee}

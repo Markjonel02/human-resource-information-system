@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { calculateAge } from "../uitls/AgeCalulator";
 import {
   Box,
   Flex,
@@ -203,78 +204,97 @@ const Employees = () => {
     });
     onOpen();
   };
+
   const handleSave = async () => {
     if (!selectedEmployee) return;
 
+    // Prepare updates object
+    const updates = {
+      username,
+      firstname: firstName,
+      lastname: lastName,
+      suffix,
+      prefix,
+      employeeEmail: email,
+      department,
+      jobStatus: jobStatus.toLowerCase(),
+      employeeStatus: employeeStatus === "1" ? 1 : 0,
+      gender,
+      birthday,
+      nationality,
+      civilStatus,
+      religion,
+      presentAddress,
+      province,
+      town,
+      age: Number(age),
+      city,
+      mobileNumber,
+      companyName,
+      jobposition: jobPosition,
+      corporaterank: corporateRank,
+      location,
+      businessUnit,
+      head,
+      salaryRate: Number(salaryRate),
+      bankAccountNumber,
+      tinNumber,
+      sssNumber,
+      philhealthNumber,
+      pagibigNumber,
+      schoolName,
+      degree,
+      educationalAttainment,
+      educationFromYear: educationFrom,
+      educationToYear: educationTo,
+      achievements,
+      dependantsName: dependantName,
+      dependentsRelation: dependantRelationship,
+      dependentbirthDate: dependantBirthdate,
+      employerName,
+      employeeAddress: employerAddress,
+      prevPosition: employmentPosition,
+      employmentfromDate: employmentFrom,
+      employmenttoDate: employmentTo,
+    };
+
+    if (password) updates.password = password;
+    if (
+      (currentUser?.role === "admin" || currentUser?.role === "hr") &&
+      employeeRole
+    ) {
+      updates.role = employeeRole;
+    }
+
+    // 🔍 Compare updates with selectedEmployee
+    const hasChanges = Object.entries(updates).some(([key, newVal]) => {
+      const oldVal = selectedEmployee[key];
+      if (typeof newVal === "number") return Number(oldVal) !== Number(newVal);
+      if (typeof newVal === "string")
+        return String(oldVal || "") !== String(newVal);
+      if (Array.isArray(newVal))
+        return JSON.stringify(oldVal || []) !== JSON.stringify(newVal);
+      if (typeof newVal === "object")
+        return JSON.stringify(oldVal || {}) !== JSON.stringify(newVal);
+      return newVal !== oldVal;
+    });
+
+    if (!hasChanges) {
+      toast({
+        title: "No changes made",
+        description: "All values are the same. Nothing to update.",
+        status: "info",
+        duration: 4000,
+        isClosable: true,
+        position: "top",
+      });
+      return;
+    }
+
     try {
       const token = localStorage.getItem("accessToken");
-
-      // Prepare the updates object with all fields
-      const updates = {
-        username,
-        firstname: firstName,
-        lastname: lastName,
-        employeeEmail: email,
-        department,
-        jobStatus: jobStatus.toLowerCase(), // Ensure consistent casing
-        employeeStatus: employeeStatus === "1" ? 1 : 0,
-        gender,
-        birthday,
-        nationality,
-        civilStatus,
-        religion,
-        age: Number(age),
-        presentAddress,
-        province,
-        town,
-        city,
-        mobileNumber,
-        companyName,
-        jobposition: jobPosition,
-        corporaterank: corporateRank,
-        location,
-        businessUnit,
-        head,
-        salaryRate: Number(salaryRate),
-        bankAccountNumber,
-        tinNumber,
-        sssNumber,
-        philhealthNumber,
-        pagibigNumber,
-        shcoolName: schoolName, // Note: Fix typo in backend if possible
-        degree,
-        educationalAttainment,
-        educationFromYear: educationFrom,
-        educationToYear: educationTo,
-        achievements,
-        dependants: dependantName,
-        dependentsRelation: dependantRelationship,
-        dependentbirthDate: dependantBirthdate,
-        employerName,
-        employeeAddress: employerAddress,
-        prevPosition: employmentPosition,
-        employmentfromDate: employmentFrom,
-        employmenttoDate: employmentTo,
-        suffix,
-        prefix,
-      };
-
-      // Only include password if it's provided
-      if (password) {
-        updates.password = password;
-      }
-
-      if (
-        (currentUser?.role === "admin" || currentUser?.role === "hr") &&
-        employeeRole
-      ) {
-        updates.role = employeeRole;
-      }
-
-      console.log("Update payload:", updates); // Debugging
-
       const response = await axiosInstance.put(
-        `/employees/${selectedEmployee.id}`,
+        `/update-employee/${selectedEmployee.id}`,
         updates,
         {
           headers: {
@@ -285,28 +305,18 @@ const Employees = () => {
         }
       );
 
-      if (response.data.message.includes("No changes detected")) {
-        toast({
-          title: "Nothing was updated",
-          description: "You submitted the form, but no fields were changed.",
-          status: "info",
-          duration: 4000,
-          isClosable: true,
-          position: "top",
-        });
-      } else {
-        toast({
-          title: "Employee updated",
-          description: response.data.message || "Employee updated successfully",
-          status: "success",
-          duration: 4000,
-          isClosable: true,
-          position: "top",
-        });
-        fetchingEmployees(currentPage);
-        onCloseEditModal();
-        clearForm();
-      }
+      toast({
+        title: "Employee updated",
+        description: response.data.message || "Employee updated successfully",
+        status: "success",
+        duration: 4000,
+        isClosable: true,
+        position: "top",
+      });
+
+      fetchingEmployees(currentPage);
+      onCloseEditModal();
+      clearForm();
     } catch (error) {
       console.error("Error updating employee:", error);
 
@@ -315,12 +325,10 @@ const Employees = () => {
         if (error.response.data.message) {
           errorMessage = error.response.data.message;
         } else if (error.response.data.errors) {
-          // Handle validation errors
           errorMessage = Object.entries(error.response.data.errors)
             .map(([field, message]) => `${field}: ${message}`)
             .join(", ");
         }
-        console.error("Server response:", error.response.data);
       }
 
       toast({
@@ -353,11 +361,14 @@ const Employees = () => {
           setUsername(employeeData.username || "");
           setFirstName(employeeData.firstname || "");
           setLastName(employeeData.lastname || "");
+          setSuffix(employeeData.suffix || "");
+          setPrefix(employeeData.prefix || "");
           setEmail(employeeData.employeeEmail || "");
           setDepartment(employeeData.department || "");
           setEmployeeStatus(employeeData.employeeStatus ? "1" : "0");
           setEmployeeRole(employeeData.role || "");
           setJobStatus(employeeData.jobStatus?.toLowerCase() || "");
+          setAge(employeeData.age || 0);
 
           // Set other fields
           setGender(employeeData.gender || "");
@@ -369,7 +380,6 @@ const Employees = () => {
           setNationality(employeeData.nationality || "");
           setCivilStatus(employeeData.civilStatus || "");
           setReligion(employeeData.religion || "");
-          setAge(employeeData.age?.toString() || "");
           setPresentAddress(employeeData.presentAddress || "");
           setCity(employeeData.city || "");
           setTown(employeeData.town || "");
@@ -387,13 +397,13 @@ const Employees = () => {
           setSssNumber(employeeData.sssNumber || "");
           setPhilhealthNumber(employeeData.philhealthNumber || "");
           setPagibigNumber(employeeData.pagibigNumber || "");
-          setSchoolName(employeeData.shcoolName || ""); // Note typo
+          setSchoolName(employeeData.schoolName || ""); // Corrected field name
           setDegree(employeeData.degree || "");
           setEducationalAttainment(employeeData.educationalAttainment || "");
           setEducationFrom(employeeData.educationFromYear || "");
           setEducationTo(employeeData.educationToYear || "");
           setAchievements(employeeData.achievements || "");
-          setDependantName(employeeData.dependants || "");
+          setDependantName(employeeData.dependantsName || ""); // Corrected field name
           setDependantRelationship(employeeData.dependentsRelation || "");
           setDependantBirthdate(
             employeeData.dependentbirthDate
@@ -405,8 +415,6 @@ const Employees = () => {
           setEmploymentPosition(employeeData.prevPosition || "");
           setEmploymentFrom(employeeData.employmentfromDate || "");
           setEmploymentTo(employeeData.employmenttoDate || "");
-          setSuffix(employeeData.suffix || "");
-          setPrefix(employeeData.prefix || "");
         } catch (error) {
           console.error("Error fetching employee details:", error);
           toast({
@@ -424,13 +432,43 @@ const Employees = () => {
     }
   }, [selectedEmployee, isEditModalOpen]);
   // helper function for date formatting
+
   const formatDateForInput = (dateString) => {
     if (!dateString) return "";
+
+    // Handle both Date objects and ISO strings
     const date = new Date(dateString);
     if (isNaN(date)) return "";
-    return date.toISOString().split("T")[0];
-  };
 
+    // Get local date parts to avoid timezone issues
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
+  //function for automatically calcualte age
+
+  /*   const calculateAge = (birthday) => {
+    if (!birthday) return 0;
+
+    const birthDate = new Date(birthday);
+    if (isNaN(birthDate)) return 0;
+
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
+      age--;
+    }
+
+    return age;
+  };
+ */
   //clearing form when submit
   const clearForm = () => {
     setUsername("");
@@ -1213,7 +1251,10 @@ const Employees = () => {
                     <Input
                       type="date"
                       value={birthday}
-                      onChange={(e) => setBirthday(e.target.value)}
+                      onChange={(e) => {
+                        setBirthday(e.target.value);
+                        setAge(calculateAge(e.target.value)); // Update age when birthday changes
+                      }}
                       borderRadius="lg"
                       focusBorderColor="blue.400"
                     />
@@ -1261,11 +1302,13 @@ const Employees = () => {
                     <FormLabel>Age</FormLabel>
                     <Input
                       type="number"
-                      placeholder="Enter age"
+                      placeholder="Age will be calculated automatically"
                       value={age}
                       onChange={(e) => setAge(e.target.value)}
                       borderRadius="lg"
                       focusBorderColor="blue.400"
+                    
+                      readOnly // This prevents manual editing
                     />
                   </FormControl>
                 </SimpleGrid>
