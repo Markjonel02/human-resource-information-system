@@ -334,7 +334,6 @@ const updateEmployee = async (req, res) => {
       }
     }
 
-    // Allow only these fields to be updated
     const allowedFields = [
       "firstname",
       "lastname",
@@ -391,14 +390,12 @@ const updateEmployee = async (req, res) => {
     for (const field of allowedFields) {
       if (!(field in updates)) continue;
 
-      // Role change must be admin-only
       if (field === "role" && req.user.role !== "admin") {
         return res
           .status(403)
           .json({ message: "Only admins can update roles." });
       }
 
-      // Handle password separately
       if (field === "password") {
         if (req.user.role !== "admin") {
           return res
@@ -406,22 +403,12 @@ const updateEmployee = async (req, res) => {
             .json({ message: "Only admins can update passwords." });
         }
 
-        const isSame = await bcrypt.compare(
-          updates.password,
-          employee.password
-        );
-
-        if (!isSame) {
-          const salt = await bcrypt.genSalt(10);
-          const hashedPassword = await bcrypt.hash(updates.password, salt);
-          employee.password = hashedPassword;
-          hasChanges = true;
-        }
-
-        continue; // Prevent raw assignment below
+        // ✅ Let the pre-save hook handle hashing
+        employee.password = updates.password;
+        hasChanges = true;
+        continue;
       }
 
-      // Normal field comparison
       const newVal = updates[field];
       const oldVal = employee[field];
 

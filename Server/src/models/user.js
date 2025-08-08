@@ -1,15 +1,15 @@
 const mongoose = require("mongoose");
-const bcrypt = require("bcrypt"); // Corrected typo from bcyrpt
-const { Timestamp } = require("bson");
+const bcrypt = require("bcrypt");
 
 const UserSchema = new mongoose.Schema(
   {
     firstname: { type: String, required: true },
     lastname: { type: String, required: true },
-    username: { type: String, required: true, unique: true }, // Added unique constraint for username
+    username: { type: String, required: true, unique: true },
     suffix: { type: String },
     prefix: { type: String },
     password: { type: String, required: true },
+
     gender: {
       type: String,
       enum: ["male", "female", "nonbinary", "prefer not to say"],
@@ -31,15 +31,21 @@ const UserSchema = new mongoose.Schema(
     },
     religion: {
       type: String,
-      enum: ["catholic", "christian", "others"], // Consider making 'others' more flexible if needed
+      enum: ["catholic", "christian", "others"],
       required: true,
     },
-    age: { type: Number, required: true }, // This will be calculated in pre-save hook
+    age: { type: Number, required: true },
+
     presentAddress: { type: String, required: true },
     province: { type: String, required: true },
     town: { type: String, required: true },
     city: { type: String, required: true },
-    mobileNumber: { type: String, required: true, match: /^09\d{9}$/ },
+
+    mobileNumber: {
+      type: String,
+      required: true,
+      match: /^09\d{9}$/,
+    },
     employeeEmail: {
       type: String,
       required: true,
@@ -54,7 +60,7 @@ const UserSchema = new mongoose.Schema(
       required: true,
       unique: true,
       trim: true,
-      match: /^EMP\d{3,4}$/, // Accepts EMP001 or EMP0001
+      match: /^EMP\d{3,4}$/,
     },
 
     jobposition: { type: String, required: true },
@@ -77,37 +83,36 @@ const UserSchema = new mongoose.Schema(
     businessUnit: { type: String, required: true },
     department: { type: String, required: true },
     head: { type: String, required: true },
+
     employeeStatus: {
       type: Number,
       required: true,
-      enum: [0, 1], // 0 = Inactive, 1 = Active
+      enum: [0, 1],
     },
-    salaryRate: { type: Number, required: true }, // still a number
-    bankAccountNumber: { type: String, required: true }, // allows dashes
-    tinNumber: { type: String, required: true }, // e.g. 123-456-789
-    sssNumber: { type: String, required: true }, // e.g. 01-2345678-9
-    philhealthNumber: { type: String, required: true }, // e.g. 12-3456789
-    schoolName: { type: String }, // Typo: Should be schoolName
+
+    salaryRate: { type: Number, required: true },
+    bankAccountNumber: { type: String, required: true },
+    tinNumber: { type: String, required: true },
+    sssNumber: { type: String, required: true },
+    philhealthNumber: { type: String, required: true },
+
+    schoolName: { type: String },
     degree: { type: String },
     educationalAttainment: { type: String },
-    educationFromYear: {
-      type: String,
-      match: /^\d{4}$/,
-    },
-    educationToYear: {
-      type: String,
-      match: /^\d{4}$/,
-    },
+    educationFromYear: { type: String, match: /^\d{4}$/ },
+    educationToYear: { type: String, match: /^\d{4}$/ },
     achievements: { type: String },
-    dependantsName: { type: String }, // Consider making this an array of objects  for multiple dependents
+
+    dependentsName: { type: String },
     dependentsRelation: { type: String },
     dependentbirthDate: { type: Date },
+
     employerName: { type: String },
     employeeAddress: { type: String },
     prevPosition: { type: String },
-    employmentfromDate: { type: Date, match: /^\d{4}$/ },
-    employmenttoDate: { type: Date, match: /^\d{4}$/ },
-    // Added for authorization roles
+    employmentfromDate: { type: Date },
+    employmenttoDate: { type: Date },
+
     role: {
       type: String,
       enum: ["employee", "manager", "admin", "hr"],
@@ -116,54 +121,49 @@ const UserSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Hash password before saving and calculate age
-UserSchema.pre("save", async function (next) {
-  // Calculate age based on birthday
-  const today = new Date();
-  let age = today.getFullYear() - this.birthday.getFullYear();
-  const monthDiff = today.getMonth() - this.birthday.getMonth();
-  const dayDiff = today.getDate() - this.birthday.getDate();
-
-  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
-    age--;
-  }
-  this.age = age; // Set the age field
-
-  if (this.age < 18) {
-    return next(new Error("User must be at least 18 years old!"));
-  }
-
-  // Password hashing
-  if (!this.isModified("password")) return next(); // Only hash if password is new or modified
-
-  try {
-    const saltRounds = 10;
-    const salt = await bcrypt.genSalt(saltRounds);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (err) {
-    next(err);
-  }
-});
+// 🔄 Normalize corporaterank input before validation
 UserSchema.pre("validate", function (next) {
   if (this.corporaterank) {
     const input = this.corporaterank.toLowerCase().trim();
-
     if (input.includes("rank") && input.includes("file")) {
       this.corporaterank = "rank-and-file employees";
     }
   }
-
   next();
 });
 
-// Method to compare password (for login)
-UserSchema.methods.comparePassword = async function (candidatePassword) {
-  try {
-    return await bcrypt.compare(candidatePassword, this.password);
-  } catch (error) {
-    throw new Error(error);
+// 🔐 Pre-save: calculate age + hash password if changed
+UserSchema.pre("save", async function (next) {
+  // Age calculation
+  if (this.birthday) {
+    const today = new Date();
+    let age = today.getFullYear() - this.birthday.getFullYear();
+    const monthDiff = today.getMonth() - this.birthday.getMonth();
+    const dayDiff = today.getDate() - this.birthday.getDate();
+    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) age--;
+
+    this.age = age;
+
+    if (this.age < 18) {
+      return next(new Error("User must be at least 18 years old."));
+    }
   }
+
+  // Password hashing
+  if (!this.isModified("password")) return next();
+
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    return next();
+  } catch (err) {
+    return next(err);
+  }
+});
+
+// ✅ Instance method: compare plaintext with hashed password
+UserSchema.methods.comparePassword = function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
 };
 
 module.exports = mongoose.model("user", UserSchema);

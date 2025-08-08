@@ -1145,6 +1145,7 @@ const Employees = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       borderRadius="lg"
                       focusBorderColor="blue.400"
+                      isDisabled={currentUser?.role !== "admin"}
                     />
                   </FormControl>
                 </SimpleGrid>
@@ -1540,6 +1541,7 @@ const Employees = () => {
                       onChange={(e) => setSalaryRate(e.target.value)}
                       borderRadius="lg"
                       focusBorderColor="blue.400"
+                      isDisabled={currentUser?.role !== "admin"}
                     />
                   </FormControl>
                   <FormControl id="bank-account-number" isRequired>
