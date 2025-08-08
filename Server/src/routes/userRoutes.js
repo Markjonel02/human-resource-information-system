@@ -46,7 +46,7 @@ router.use(verifyJWT);
 // 'verifyJWT' is already applied by 'router.use(verifyJWT)' above, so no need to add it again here.
 router.post(
   "/create-employees",
-  authorizeRoles("admin", "hr"), // Only admin can create employees
+  authorizeRoles("admin", "hr"),// Only admin can create employees
   Useradmin.createEmployee
 );
 

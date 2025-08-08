@@ -74,8 +74,10 @@ export const AuthProvider = ({ children }) => {
   }, [authState.isAuthenticated, authState.accessToken]);
 
   const value = {
+    user: authState.user,
     authState,
     login,
+
     logout,
   };
 

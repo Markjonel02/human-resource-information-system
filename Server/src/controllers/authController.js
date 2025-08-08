@@ -175,7 +175,7 @@ const register = async (req, res) => {
 
 // -------------------- Controller: Login -------------------- //
 const login = async (req, res) => {
-  const { username, password, setEmployeeStatus } = req.body;
+  const { username, password } = req.body;
 
   if (!username || !password) {
     return res
@@ -185,11 +185,19 @@ const login = async (req, res) => {
 
   try {
     const user = await User.findOne({ username }).exec();
-    if (!user || !(await user.comparePassword(password))) {
+
+    if (!user) {
+      console.log("❌ User not found");
       return res.status(401).json({ message: "Invalid credentials." });
     }
 
-    // if user is inactive
+    const isMatch = await user.comparePassword(password);
+    console.log("🔐 Password matched:", isMatch);
+
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid credentials." });
+    }
+
     if (user.employeeStatus !== 1) {
       return res
         .status(403)
@@ -208,7 +216,7 @@ const login = async (req, res) => {
         employeeEmail: user.employeeEmail,
         role: user.role,
         firstname: user.firstname,
-        employeeStatus: user.employeeStatus, // ✅ Include this for frontend check
+        employeeStatus: user.employeeStatus,
       },
     });
   } catch (error) {

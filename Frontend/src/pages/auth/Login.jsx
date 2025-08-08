@@ -14,7 +14,7 @@ import {
 } from "@chakra-ui/react";
 import { Mail, Lock } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import  axiosInstance  from "../../lib/axiosInstance";
+import axiosInstance from "../../lib/axiosInstance";
 import { useAuth } from "../../context/AuthContext";
 
 const Login = () => {

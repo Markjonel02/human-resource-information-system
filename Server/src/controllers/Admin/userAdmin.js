@@ -1,5 +1,6 @@
 const user = require("../../models/user");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 // @desc Create a new employee (admin only)
 // @route POST /employees
 // @access Private (Admin)
@@ -118,7 +119,7 @@ const createAdmin = async (req, res) => {
     const checkDuplicate = async (field, value, message) => {
       const query = {};
       query[field] = value;
-      const existingUser = await User.findOne(query).lean().exec();
+      const existingUser = await user.findOne(query).lean().exec();
       if (existingUser) {
         // Create a custom error with a status code property
         const error = new Error(message);
@@ -143,7 +144,8 @@ const createAdmin = async (req, res) => {
     // 4. Auto-generate employeeId: EMP0001, EMP0002, etc.
     let newEmployeeId;
     // Find the last employee with an ID starting with 'EMP' to determine the next sequential ID.
-    const lastEmployee = await User.findOne({ employeeId: /^EMP/ })
+    const lastEmployee = await user
+      .findOne({ employeeId: /^EMP/ })
       .sort({ employeeId: -1 }) // Sort in descending order to get the highest numeric ID
       .limit(1) // Get only one document
       .lean()
@@ -161,7 +163,7 @@ const createAdmin = async (req, res) => {
     }
 
     // 5. Create new Admin user instance.
-    const newUser = new User({
+    const newUser = new user({
       username,
       employeeEmail,
       password, // Password will be hashed by a pre-save Mongoose middleware (assumed to be in place)
@@ -268,77 +270,188 @@ const getEmployeeById = async (req, res) => {
 // @desc Update an employee (admin/manager only)
 // @route PUT /employees/:id
 // @access Private (Admin, Manager)
+// @desc Update an employee (admin/hr only)
+// @route PUT /employees/:id
+// @access Private (Admin, HR)
+
 const updateEmployee = async (req, res) => {
   const { id } = req.params;
   const updates = req.body;
 
-  if (!id || !updates || Object.keys(updates).length === 0) {
-    return res.status(400).json({ message: "Invalid update payload." });
+  // Authorization check
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res
+      .status(403)
+      .json({ message: "Unauthorized: insufficient permissions." });
   }
 
+  // Date validation helper
+  const parseDateSafely = (dateString) => {
+    const parsed = new Date(dateString);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const dateFields = [
+    "employmentfromDate",
+    "employmenttoDate",
+    "dependentbirthDate",
+    "birthday",
+  ];
+  dateFields.forEach((field) => {
+    if (updates[field]) {
+      const parsedDate = parseDateSafely(updates[field]);
+      if (!parsedDate) {
+        return res
+          .status(400)
+          .json({ message: `Invalid date format for ${field}` });
+      }
+      updates[field] = parsedDate;
+    }
+  });
+
   try {
-    const existingUser = await user.findById(id);
-    if (!existingUser) {
+    const employee = await user.findById(id);
+    if (!employee) {
       return res.status(404).json({ message: "Employee not found." });
     }
 
-    // Prevent last active admin from being deactivated
-    if (updates.employeeStatus === 0 || updates.employeeStatus === "0") {
-      const isTargetAdmin =
-        existingUser.role === "admin" && existingUser.employeeStatus === 1;
-      if (isTargetAdmin) {
-        const activeAdminCount = await user.countDocuments({
-          role: "admin",
-          employeeStatus: 1,
-          _id: { $ne: existingUser._id },
-        });
+    // Prevent deactivating last active admin
+    if (
+      updates.employeeStatus === 0 &&
+      employee.role === "admin" &&
+      employee.employeeStatus === 1
+    ) {
+      const activeAdmins = await user.countDocuments({
+        _id: { $ne: employee._id },
+        role: "admin",
+        employeeStatus: 1,
+      });
 
-        if (activeAdminCount === 0) {
-          return res.status(400).json({
-            message:
-              "Operation blocked: at least one active admin must remain.",
-          });
-        }
+      if (activeAdmins < 1) {
+        return res
+          .status(400)
+          .json({ message: "At least one active admin must remain." });
       }
     }
 
+    const allowedFields = [
+      "firstname",
+      "lastname",
+      "username",
+      "suffix",
+      "prefix",
+      "gender",
+      "birthday",
+      "nationality",
+      "civilStatus",
+      "religion",
+      "age",
+      "presentAddress",
+      "province",
+      "town",
+      "city",
+      "mobileNumber",
+      "employeeEmail",
+      "companyName",
+      "employeeId",
+      "jobposition",
+      "corporaterank",
+      "jobStatus",
+      "location",
+      "businessUnit",
+      "department",
+      "head",
+      "employeeStatus",
+      "role",
+      "salaryRate",
+      "bankAccountNumber",
+      "tinNumber",
+      "sssNumber",
+      "philhealthNumber",
+      "schoolName",
+      "degree",
+      "educationalAttainment",
+      "educationFromYear",
+      "educationToYear",
+      "achievements",
+      "dependantsName",
+      "dependentsRelation",
+      "dependentbirthDate",
+      "employerName",
+      "employeeAddress",
+      "prevPosition",
+      "employmentfromDate",
+      "employmenttoDate",
+      "password",
+    ];
+
     let hasChanges = false;
-    for (const key in updates) {
-      const newValue = updates[key];
-      const oldValue = existingUser[key];
 
-      // Skip undefined or null values
-      if (newValue === undefined || newValue === null) continue;
+    for (const field of allowedFields) {
+      if (!(field in updates)) continue;
 
-      // Special handling for numbers and dates
-      if (
-        (typeof newValue === "number" &&
-          Number(oldValue) !== Number(newValue)) ||
-        (typeof newValue === "string" &&
-          String(oldValue) !== String(newValue)) ||
-        (Array.isArray(newValue) &&
-          JSON.stringify(oldValue) !== JSON.stringify(newValue))
-      ) {
+      if (field === "role" && req.user.role !== "admin") {
+        return res
+          .status(403)
+          .json({ message: "Only admins can update roles." });
+      }
+
+      if (field === "password") {
+        if (req.user.role !== "admin") {
+          return res
+            .status(403)
+            .json({ message: "Only admins can update passwords." });
+        }
+
+        // ✅ Let the pre-save hook handle hashing
+        employee.password = updates.password;
         hasChanges = true;
-        existingUser[key] = newValue;
+        continue;
+      }
+
+      const newVal = updates[field];
+      const oldVal = employee[field];
+
+      const changed =
+        (newVal instanceof Date &&
+          oldVal instanceof Date &&
+          newVal.getTime() !== oldVal.getTime()) ||
+        (typeof newVal === "number" && Number(newVal) !== Number(oldVal)) ||
+        (typeof newVal === "string" &&
+          String(newVal || "") !== String(oldVal || "")) ||
+        (typeof newVal === "object" &&
+          JSON.stringify(newVal || {}) !== JSON.stringify(oldVal || {}));
+
+      if (changed) {
+        employee[field] = newVal;
+        hasChanges = true;
       }
     }
 
     if (!hasChanges) {
-      return res
-        .status(200)
-        .json({ message: "No changes detected. Nothing was updated." });
+      return res.status(400).json({ message: "No changes detected." });
     }
 
-    await existingUser.save();
-    return res.status(200).json({ message: "Employee updated successfully." });
+    await employee.save();
+
+    return res.status(200).json({
+      message: "Employee updated successfully.",
+      employee: {
+        id: employee._id,
+        username: employee.username,
+        employeeEmail: employee.employeeEmail,
+        role: employee.role,
+        employeeStatus: employee.employeeStatus,
+        employeeId: employee.employeeId,
+      },
+    });
   } catch (error) {
-    console.error("Update employee error:", error);
-    return res.status(500).json({ message: "Server error. Please try again." });
+    console.error("Update error:", error);
+    return res
+      .status(500)
+      .json({ message: "Server error while updating employee." });
   }
 };
-
-
 
 const deactiveSingle = async (req, res) => {
   const { id } = req.params;
