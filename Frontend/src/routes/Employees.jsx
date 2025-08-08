@@ -208,7 +208,6 @@ const Employees = () => {
   const handleSave = async () => {
     if (!selectedEmployee) return;
 
-    // Prepare updates object
     const updates = {
       username,
       firstname: firstName,
@@ -258,6 +257,7 @@ const Employees = () => {
       employmenttoDate: employmentTo,
     };
 
+    // Only add password and role if applicable
     if (password) updates.password = password;
     if (
       (currentUser?.role === "admin" || currentUser?.role === "hr") &&
@@ -266,9 +266,15 @@ const Employees = () => {
       updates.role = employeeRole;
     }
 
-    // 🔍 Compare updates with selectedEmployee
-    const hasChanges = Object.entries(updates).some(([key, newVal]) => {
+    // Compare only specified fields
+    const fieldsToCheck = Object.keys(updates).filter(
+      (field) => field !== "password" && field !== "role"
+    );
+
+    const hasChanges = fieldsToCheck.some((key) => {
+      const newVal = updates[key];
       const oldVal = selectedEmployee[key];
+
       if (typeof newVal === "number") return Number(oldVal) !== Number(newVal);
       if (typeof newVal === "string")
         return String(oldVal || "") !== String(newVal);
@@ -447,28 +453,7 @@ const Employees = () => {
 
     return `${year}-${month}-${day}`;
   };
-  //function for automatically calcualte age
 
-  /*   const calculateAge = (birthday) => {
-    if (!birthday) return 0;
-
-    const birthDate = new Date(birthday);
-    if (isNaN(birthDate)) return 0;
-
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-
-    if (
-      monthDiff < 0 ||
-      (monthDiff === 0 && today.getDate() < birthDate.getDate())
-    ) {
-      age--;
-    }
-
-    return age;
-  };
- */
   //clearing form when submit
   const clearForm = () => {
     setUsername("");
@@ -1139,7 +1124,7 @@ const Employees = () => {
                   width="100%"
                 >
                   <FormControl id="username" isRequired>
-                    <FormLabel>Username</FormLabel>
+                    <FormLabel>usernamename</FormLabel>
                     <Input
                       placeholder="username"
                       value={username}
@@ -1307,7 +1292,6 @@ const Employees = () => {
                       onChange={(e) => setAge(e.target.value)}
                       borderRadius="lg"
                       focusBorderColor="blue.400"
-                    
                       readOnly // This prevents manual editing
                     />
                   </FormControl>

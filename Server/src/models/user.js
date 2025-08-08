@@ -105,8 +105,8 @@ const UserSchema = new mongoose.Schema(
     employerName: { type: String },
     employeeAddress: { type: String },
     prevPosition: { type: String },
-    employmentfromDate: { type: String, match: /^\d{4}$/ },
-    employmenttoDate: { type: String, match: /^\d{4}$/ },
+    employmentfromDate: { type: Date, match: /^\d{4}$/ },
+    employmenttoDate: { type: Date, match: /^\d{4}$/ },
     // Added for authorization roles
     role: {
       type: String,
