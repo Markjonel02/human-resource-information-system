@@ -1,26 +1,24 @@
 import { useEffect, useState } from "react";
 import {
-  ChakraProvider,
   Box,
   SimpleGrid,
   Stat,
   StatLabel,
   StatNumber,
   StatHelpText,
-  StatArrow,
-  useColorModeValue,
   Flex,
   Heading,
   useBreakpointValue,
-  Text,
+  useColorModeValue,
   Icon,
+  Text,
 } from "@chakra-ui/react";
 import { FaUser, FaUserMinus, FaCalendarAlt, FaFileAlt } from "react-icons/fa";
 import { ResponsiveBar } from "@nivo/bar";
-import { employeeTrackerData } from "../lib/api"; // Your data source
+import { employeeTrackerData } from "../lib/api";
 import axiosInstance from "../lib/axiosInstance";
 
-const MetricCard = ({ title, value, percentageChange, type, icon }) => {
+const MetricCard = ({ title, value, icon }) => {
   const cardBg = useColorModeValue("white", "gray.700");
   const textColor = useColorModeValue("gray.800", "white");
   const helpTextColor = useColorModeValue("gray.600", "gray.300");
@@ -43,95 +41,25 @@ const MetricCard = ({ title, value, percentageChange, type, icon }) => {
             {value}
           </StatNumber>
         </Box>
-        {icon && (
-          <Icon
-            as={icon}
-            w={{ base: 10, md: 10 }}
-            h={7}
-            color="teal.500"
-            fontSize="xs"
-            ml={{ base: 1, md: 0 }}
-          />
-        )}
+        {icon && <Icon as={icon} w={10} h={7} color="teal.500" ml={1} />}
       </Flex>
-      <StatHelpText></StatHelpText>
+      <StatHelpText />
     </Stat>
   );
 };
 
 const EmployeeTracker = () => {
-  const chartBgColor = useColorModeValue("white", "gray.700");
-  const chartBorderColor = useColorModeValue("gray.200", "gray.700");
-  const chartTitleColor = useColorModeValue("gray.800", "white");
-  const [metrics, setMetrics] = useState({
-    current: {
-      newEmployees: 0,
-      inactiveEmployees: 0,
-      onLeave: 0,
-      total: 0,
-    },
-    previous: {
-      newEmployees: 0,
-      inactiveEmployees: 0,
-      onLeave: 0,
-      total: 0,
-    },
-  });
-
   const [loading, setLoading] = useState(false);
-  const [TotalAdmin, setTotalAdmin] = useState(0);
   const [allEmployee, setAllEmployee] = useState(0);
+  const [TotalAdmin, setTotalAdmin] = useState(0);
   const [employeeOnLeave, setEmployeeOnLeave] = useState(0);
   const [inactiveEmployee, setInactiveEmployee] = useState(0);
 
-  const fetchingEmployees = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem("accessToken");
-      const response = await axiosInstance.get("/employees", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const employees = response.data;
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-      const totalAdmin = employees.filter(
-        (emp) => emp.role === "admin" && emp.employeeStatus !== 0
-      ).length;
-      let onLeave = 0;
-      let inactive = 0;
-
-      employees.forEach((emp) => {
-        // Count only active admins (employeeStatus !== 0)
-
-        if (emp.onLeave === true) {
-          onLeave++;
-        }
-
-        if (emp.employeeStatus === 0) {
-          inactive++;
-        }
-      });
-
-      setTotalAdmin(totalAdmin);
-      setAllEmployee(employees.length - inactive);
-      setEmployeeOnLeave(onLeave);
-      setInactiveEmployee(inactive);
-    } catch (error) {
-      console.error("Error fetching employees:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchingEmployees();
-  }, []);
+  const chartBgColor = useColorModeValue("white", "gray.700");
+  const chartBorderColor = useColorModeValue("gray.200", "gray.700");
+  const chartTitleColor = useColorModeValue("gray.800", "white");
 
   const isMobile = useBreakpointValue({ base: true, md: false });
-  const axisBottomLabel = useBreakpointValue({
-    md: "Day",
-  });
 
   const shortLabels = {
     Monday: "M",
@@ -147,6 +75,42 @@ const EmployeeTracker = () => {
     ...item,
     day: isMobile ? shortLabels[item.day] || item.day : item.day,
   }));
+
+  const fetchEmployees = async () => {
+    setLoading(true);
+    try {
+      const response = await axiosInstance.get("/employees");
+      const employees = response.data;
+
+      const totalAdmin = employees.filter(
+        (emp) => emp.role === "admin" && emp.employeeStatus !== 0
+      ).length;
+
+      let onLeave = 0;
+      let inactive = 0;
+
+      employees.forEach((emp) => {
+        if (emp.onLeave) onLeave++;
+        if (emp.employeeStatus === 0) inactive++;
+      });
+
+      setTotalAdmin(totalAdmin);
+      setAllEmployee(employees.length - inactive);
+      setEmployeeOnLeave(onLeave);
+      setInactiveEmployee(inactive);
+    } catch (error) {
+      console.error(
+        "❌ Error fetching employees:",
+        error.response?.data || error.message
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
 
   return (
     <Box pt={4}>
@@ -169,7 +133,6 @@ const EmployeeTracker = () => {
         />
       </SimpleGrid>
 
-      {/* Rest of your component remains the same */}
       <Box
         height="350px"
         width="100%"
@@ -238,4 +201,5 @@ const EmployeeTracker = () => {
     </Box>
   );
 };
+
 export default EmployeeTracker;

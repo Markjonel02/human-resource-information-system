@@ -108,7 +108,9 @@ const formatDate = (dateString) => {
 
 // Main component
 const Employees = () => {
-  const { user: currentUser } = useAuth();
+  const { authState } = useAuth();
+  const currentUser = authState?.user;
+
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -259,12 +261,10 @@ const Employees = () => {
 
     // Only add password and role if applicable
     if (password) updates.password = password;
-    if (
-      (currentUser?.role === "admin" || currentUser?.role === "hr") &&
-      employeeRole
-    ) {
+    if (currentUser?.role === "admin" && employeeRole) {
       updates.role = employeeRole;
     }
+    console.log("Current User Role:", currentUser?.role);
 
     // Compare only specified fields
     const fieldsToCheck = Object.keys(updates).filter(
@@ -1124,7 +1124,7 @@ const Employees = () => {
                   width="100%"
                 >
                   <FormControl id="username" isRequired>
-                    <FormLabel>usernamename</FormLabel>
+                    <FormLabel>username</FormLabel>
                     <Input
                       placeholder="username"
                       value={username}
@@ -1509,7 +1509,8 @@ const Employees = () => {
                       onChange={(e) => setEmployeeRole(e.target.value)}
                       borderRadius="lg"
                       focusBorderColor="blue.400"
-                      isDisabled={currentUser?.role !== "admin"} // Only admins can change roles
+                      isDisabled={currentUser?.role !== "admin"}
+                      // Only admins can change roles
                     >
                       <option value="employee">Employee</option>
                       <option value="hr">HR Staff</option>

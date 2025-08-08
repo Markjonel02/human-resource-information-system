@@ -1,5 +1,6 @@
 const user = require("../../models/user");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 // @desc Create a new employee (admin only)
 // @route POST /employees
 // @access Private (Admin)
@@ -276,26 +277,37 @@ const getEmployeeById = async (req, res) => {
 const updateEmployee = async (req, res) => {
   const { id } = req.params;
   const updates = req.body;
-  // Ensure date strings are converted to Date objects
-  if (updates.employmentfromDate) {
-    updates.employmentfromDate = new Date(updates.employmentfromDate);
-  }
-  if (updates.employmenttoDate) {
-    updates.employmenttoDate = new Date(updates.employmenttoDate);
-  }
-  if (updates.dependentbirthDate) {
-    updates.dependentbirthDate = new Date(updates.dependentbirthDate);
-  }
-  if (updates.birthday) {
-    updates.birthday = new Date(updates.birthday);
-  }
 
-  // 1. Authorization check
+  // Authorization check
   if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res
       .status(403)
       .json({ message: "Unauthorized: insufficient permissions." });
   }
+
+  // Date validation helper
+  const parseDateSafely = (dateString) => {
+    const parsed = new Date(dateString);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const dateFields = [
+    "employmentfromDate",
+    "employmenttoDate",
+    "dependentbirthDate",
+    "birthday",
+  ];
+  dateFields.forEach((field) => {
+    if (updates[field]) {
+      const parsedDate = parseDateSafely(updates[field]);
+      if (!parsedDate) {
+        return res
+          .status(400)
+          .json({ message: `Invalid date format for ${field}` });
+      }
+      updates[field] = parsedDate;
+    }
+  });
 
   try {
     const employee = await user.findById(id);
@@ -303,30 +315,27 @@ const updateEmployee = async (req, res) => {
       return res.status(404).json({ message: "Employee not found." });
     }
 
-    const beforeUpdate = employee.toObject();
-
-    // 2. If changing status from active to inactive AND user is admin, check if they're the last active admin
+    // Prevent deactivating last active admin
     if (
       updates.employeeStatus === 0 &&
       employee.role === "admin" &&
-      employee.employeeStatus === 1 // was previously active
+      employee.employeeStatus === 1
     ) {
-      const otherActiveAdmins = await user.countDocuments({
+      const activeAdmins = await user.countDocuments({
+        _id: { $ne: employee._id },
         role: "admin",
         employeeStatus: 1,
-        _id: { $ne: employee._id },
       });
 
-      if (otherActiveAdmins < 1) {
-        return res.status(400).json({
-          message: "Cannot deactivate. At least one active admin must remain.",
-        });
+      if (activeAdmins < 1) {
+        return res
+          .status(400)
+          .json({ message: "At least one active admin must remain." });
       }
     }
 
-    // 3. Apply updates to allowed fields only
+    // Allow only these fields to be updated
     const allowedFields = [
-      // Basic Info
       "firstname",
       "lastname",
       "username",
@@ -338,18 +347,14 @@ const updateEmployee = async (req, res) => {
       "civilStatus",
       "religion",
       "age",
-
-      // Contact Info
       "presentAddress",
       "province",
       "town",
       "city",
       "mobileNumber",
       "employeeEmail",
-
-      // Company Details
       "companyName",
-      "employeeId", // Usually not updated, but included if needed
+      "employeeId",
       "jobposition",
       "corporaterank",
       "jobStatus",
@@ -357,86 +362,87 @@ const updateEmployee = async (req, res) => {
       "businessUnit",
       "department",
       "head",
-      "employeeStatus", // Should be checked before updating (already handled in your logic)
-      "role", // Ensure this is only settable by admins
-
-      // Financial Info
+      "employeeStatus",
+      "role",
       "salaryRate",
       "bankAccountNumber",
       "tinNumber",
       "sssNumber",
       "philhealthNumber",
-
-      // Educational Background
       "schoolName",
       "degree",
       "educationalAttainment",
       "educationFromYear",
       "educationToYear",
       "achievements",
-
-      // Dependents
       "dependantsName",
       "dependentsRelation",
       "dependentbirthDate",
-
-      // Previous Employment
       "employerName",
       "employeeAddress",
       "prevPosition",
       "employmentfromDate",
       "employmenttoDate",
-
-      // add other allowed fields here
-    ];
-    const parseDateSafely = (dateString) => {
-      const isoDate = new Date(dateString);
-      return isNaN(isoDate.getTime()) ? null : isoDate;
-    };
-
-    const dateFields = [
-      "employmentfromDate",
-      "employmenttoDate",
-      "dependentbirthDate",
-      "birthday",
+      "password",
     ];
 
-    dateFields.forEach((field) => {
-      if (updates[field]) {
-        const parsedDate = parseDateSafely(updates[field]);
-        if (!parsedDate) {
-          return res.status(400).json({ message: `Invalid date for ${field}` });
-        }
-        updates[field] = parsedDate;
-      }
-    });
     let hasChanges = false;
 
-    allowedFields.forEach((field) => {
-      if (updates.hasOwnProperty(field)) {
-        const newVal = updates[field];
-        const oldVal = employee[field];
+    for (const field of allowedFields) {
+      if (!(field in updates)) continue;
 
-        if (
-          (typeof newVal === "number" && Number(newVal) !== Number(oldVal)) ||
-          (typeof newVal === "string" &&
-            String(newVal || "") !== String(oldVal || "")) ||
-          (newVal instanceof Date &&
-            new Date(newVal).getTime() !== new Date(oldVal).getTime()) ||
-          (typeof newVal === "object" &&
-            JSON.stringify(newVal || {}) !== JSON.stringify(oldVal || {}))
-        ) {
-          employee[field] = newVal;
+      // Role change must be admin-only
+      if (field === "role" && req.user.role !== "admin") {
+        return res
+          .status(403)
+          .json({ message: "Only admins can update roles." });
+      }
+
+      // Handle password separately
+      if (field === "password") {
+        if (req.user.role !== "admin") {
+          return res
+            .status(403)
+            .json({ message: "Only admins can update passwords." });
+        }
+
+        const isSame = await bcrypt.compare(
+          updates.password,
+          employee.password
+        );
+
+        if (!isSame) {
+          const salt = await bcrypt.genSalt(10);
+          const hashedPassword = await bcrypt.hash(updates.password, salt);
+          employee.password = hashedPassword;
           hasChanges = true;
         }
+
+        continue; // Prevent raw assignment below
       }
-    });
+
+      // Normal field comparison
+      const newVal = updates[field];
+      const oldVal = employee[field];
+
+      const changed =
+        (newVal instanceof Date &&
+          oldVal instanceof Date &&
+          newVal.getTime() !== oldVal.getTime()) ||
+        (typeof newVal === "number" && Number(newVal) !== Number(oldVal)) ||
+        (typeof newVal === "string" &&
+          String(newVal || "") !== String(oldVal || "")) ||
+        (typeof newVal === "object" &&
+          JSON.stringify(newVal || {}) !== JSON.stringify(oldVal || {}));
+
+      if (changed) {
+        employee[field] = newVal;
+        hasChanges = true;
+      }
+    }
 
     if (!hasChanges) {
       return res.status(400).json({ message: "No changes detected." });
-    }
-    if (updates.role && req.user.role !== "admin") {
-      return res.status(403).json({ message: "Only admins can update roles." });
     }
 
     await employee.save();
