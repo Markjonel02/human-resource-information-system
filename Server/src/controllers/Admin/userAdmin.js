@@ -5,10 +5,10 @@ const bcrypt = require("bcryptjs");
 // @route POST /employees
 // @access Private (Admin)
 const createEmployee = async (req, res) => {
-  // 1. Authorization Check: Ensure only administrators can create employees.
+  // 1. Authorization Check: Ensure only administrators and HR can create employees.
   if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res.status(403).json({
-      message: "Forbidden: Only administrators can create employees.",
+      message: "Forbidden: Only administrators and HR can create employees.",
     });
   }
 
@@ -16,8 +16,18 @@ const createEmployee = async (req, res) => {
   //    employeeId is removed from here as it will be auto-generated.
   const { username, employeeEmail, password, role, ...otherFields } = req.body;
 
+  // 3. Role-based restrictions: HR users cannot create admin or hr_manager roles
+  if (req.user.role === "hr") {
+    const restrictedRoles = ["admin", "hr_manager"];
+    if (role && restrictedRoles.includes(role.toLowerCase())) {
+      return res.status(403).json({
+        message: "Forbidden: HR users can only create employee and hr roles.",
+      });
+    }
+  }
+
   try {
-    // 3. Centralized Duplicate Check Function:
+    // 4. Centralized Duplicate Check Function:
     //    This function checks for existing username or employeeEmail.
     const checkDuplicate = async (field, value, message) => {
       const query = {};
@@ -29,7 +39,7 @@ const createEmployee = async (req, res) => {
       return null; // No duplicate found
     };
 
-    // 4. Perform Duplicate Checks for username and employeeEmail:
+    // 5. Perform Duplicate Checks for username and employeeEmail:
     let response = await checkDuplicate(
       "username",
       username,
@@ -44,7 +54,7 @@ const createEmployee = async (req, res) => {
     );
     if (response) return response;
 
-    // 5. Auto-generate employeeId: EMP0001, EMP0002, etc.
+    // 6. Auto-generate employeeId: EMP0001, EMP0002, etc.
     let newEmployeeId;
     const lastEmployee = await user
       .findOne({ employeeId: /^EMP/ }) // Find documents where employeeId starts with 'EMP'
@@ -64,17 +74,27 @@ const createEmployee = async (req, res) => {
       newEmployeeId = "EMP0001";
     }
 
-    // 6. Create New Employee:
+    // 7. Set default role based on user permissions
+    let assignedRole;
+    if (req.user.role === "hr") {
+      // HR users can only assign 'employee' or 'hr' roles, default to 'employee'
+      assignedRole = role && role.toLowerCase() === "hr" ? "hr" : "employee";
+    } else {
+      // Admin users can assign any role, default to 'employee'
+      assignedRole = role || "employee";
+    }
+
+    // 8. Create New Employee:
     const newEmployee = new user({
       username,
       employeeEmail,
       password, // Password will be hashed by the pre-save hook
-      role: role || "employee", // Admin can specify role, default to 'employee'
+      role: assignedRole,
       employeeId: newEmployeeId, // Assign the auto-generated ID
       ...otherFields, // Include any other fields from the request body
     });
 
-    // 7. Save Employee and Respond:
+    // 9. Save Employee and Respond:
     await newEmployee.save(); // This will trigger the pre-save hook for password hashing
 
     res.status(201).json({
@@ -88,7 +108,7 @@ const createEmployee = async (req, res) => {
       },
     });
   } catch (error) {
-    // 8. Error Handling: Differentiate between validation errors and other server errors.
+    // 10. Error Handling: Differentiate between validation errors and other server errors.
     console.error("Error creating employee:", error); // More specific error logging
 
     if (error.name === "ValidationError") {
@@ -97,122 +117,6 @@ const createEmployee = async (req, res) => {
     res.status(500).json({ message: "Server error during employee creation." });
   }
 };
-
-// Assuming 'User' is your Mongoose User model, and 'generateTokens' and 'setRefreshTokenCookie' are defined elsewhere.
-
-const createAdmin = async (req, res) => {
-  // 1. Authorization Check: Ensure only administrators can create other administrators.
-  if (req.user.role !== "admin") {
-    return res.status(403).json({
-      message:
-        "Forbidden: Only administrators can create other administrators.",
-    });
-  }
-
-  // 2. Destructure Request Body: employeeId is removed as it will be auto-generated.
-  //    Ensure only expected fields are destructured to prevent unexpected data insertion.
-  const { username, employeeEmail, password, ...otherFields } = req.body;
-
-  try {
-    // Helper function to check for duplicates and throw a custom error if found.
-    // This allows the main try-catch block to handle all error responses.
-    const checkDuplicate = async (field, value, message) => {
-      const query = {};
-      query[field] = value;
-      const existingUser = await user.findOne(query).lean().exec();
-      if (existingUser) {
-        // Create a custom error with a status code property
-        const error = new Error(message);
-        error.statusCode = 409; // Conflict status code
-        throw error;
-      }
-    };
-
-    // 3. Perform Duplicate Checks for username and employeeEmail:
-    await checkDuplicate(
-      "username",
-      username,
-      "Username already exists! Please choose a different username."
-    );
-
-    await checkDuplicate(
-      "employeeEmail",
-      employeeEmail,
-      "Employee email already exists! Please use a different email address."
-    );
-
-    // 4. Auto-generate employeeId: EMP0001, EMP0002, etc.
-    let newEmployeeId;
-    // Find the last employee with an ID starting with 'EMP' to determine the next sequential ID.
-    const lastEmployee = await user
-      .findOne({ employeeId: /^EMP/ })
-      .sort({ employeeId: -1 }) // Sort in descending order to get the highest numeric ID
-      .limit(1) // Get only one document
-      .lean()
-      .exec();
-
-    if (lastEmployee && lastEmployee.employeeId) {
-      // Extract the numeric part (e.g., '0012' from 'EMP0012')
-      const lastIdNum = parseInt(lastEmployee.employeeId.substring(3), 10);
-      // Increment the number and format it back with leading zeros (e.g., 12 -> 13 -> '0013')
-      const nextIdNum = String(lastIdNum + 1).padStart(4, "0");
-      newEmployeeId = `EMP${nextIdNum}`;
-    } else {
-      // If no existing employee IDs found, start from EMP0001
-      newEmployeeId = "EMP0001";
-    }
-
-    // 5. Create new Admin user instance.
-    const newUser = new user({
-      username,
-      employeeEmail,
-      password, // Password will be hashed by a pre-save Mongoose middleware (assumed to be in place)
-      role: "admin", // Explicitly set the role to 'admin'
-      employeeId: newEmployeeId, // Assign the auto-generated ID
-      ...otherFields, // Include any other fields passed in the request body
-    });
-
-    // Save the new user to the database.
-    await newUser.save();
-
-    // 6. Generate authentication tokens and set the refresh token cookie.
-    // These functions are assumed to be defined and handle token creation and cookie setting.
-    const { accessToken, refreshToken } = generateTokens(newUser);
-    setRefreshTokenCookie(res, refreshToken);
-
-    // 7. Send a successful response with the new admin's details and access token.
-    return res.status(201).json({
-      message: "Admin registered successfully",
-      accessToken,
-      user: {
-        id: newUser._id,
-        username: newUser.username,
-        employeeEmail: newUser.employeeEmail,
-        role: newUser.role,
-        employeeId: newUser.employeeId, // Return the newly generated ID
-      },
-    });
-  } catch (error) {
-    // Centralized error handling for all potential errors during the process.
-    console.error("Admin registration error:", error); // Log the full error for debugging
-    console.log("Error details:", error.message); // Log specific error message
-
-    // Handle custom errors (like duplicates) with their specific status codes.
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({ message: error.message });
-    }
-    // Handle Mongoose validation errors.
-    if (error.name === "ValidationError") {
-      return res.status(400).json({ message: error.message }); // 400 Bad Request for validation errors
-    }
-    // Handle any other unexpected server errors.
-    return res.status(500).json({
-      message:
-        "Server error during admin registration. Please try again later.",
-    });
-  }
-};
-
 // @desc Get all employees (admin/manager only)
 // @route GET /employees
 // @access Private (Admin, Manager)
@@ -584,6 +488,7 @@ const updateEmployee = async (req, res) => {
       "tinNumber",
       "sssNumber",
       "philhealthNumber",
+      "pagibigNumber",
       "schoolName",
       "degree",
       "educationalAttainment",
@@ -806,7 +711,7 @@ module.exports = {
   getAllEmployees,
   getEmployeeById,
   updateEmployee,
-  createAdmin,
+
   deactiveSingle,
   deactivateBulk,
 };

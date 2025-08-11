@@ -16,6 +16,7 @@ import {
   Input,
   FormControl,
   FormLabel,
+  FormHelperText, // Add this import
   VStack,
   useToast,
   Select,
@@ -23,9 +24,36 @@ import {
 } from "@chakra-ui/react";
 import { PlusCircle } from "lucide-react";
 import axiosInstance from "../lib/axiosInstance"; // Assuming axiosInstance is configured correctly
+import { useAuth } from "../context/AuthContext";
 
 const AddEmployeeButton = ({ onEmployeeAdded }) => {
-  // Added prop for callback
+  // Move useAuth hook to component level
+  const { authState } = useAuth();
+  const currentUser = authState?.user;
+
+  // Define available roles based on current user's role
+  const getAvailableRoles = () => {
+    if (currentUser?.role === "admin") {
+      // Admin can create all roles
+      return [
+        { value: "admin", label: "Admin" },
+        { value: "hr_manager", label: "HR Manager" },
+        { value: "hr", label: "HR Staff" },
+        { value: "employee", label: "Employee" },
+      ];
+    } else if (currentUser?.role === "hr") {
+      // HR can only create employee and hr roles
+      return [
+        { value: "hr", label: "HR Staff" },
+        { value: "employee", label: "Employee" },
+      ];
+    }
+
+    // Default fallback
+    return [{ value: "employee", label: "Employee" }];
+  };
+
+  const availableRoles = getAvailableRoles();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
@@ -156,7 +184,11 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
       username,
       password,
       employeeEmail: email, // Map frontend 'email' to backend 'employeeEmail'
-      // FIXED: Use correct field names that match backend schema
+
+      // IMPORTANT: Map employeeRole to 'role' to match backend expectation
+      role: employeeRole, // Backend expects 'role', not 'employeeRole'
+
+      // Personal Information - Use correct field names that match backend schema
       firstname: firstName, // Changed from firstName to firstname
       lastname: lastName, // Changed from lastName to lastname
       middleInitial,
@@ -168,14 +200,18 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
       civilStatus: civilStatus.toLowerCase(), // Convert to lowercase to match backend enum
       religion: religion.toLowerCase(), // Convert to lowercase to match backend enum
       age: Number(age), // Ensure age is a number
+
+      // Address Information
       presentAddress,
       city,
       town,
       province,
       mobileNumber,
+
+      // Employment Information
       companyName,
       jobposition: jobPosition, // Match backend field name
-      corporaterank: corporateRank.toLowerCase() /* .replace(/\s+/g, "-") */,
+      corporaterank: corporateRank.toLowerCase(),
       jobStatus,
       location,
       businessUnit,
@@ -183,15 +219,15 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
       head,
       employeeStatus: isEmployeeActive, // Send as boolean
       salaryRate: Number(salaryRate), // Ensure salaryRate is a number
+
+      // Government IDs
       bankAccountNumber,
       tinNumber,
       sssNumber,
       philhealthNumber,
       pagibigNumber,
-      employeeRole, // This should match the backend's role field
 
-      // FIXED: Convert arrays to strings or handle according to backend schema
-      // If backend expects string, stringify the objects; if it expects array, ensure schema matches
+      // Complex data structures - Convert to JSON strings or objects based on backend schema
       educationalBackground: JSON.stringify({
         schoolName,
         achievements,
@@ -234,9 +270,12 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
 
       console.log("Employee creation successful:", response.data);
 
+      // Success handling
       toast({
         title: "Employee Added!",
-        description: `Employee ${firstName} ${lastName} has been added successfully.`,
+        description: `Employee ${firstName} ${lastName} has been added successfully. Employee ID: ${
+          response.data.employee?.employeeId || "Generated"
+        }`,
         status: "success",
         duration: 3000,
         isClosable: true,
@@ -257,11 +296,21 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
       );
 
       let errorMessage = "Failed to add employee. Please try again.";
-      if (
-        error.response &&
-        error.response.data &&
-        error.response.data.message
-      ) {
+
+      // Enhanced error handling for specific backend responses
+      if (error.response?.status === 403) {
+        errorMessage =
+          error.response.data.message ||
+          "Access denied. You don't have permission to create this type of employee.";
+      } else if (error.response?.status === 409) {
+        errorMessage =
+          error.response.data.message ||
+          "Employee with this username or email already exists.";
+      } else if (error.response?.status === 400) {
+        errorMessage =
+          error.response.data.message ||
+          "Invalid data provided. Please check all required fields.";
+      } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
         errorMessage = error.message;
@@ -756,11 +805,26 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
                     borderRadius="lg"
                     focusBorderColor="blue.400"
                   >
-                    <option value="admin">Admin</option>
-                    <option value="hr_manager">Manager</option>
-                    <option value="hr">HR Staff</option>
-                    <option value="employee">Employee</option>
+                    {availableRoles.map((role) => (
+                      <option key={role.value} value={role.value}>
+                        {role.label}
+                      </option>
+                    ))}
                   </Select>
+
+                  {/* Optional: Display a helper text based on user role */}
+                  {currentUser?.role === "hr" && (
+                    <FormHelperText color="gray.500" fontSize="sm" mt={2}>
+                      As an HR user, you can only create Employee and HR Staff
+                      roles.
+                    </FormHelperText>
+                  )}
+
+                  {currentUser?.role === "admin" && (
+                    <FormHelperText color="gray.500" fontSize="sm" mt={2}>
+                      As an Admin, you can create any role type.
+                    </FormHelperText>
+                  )}
                 </FormControl>
               </SimpleGrid>
             </VStack>
