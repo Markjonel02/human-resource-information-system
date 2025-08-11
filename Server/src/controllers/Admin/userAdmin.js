@@ -538,7 +538,7 @@ const updateEmployee = async (req, res) => {
         continue;
       }
 
-      // Salary rate update restrictions
+      // Salary rate update restrictions - ONLY CHECK WHEN SALARY RATE IS BEING UPDATED
       if (field === "salaryRate") {
         // Only admins and HR can modify salary rates
         if (req.user.role !== "admin" && req.user.role !== "hr") {
@@ -550,9 +550,16 @@ const updateEmployee = async (req, res) => {
         // HR users cannot modify their own salary rate
         if (req.user.role === "hr" && req.user.id === id) {
           console.log("HR users cannot modify their own salary rate.");
-          /*  return res.status(403).json({
+          return res.status(403).json({
             message: "HR users cannot modify their own salary rate.",
-          }); */
+          });
+        }
+
+        // NEW RESTRICTION: HR users cannot modify admin salary rates
+        if (req.user.role === "hr" && employee.role === "admin") {
+          return res.status(403).json({
+            message: "HR users cannot modify admin salary rates.",
+          });
         }
 
         // Check if salary rate is zero or negative only if it's actually changing
@@ -579,14 +586,45 @@ const updateEmployee = async (req, res) => {
         (typeof newVal === "object" &&
           JSON.stringify(newVal || {}) !== JSON.stringify(oldVal || {}));
 
+      // Debug logging for change detection
+      console.log(`Field: ${field}`);
+      console.log(`  Old value: ${oldVal} (type: ${typeof oldVal})`);
+      console.log(`  New value: ${newVal} (type: ${typeof newVal})`);
+      console.log(`  Changed: ${changed}`);
+
       if (changed) {
         employee[field] = newVal;
         hasChanges = true;
+        console.log(`  ✅ Field ${field} marked for update`);
+      } else {
+        console.log(`  ❌ Field ${field} unchanged`);
       }
     }
 
     if (!hasChanges) {
-      return res.status(400).json({ message: "No changes detected." });
+      // Enhanced error message for debugging
+      const providedFields = Object.keys(updates).filter((key) =>
+        allowedFields.includes(key)
+      );
+      const currentValues = {};
+      const providedValues = {};
+
+      // Compare current vs provided values for debugging
+      providedFields.forEach((field) => {
+        currentValues[field] = employee[field];
+        providedValues[field] = updates[field];
+      });
+
+      return res.status(400).json({
+        message:
+          "No changes detected. All provided values match current database values.",
+        debug: {
+          fieldsProvided: providedFields,
+          currentValues: currentValues,
+          providedValues: providedValues,
+          totalFieldsChecked: providedFields.length,
+        },
+      });
     }
 
     await employee.save();
@@ -711,7 +749,6 @@ module.exports = {
   getAllEmployees,
   getEmployeeById,
   updateEmployee,
-
   deactiveSingle,
   deactivateBulk,
 };

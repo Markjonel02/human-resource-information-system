@@ -16,24 +16,23 @@ import {
   Input,
   FormControl,
   FormLabel,
-  FormHelperText, // Add this import
   VStack,
   useToast,
   Select,
   SimpleGrid,
+  FormHelperText,
 } from "@chakra-ui/react";
 import { PlusCircle } from "lucide-react";
 import axiosInstance from "../lib/axiosInstance"; // Assuming axiosInstance is configured correctly
 import { useAuth } from "../context/AuthContext";
+// Define available roles based on current user's role
 
 const AddEmployeeButton = ({ onEmployeeAdded }) => {
-  // Move useAuth hook to component level
   const { authState } = useAuth();
-  const currentUser = authState?.user;
+  const currentUserRoles = authState?.user?.role; // ✅ Get role directly
 
-  // Define available roles based on current user's role
   const getAvailableRoles = () => {
-    if (currentUser?.role === "admin") {
+    if (currentUserRoles === "admin") {
       // Admin can create all roles
       return [
         { value: "admin", label: "Admin" },
@@ -41,7 +40,7 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
         { value: "hr", label: "HR Staff" },
         { value: "employee", label: "Employee" },
       ];
-    } else if (currentUser?.role === "hr") {
+    } else if (currentUserRoles === "hr") {
       // HR can only create employee and hr roles
       return [
         { value: "hr", label: "HR Staff" },
@@ -52,7 +51,7 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
     // Default fallback
     return [{ value: "employee", label: "Employee" }];
   };
-
+  // Added prop for callback
   const availableRoles = getAvailableRoles();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
@@ -813,14 +812,14 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
                   </Select>
 
                   {/* Optional: Display a helper text based on user role */}
-                  {currentUser?.role === "hr" && (
+                  {currentUserRoles?.role === "hr" && (
                     <FormHelperText color="gray.500" fontSize="sm" mt={2}>
                       As an HR user, you can only create Employee and HR Staff
                       roles.
                     </FormHelperText>
                   )}
 
-                  {currentUser?.role === "admin" && (
+                  {currentUserRoles?.role === "admin" && (
                     <FormHelperText color="gray.500" fontSize="sm" mt={2}>
                       As an Admin, you can create any role type.
                     </FormHelperText>

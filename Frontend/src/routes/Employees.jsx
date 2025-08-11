@@ -258,11 +258,16 @@ const Employees = () => {
       employmenttoDate: employmentTo,
     };
 
-    // Handle salaryRate based on user permissions
+    // Handle salaryRate based on user permissions - ONLY ADD IF USER CAN UPDATE IT
     if (currentUser?.role === "admin") {
-      // Validate salary rate only if it's being changed
-      if (Number(salaryRate) !== Number(selectedEmployee.salaryRate || 0)) {
-        if (Number(salaryRate) <= 0) {
+      // Admins can update anyone's salary rate (including their own)
+      // Only validate if the salary rate is actually changing
+      const currentSalaryRate = Number(selectedEmployee.salaryRate || 0);
+      const newSalaryRate = Number(salaryRate || 0);
+
+      // Only include salaryRate if it's actually changing
+      if (newSalaryRate !== currentSalaryRate) {
+        if (newSalaryRate <= 0) {
           toast({
             title: "Invalid salary rate",
             description: "Salary rate must be greater than zero.",
@@ -273,15 +278,20 @@ const Employees = () => {
           });
           return;
         }
+        updates.salaryRate = newSalaryRate;
       }
-      // Admins can update anyone's salary rate (including their own)
-      updates.salaryRate = Number(salaryRate);
     } else if (currentUser?.role === "hr") {
-      // HR can update other employees' salary rates but not their own
-      if (selectedEmployee.id !== currentUser.id) {
-        // Validate salary rate only if it's being changed
-        if (Number(salaryRate) !== Number(selectedEmployee.salaryRate || 0)) {
-          if (Number(salaryRate) <= 0) {
+      // HR can update other employees' salary rates but not their own or admins'
+      if (
+        selectedEmployee.id !== currentUser.id &&
+        selectedEmployee.role !== "admin"
+      ) {
+        const currentSalaryRate = Number(selectedEmployee.salaryRate || 0);
+        const newSalaryRate = Number(salaryRate || 0);
+
+        // Only include salaryRate if it's actually changing
+        if (newSalaryRate !== currentSalaryRate) {
+          if (newSalaryRate <= 0) {
             toast({
               title: "Invalid salary rate",
               description: "Salary rate must be greater than zero.",
@@ -292,11 +302,12 @@ const Employees = () => {
             });
             return;
           }
+          updates.salaryRate = newSalaryRate;
         }
-        updates.salaryRate = Number(salaryRate);
       }
+      // If HR is trying to update their own salary or an admin's salary, don't include it at all
     }
-    // Regular employees cannot modify salary rates at all
+    // Regular employees cannot modify salary rates at all - don't include salaryRate in updates
 
     // Only add password if provided and user has permission
     if (password && password.trim()) {
@@ -373,13 +384,10 @@ const Employees = () => {
       employeeRole &&
       employeeRole !== selectedEmployee.role;
 
-    // Check for salary changes
+    // Check for salary changes - only if salaryRate was actually included in updates
     const hasSalaryChange =
-      (currentUser?.role === "admin" &&
-        Number(salaryRate) !== Number(selectedEmployee.salaryRate || 0)) ||
-      (currentUser?.role === "hr" &&
-        selectedEmployee.id !== currentUser.id &&
-        Number(salaryRate) !== Number(selectedEmployee.salaryRate || 0));
+      updates.hasOwnProperty("salaryRate") &&
+      Number(updates.salaryRate) !== Number(selectedEmployee.salaryRate || 0);
 
     const hasAnyChanges =
       hasBasicChanges || hasPasswordChange || hasRoleChange || hasSalaryChange;
@@ -396,38 +404,49 @@ const Employees = () => {
       return;
     }
 
-    // Show specific warnings for restricted actions
-    if (
-      currentUser?.role !== "admin" &&
-      currentUser?.role !== "hr" &&
-      Number(salaryRate) !== Number(selectedEmployee.salaryRate || 0)
-    ) {
-      toast({
-        title: "Permission denied",
-        description: "Only admins and HR can modify salary rates.",
-        status: "warning",
-        duration: 4000,
-        isClosable: true,
-        position: "top",
-      });
-      return;
-    }
+    // Early validation checks - only check if we're actually sending salary rate
+    if (updates.hasOwnProperty("salaryRate")) {
+      // Show specific warnings for restricted actions
+      if (currentUser?.role !== "admin" && currentUser?.role !== "hr") {
+        toast({
+          title: "Permission denied",
+          description: "Only admins and HR can modify salary rates.",
+          status: "warning",
+          duration: 4000,
+          isClosable: true,
+          position: "top",
+        });
+        return;
+      }
 
-    // HR users cannot modify their own salary rate (only show if they're actually trying to change it)
-    if (
-      currentUser?.role === "hr" &&
-      selectedEmployee.id === currentUser.id &&
-      Number(salaryRate) !== Number(selectedEmployee.salaryRate || 0)
-    ) {
-      toast({
-        title: "Permission denied",
-        description: "HR users cannot modify their own salary rate.",
-        status: "warning",
-        duration: 4000,
-        isClosable: true,
-        position: "top",
-      });
-   
+      // HR users cannot modify their own salary rate
+      if (
+        currentUser?.role === "hr" &&
+        selectedEmployee.id === currentUser.id
+      ) {
+        toast({
+          title: "Permission denied",
+          description: "HR users cannot modify their own salary rate.",
+          status: "warning",
+          duration: 4000,
+          isClosable: true,
+          position: "top",
+        });
+        return;
+      }
+
+      // HR users cannot modify admin salary rates
+      if (currentUser?.role === "hr" && selectedEmployee.role === "admin") {
+        toast({
+          title: "Permission denied",
+          description: "HR users cannot modify admin salary rates.",
+          status: "warning",
+          duration: 4000,
+          isClosable: true,
+          position: "top",
+        });
+        return;
+      }
     }
 
     try {
@@ -1672,8 +1691,22 @@ const Employees = () => {
                       onChange={(e) => setSalaryRate(e.target.value)}
                       borderRadius="lg"
                       focusBorderColor="blue.400"
-                      isDisabled={currentUser?.role !== "admin"}
+                      isDisabled={
+                        (currentUser?.role === "hr" &&
+                          selectedEmployee?.id === currentUser?.id) ||
+                        (currentUser?.role === "hr" &&
+                          selectedEmployee?.role === "admin") ||
+                        (currentUser?.role !== "admin" &&
+                          currentUser?.role !== "hr")
+                      }
                     />
+                    {/* Add helper text to explain why it's disabled */}
+                    {currentUser?.role === "hr" &&
+                      selectedEmployee?.id === currentUser?.id && (
+                        <Text fontSize="sm" color="gray.500" mt={1}>
+                          HR users cannot modify their own salary rate
+                        </Text>
+                      )}
                   </FormControl>
                   <FormControl id="bank-account-number" isRequired>
                     <FormLabel>Bank Account Number</FormLabel>
