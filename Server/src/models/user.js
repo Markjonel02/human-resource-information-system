@@ -95,6 +95,7 @@ const UserSchema = new mongoose.Schema(
     tinNumber: { type: String, required: true },
     sssNumber: { type: String, required: true },
     philhealthNumber: { type: String, required: true },
+    pagibigNumber: { type: String, required: true },
 
     schoolName: { type: String },
     degree: { type: String },
