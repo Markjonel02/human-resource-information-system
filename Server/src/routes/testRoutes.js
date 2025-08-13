@@ -24,4 +24,10 @@ router.put(
   authorizeRoles("admin", "hr"),
   testAttendance.updateAttendance
 );
+
+router.delete(
+  "/delete-attendance/:id",
+  authorizeRoles("admin", "hr"),
+  testAttendance.deleteAttendance
+);
 module.exports = router;
