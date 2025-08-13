@@ -13,4 +13,15 @@ router.post(
   authorizeRoles("admin", "hr"),
   testAttendance.addAttendance
 );
+
+router.get(
+  "/get-attendance",
+  authorizeRoles("admin", "hr"),
+  testAttendance.getAttendance
+);
+router.put(
+  "/update-attendance/:id",
+  authorizeRoles("admin", "hr"),
+  testAttendance.updateAttendance
+);
 module.exports = router;

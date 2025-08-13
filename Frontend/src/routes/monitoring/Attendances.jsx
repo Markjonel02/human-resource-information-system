@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Flex,
@@ -22,22 +22,22 @@ import {
   HStack,
   VStack,
   Select,
-  SimpleGrid, // For grid layout of summary cards
+  SimpleGrid,
   Stat,
   StatLabel,
-  StatNumber, // For summary statistics
+  StatNumber,
   Drawer,
   DrawerOverlay,
   DrawerContent,
   DrawerHeader,
   DrawerBody,
   DrawerCloseButton,
-  useDisclosure, // For modal control
+  useDisclosure,
   Avatar,
   Divider,
-  Icon, // For custom icons
-  Button, // For export CSV
-  Modal, // For edit record modal
+  Icon,
+  Button,
+  Modal,
   ModalOverlay,
   ModalContent,
   ModalHeader,
@@ -46,19 +46,19 @@ import {
   FormControl,
   ModalCloseButton,
   FormLabel,
+  Alert,
+  AlertIcon,
+  Spinner,
+  useToast,
 } from "@chakra-ui/react";
 import {
   SearchIcon,
   ChevronDownIcon,
   CalendarIcon,
   TimeIcon,
-  InfoOutlineIcon, // For general info
-  DownloadIcon, // For export CSV
-  SettingsIcon, // For actions menu
-  CheckCircleIcon, // For active status
-  WarningIcon, // For late status
-  CloseIcon, // For inactive/absent status
-  MinusIcon, // For general placeholder
+  InfoOutlineIcon,
+  DownloadIcon,
+  SettingsIcon,
 } from "@chakra-ui/icons";
 import {
   FaUserTie,
@@ -66,9 +66,10 @@ import {
   FaClock,
   FaClipboardList,
   FaFileAlt,
-} from "react-icons/fa"; // For employment icons
+} from "react-icons/fa";
+import axiosInstance from "../../lib/axiosInstance";
 
-// Helper function to parse time (e.g., "08:55 AM") into minutes from midnight
+// Helper function to parse time
 const parseTimeToMinutes = (timeStr) => {
   if (!timeStr || timeStr === "-") return null;
   const [time, period] = timeStr.split(" ");
@@ -76,293 +77,15 @@ const parseTimeToMinutes = (timeStr) => {
   if (period === "PM" && hours !== 12) {
     hours += 12;
   } else if (period === "AM" && hours === 12) {
-    hours = 0; // Midnight
+    hours = 0;
   }
   return hours * 60 + minutes;
 };
 
-// Sample attendance data with scheduledCheckIn for tardiness calculation
-const initialAttendanceData = [
-  {
-    id: 1,
-    employeeName: "Floyd Miles",
-    date: "Jul. 10, 2025",
-    status: "Present",
-    checkIn: "08:55 AM",
-    checkOut: "05:00 PM",
-    scheduledCheckIn: "09:00 AM", // Added for tardiness calculation
-    leaveType: null,
-    employeeId: "EMP12345",
-    department: "Design",
-    role: "Lead Designer",
-    employmentType: "Full Time",
-    avgWorkHours: "9hrs 43mins",
-    avgOvertime: "1hrs 30mins",
-    attendanceLog: [
-      {
-        date: "May 1st 2025",
-        clock: "7:30 AM - 3:30 PM",
-        overtime: "2hrs 30min",
-        location: "Withston Street, Ware...",
-        status: "Late",
-      },
-      {
-        date: "May 2nd 2025",
-        clock: "7:30 AM - 3:30 PM",
-        overtime: "-",
-        location: "Withston Street, Ware...",
-        status: "Early",
-      },
-      {
-        date: "May 3rd 2025",
-        clock: "7:30 AM - 3:30 PM",
-        overtime: "2hrs 30min",
-        location: "Withston Street, Ware...",
-        status: "Late",
-      },
-      {
-        date: "May 4th 2025",
-        clock: "7:30 AM - 3:30 PM",
-        overtime: "-",
-        location: "Withston Street, Ware...",
-        status: "Late",
-      },
-      {
-        date: "May 5th 2025",
-        clock: "7:30 AM - 3:30 PM",
-        overtime: "-",
-        location: "Withston Street, Ware...",
-        status: "Early",
-      },
-      {
-        date: "May 6th 2025",
-        clock: "7:30 AM - 3:30 PM",
-        overtime: "-",
-        location: "Withston Street, Ware...",
-        status: "Early",
-      },
-    ],
-    summary: {
-      yearOfEmployment: "2021",
-      totalPresentsDays: "1,298 days",
-      totalAbsentDays: "30 Days",
-      totalLeaveDays: "423 Days",
-    },
-  },
-  {
-    id: 2,
-    employeeName: "Savannah Nguyen",
-    date: "Jul. 10, 2025",
-    status: "Absent",
-    checkIn: "-",
-    checkOut: "-",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: null,
-    employeeId: "EMP12346",
-    department: "Research",
-    role: "Researcher",
-    employmentType: "Full Time",
-    avgWorkHours: "8hrs 00mins",
-    avgOvertime: "0hrs 00mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2022",
-      totalPresentsDays: "500 days",
-      totalAbsentDays: "15 Days",
-      totalLeaveDays: "20 Days",
-    },
-  },
-  {
-    id: 3,
-    employeeName: "Cameron Williamson",
-    date: "Jul. 10, 2025",
-    status: "Late",
-    checkIn: "09:15 AM",
-    checkOut: "05:05 PM",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: null,
-    employeeId: "EMP12347",
-    department: "Development",
-    role: "Software Engineer",
-    employmentType: "Full Time",
-    avgWorkHours: "9hrs 00mins",
-    avgOvertime: "1hrs 00mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2023",
-      totalPresentsDays: "300 days",
-      totalAbsentDays: "5 Days",
-      totalLeaveDays: "10 Days",
-    },
-  },
-  {
-    id: 4,
-    employeeName: "Darrell Steward",
-    date: "Jul. 10, 2025",
-    status: "Present",
-    checkIn: "08:45 AM",
-    checkOut: "04:50 PM",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: null,
-    employeeId: "EMP12348",
-    department: "AI & ML",
-    role: "ML Engineer",
-    employmentType: "Full Time",
-    avgWorkHours: "9hrs 30mins",
-    avgOvertime: "0hrs 45mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2024",
-      totalPresentsDays: "150 days",
-      totalAbsentDays: "2 Days",
-      totalLeaveDays: "5 Days",
-    },
-  },
-  {
-    id: 5,
-    employeeName: "Laura Bran",
-    date: "Jul. 09, 2025",
-    status: "Present",
-    checkIn: "08:50 AM",
-    checkOut: "05:00 PM",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: null,
-    employeeId: "EMP12349",
-    department: "Design",
-    role: "UX Designer",
-    employmentType: "Part Time",
-    avgWorkHours: "4hrs 00mins",
-    avgOvertime: "0hrs 00mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2023",
-      totalPresentsDays: "200 days",
-      totalAbsentDays: "3 Days",
-      totalLeaveDays: "7 Days",
-    },
-  },
-  {
-    id: 6,
-    employeeName: "Alfred Frook",
-    date: "Jul. 09, 2025",
-    status: "Absent",
-    checkIn: "-",
-    checkOut: "-",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: null,
-    employeeId: "EMP12350",
-    department: "Design",
-    role: "Graphic Designer",
-    employmentType: "Full Time",
-    avgWorkHours: "8hrs 00mins",
-    avgOvertime: "0hrs 00mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2022",
-      totalPresentsDays: "600 days",
-      totalAbsentDays: "20 Days",
-      totalLeaveDays: "30 Days",
-    },
-  },
-  {
-    id: 7,
-    employeeName: "Biren Singh",
-    date: "Jul. 09, 2025",
-    status: "Present",
-    checkIn: "08:58 AM",
-    checkOut: "05:02 PM",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: null,
-    employeeId: "EMP12351",
-    department: "Design",
-    role: "Product Designer",
-    employmentType: "Full Time",
-    avgWorkHours: "8hrs 00mins",
-    avgOvertime: "0hrs 00mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2021",
-      totalPresentsDays: "1000 days",
-      totalAbsentDays: "25 Days",
-      totalLeaveDays: "50 Days",
-    },
-  },
-  // Adding some leave data for demonstration
-  {
-    id: 8,
-    employeeName: "Alice Johnson",
-    date: "Jul. 08, 2025",
-    status: "Leave",
-    checkIn: "-",
-    checkOut: "-",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: "VL", // Vacation Leave
-    employeeId: "EMP12352",
-    department: "HR",
-    role: "HR Manager",
-    employmentType: "Full Time",
-    avgWorkHours: "8hrs 00mins",
-    avgOvertime: "0hrs 00mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2020",
-      totalPresentsDays: "1500 days",
-      totalAbsentDays: "40 Days",
-      totalLeaveDays: "80 Days",
-    },
-  },
-  {
-    id: 9,
-    employeeName: "Bob Williams",
-    date: "Jul. 08, 2025",
-    status: "Leave",
-    checkIn: "-",
-    checkOut: "-",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: "SL", // Sick Leave
-    employeeId: "EMP12353",
-    department: "Sales",
-    role: "Sales Representative",
-    employmentType: "Full Time",
-    avgWorkHours: "8hrs 00mins",
-    avgOvertime: "0hrs 00mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2021",
-      totalPresentsDays: "1100 days",
-      totalAbsentDays: "35 Days",
-      totalLeaveDays: "60 Days",
-    },
-  },
-  {
-    id: 10,
-    employeeName: "Charlie Brown",
-    date: "Jul. 08, 2025",
-    status: "Leave",
-    checkIn: "-",
-    checkOut: "-",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: "LWOP", // Leave Without Pay
-    employeeId: "EMP12354",
-    department: "Marketing",
-    role: "Marketing Specialist",
-    employmentType: "Full Time",
-    avgWorkHours: "8hrs 00mins",
-    avgOvertime: "0hrs 00mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2022",
-      totalPresentsDays: "700 days",
-      totalAbsentDays: "10 Days",
-      totalLeaveDays: "25 Days",
-    },
-  },
-];
-
 const Attendances = () => {
-  const [attendanceRecords, setAttendanceRecords] = useState(
-    initialAttendanceData
-  );
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
@@ -378,45 +101,128 @@ const Attendances = () => {
   } = useDisclosure();
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [editingRecord, setEditingRecord] = useState(null);
+  const toast = useToast();
 
   const months = [
-    { value: "Jan", label: "January" },
-    { value: "Feb", label: "February" },
-    { value: "Mar", label: "March" },
-    { value: "Apr", label: "April" },
-    { value: "May", label: "May" },
-    { value: "Jun", label: "June" },
-    { value: "Jul", label: "July" },
-    { value: "Aug", label: "August" },
-    { value: "Sep", label: "September" },
-    { value: "Oct", label: "October" },
-    { value: "Nov", label: "November" },
-    { value: "Dec", label: "December" },
+    { value: "01", label: "January" },
+    { value: "02", label: "February" },
+    { value: "03", label: "March" },
+    { value: "04", label: "April" },
+    { value: "05", label: "May" },
+    { value: "06", label: "June" },
+    { value: "07", label: "July" },
+    { value: "08", label: "August" },
+    { value: "09", label: "September" },
+    { value: "10", label: "October" },
+    { value: "11", label: "November" },
+    { value: "12", label: "December" },
   ];
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => String(currentYear - i));
 
-  // Filter attendance records based on search term, selected year, and month
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      try {
+        setIsLoading(true);
+        const params = {
+          month: selectedMonth,
+          year: selectedYear,
+          status: searchTerm.match(/present|absent|late|leave/i)?.[0],
+          employee: searchTerm,
+        };
+
+        const response = await axiosInstance.get("/get-attendance", { params });
+        setAttendanceRecords(response.data);
+        setError(null);
+      } catch (err) {
+        setError(err.message || "Failed to fetch attendance data");
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAttendance();
+  }, [searchTerm, selectedMonth, selectedYear]);
+
+  const handleSaveRecord = async () => {
+    try {
+      setIsLoading(true);
+      const response = await axiosInstance.put(
+        `/update-attendance/${editingRecord._id}`,
+        editingRecord
+      );
+      setAttendanceRecords((prev) =>
+        prev.map((rec) => (rec._id === editingRecord._id ? response.data : rec))
+      );
+      toast({
+        title: "Record updated",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      onModalClose();
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err.response?.data?.message || "Failed to update record",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteRecord = async (id) => {
+    if (window.confirm("Are you sure you want to delete this record?")) {
+      try {
+        setIsLoading(true);
+        await axiosInstance.delete(`/delete-attendance/${id}`);
+        setAttendanceRecords((prev) => prev.filter((rec) => rec._id !== id));
+        toast({
+          title: "Record deleted",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      } catch (err) {
+        toast({
+          title: "Error",
+          description: err.response?.data?.message || "Failed to delete record",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
   const filteredAttendance = useMemo(() => {
     return attendanceRecords.filter((record) => {
       const recordDate = new Date(record.date);
-      const recordMonth = months[recordDate.getMonth()].value;
-      const recordYear = String(recordDate.getFullYear());
+      const recordMonth = recordDate.getMonth() + 1;
+      const recordYear = recordDate.getFullYear();
 
       const matchesSearch =
-        record.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        `${record.employee?.firstname} ${record.employee?.lastname}`
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
         record.status.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesMonth =
-        selectedMonth === "" || recordMonth === selectedMonth;
-      const matchesYear = selectedYear === "" || recordYear === selectedYear;
+        !selectedMonth ||
+        String(recordMonth).padStart(2, "0") === selectedMonth;
+      const matchesYear = !selectedYear || String(recordYear) === selectedYear;
 
       return matchesSearch && matchesMonth && matchesYear;
     });
   }, [searchTerm, selectedMonth, selectedYear, attendanceRecords]);
 
-  // Calculate summary statistics
   const { totalMinLate, numLate, numAbsent, leaveCounts } = useMemo(() => {
     let totalMinLate = 0;
     let numLate = 0;
@@ -424,16 +230,10 @@ const Attendances = () => {
     const leaveCounts = { VL: 0, SL: 0, LWOP: 0, BL: 0, OS: 0, CL: 0 };
 
     filteredAttendance.forEach((record) => {
-      if (
-        record.status === "Late" &&
-        record.checkIn &&
-        record.scheduledCheckIn
-      ) {
+      if (record.status === "Late" && record.checkIn) {
         const checkInMinutes = parseTimeToMinutes(record.checkIn);
-        const scheduledCheckInMinutes = parseTimeToMinutes(
-          record.scheduledCheckIn
-        );
-        if (checkInMinutes !== null && scheduledCheckInMinutes !== null) {
+        const scheduledCheckInMinutes = 9 * 60; // 9:00 AM in minutes
+        if (checkInMinutes !== null) {
           const lateMinutes = checkInMinutes - scheduledCheckInMinutes;
           if (lateMinutes > 0) {
             totalMinLate += lateMinutes;
@@ -452,7 +252,6 @@ const Attendances = () => {
     return { totalMinLate, numLate, numAbsent, leaveCounts };
   }, [filteredAttendance]);
 
-  // Function to get status color scheme for Chakra Tag
   const getStatusColorScheme = (status) => {
     switch (status) {
       case "Present":
@@ -462,13 +261,12 @@ const Attendances = () => {
       case "Late":
         return "orange";
       case "Leave":
-        return "blue"; // For general leave status
+        return "blue";
       default:
         return "gray";
     }
   };
 
-  // Function to calculate hours rendered
   const calculateHoursRendered = (checkIn, checkOut) => {
     if (checkIn === "-" || checkOut === "-") return "-";
 
@@ -480,7 +278,7 @@ const Attendances = () => {
       checkOutMinutes === null ||
       checkOutMinutes < checkInMinutes
     ) {
-      return "-"; // Invalid times
+      return "-";
     }
 
     const totalMinutes = checkOutMinutes - checkInMinutes;
@@ -490,14 +288,11 @@ const Attendances = () => {
     return `${hours}h ${minutes}m`;
   };
 
-  // Calculate tardiness for a specific record
   const getTardiness = (record) => {
-    if (record.status === "Late" && record.checkIn && record.scheduledCheckIn) {
+    if (record.status === "Late" && record.checkIn) {
       const checkInMinutes = parseTimeToMinutes(record.checkIn);
-      const scheduledCheckInMinutes = parseTimeToMinutes(
-        record.scheduledCheckIn
-      );
-      if (checkInMinutes !== null && scheduledCheckInMinutes !== null) {
+      const scheduledCheckInMinutes = 9 * 60; // 9:00 AM in minutes
+      if (checkInMinutes !== null) {
         const lateMinutes = checkInMinutes - scheduledCheckInMinutes;
         if (lateMinutes > 0) {
           return `${lateMinutes} min late`;
@@ -507,53 +302,41 @@ const Attendances = () => {
     return "-";
   };
 
-  // Handler for "View Details" button
   const handleViewDetails = (employee) => {
     setSelectedEmployee(employee);
-    onDrawerOpen(); // Open the drawer
+    onDrawerOpen();
   };
 
-  // Handler for "Edit Record" button
   const handleEditRecord = (record) => {
-    setEditingRecord({ ...record }); // Create a copy to edit
+    setEditingRecord({ ...record });
     onModalOpen();
   };
 
-  // Handler for saving edited record
-  const handleSaveRecord = () => {
-    setAttendanceRecords((prevRecords) =>
-      prevRecords.map((rec) =>
-        rec.id === editingRecord.id ? editingRecord : rec
-      )
-    );
-    onModalClose();
-    setEditingRecord(null);
-  };
-
-  // Handle changes in the edit modal form
   const handleEditChange = (e) => {
     const { name, value } = e.target;
     setEditingRecord((prev) => {
       const updatedRecord = { ...prev, [name]: value };
 
-      // Logic for auto-setting check-in/out for Absent status
       if (name === "status") {
         if (value === "Absent" || value === "Leave") {
           updatedRecord.checkIn = "-";
           updatedRecord.checkOut = "-";
         } else if (prev.status === "Absent" || prev.status === "Leave") {
-          // If changing from Absent/Leave to Present/Late, reset check-in/out to default/empty
-          updatedRecord.checkIn = ""; // Or a default time like '09:00 AM'
-          updatedRecord.checkOut = ""; // Or a default time like '05:00 PM'
+          updatedRecord.checkIn = "09:00 AM";
+          updatedRecord.checkOut = "05:00 PM";
         }
       }
-      // If status is not 'Leave', reset leaveType
       if (name === "status" && value !== "Leave") {
         updatedRecord.leaveType = null;
       }
 
       return updatedRecord;
     });
+  };
+
+  const formatDate = (dateString) => {
+    const options = { year: "numeric", month: "short", day: "numeric" };
+    return new Date(dateString).toLocaleDateString("en-US", options);
   };
 
   return (
@@ -563,7 +346,29 @@ const Attendances = () => {
       bg="gray.50"
       fontFamily="sans-serif"
     >
-      {/* Header Section */}
+      {isLoading && (
+        <Flex
+          justify="center"
+          align="center"
+          position="fixed"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          bg="blackAlpha.500"
+          zIndex={9999}
+        >
+          <Spinner size="xl" color="blue.500" />
+        </Flex>
+      )}
+
+      {error && (
+        <Alert status="error" mb={4}>
+          <AlertIcon />
+          {error}
+        </Alert>
+      )}
+
       <Flex
         direction={{ base: "column", md: "row" }}
         justify="space-between"
@@ -640,9 +445,7 @@ const Attendances = () => {
         </HStack>
       </Flex>
 
-      {/* Summary Section: Tardiness and Leave */}
       <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mb={6}>
-        {/* Tardiness Card */}
         <Box bg="white" p={6} borderRadius="lg" shadow="md">
           <Heading size="md" mb={4} color="gray.700">
             Tardiness
@@ -669,7 +472,6 @@ const Attendances = () => {
           </VStack>
         </Box>
 
-        {/* Leave Card */}
         <Box bg="white" p={6} borderRadius="lg" shadow="md">
           <Heading size="md" mb={4} color="gray.700">
             Leave
@@ -715,7 +517,6 @@ const Attendances = () => {
         </Box>
       </SimpleGrid>
 
-      {/* Attendance Table */}
       <Box bg="white" borderRadius="lg" shadow="md" overflowX="auto">
         <Table variant="simple" minW="full" borderCollapse="collapse">
           <Thead bg="gray.50">
@@ -809,8 +610,6 @@ const Attendances = () => {
                 letterSpacing="wider"
                 display={{ base: "none", lg: "table-cell" }}
               >
-                {" "}
-                {/* Hidden on md, visible on lg */}
                 Hours Rendered
               </Th>
               <Th
@@ -855,10 +654,10 @@ const Attendances = () => {
           </Thead>
           <Tbody bg="white" borderBottomWidth="1px" borderColor="gray.200">
             {filteredAttendance.map((record) => (
-              <Tr key={record.id}>
+              <Tr key={record._id}>
                 <Td px={4} py={4} whiteSpace="nowrap">
                   <Text fontSize="sm" fontWeight="medium" color="gray.900">
-                    {record.employeeName}
+                    {record.employee?.firstname} {record.employee?.lastname}
                   </Text>
                 </Td>
                 <Td
@@ -875,7 +674,7 @@ const Attendances = () => {
                   <HStack spacing={1} display="inline-flex" alignItems="center">
                     <CalendarIcon w={3} h={3} color="gray.500" />
                     <Text fontSize="sm" color="gray.900">
-                      {record.date}
+                      {formatDate(record.date)}
                     </Text>
                   </HStack>
                 </Td>
@@ -977,11 +776,7 @@ const Attendances = () => {
                       <MenuItem onClick={() => handleViewDetails(record)}>
                         View Details
                       </MenuItem>
-                      <MenuItem
-                        onClick={() =>
-                          alert("Delete functionality to be implemented.")
-                        }
-                      >
+                      <MenuItem onClick={() => handleDeleteRecord(record._id)}>
                         Delete Record
                       </MenuItem>
                     </MenuList>
@@ -993,16 +788,14 @@ const Attendances = () => {
         </Table>
       </Box>
 
-      {/* Employee Details Drawer (Modal) */}
+      {/* Employee Details Drawer */}
       <Drawer
         isOpen={isDrawerOpen}
         placement="right"
         onClose={onDrawerClose}
         size={{ base: "full", md: "lg", lg: "xl" }}
       >
-        {" "}
-        {/* Adjusted width */}
-        <DrawerOverlay bg="blackAlpha.300" /> {/* Added overlay */}
+        <DrawerOverlay bg="blackAlpha.300" />
         <DrawerContent bg="white" shadow="xl">
           <DrawerCloseButton />
           <DrawerHeader
@@ -1019,38 +812,36 @@ const Attendances = () => {
           <DrawerBody p={6}>
             {selectedEmployee && (
               <VStack align="stretch" spacing={6}>
-                {/* Employee Basic Info */}
                 <Flex
                   align="center"
                   justify="space-between"
                   pb={4}
                   borderBottom="1px solid"
                   borderColor="gray.200"
-                  flexWrap="wrap" // Allow wrapping on small screens
+                  flexWrap="wrap"
                 >
                   <HStack spacing={4} flex="1" minW="200px">
                     <Avatar
                       size="xl"
-                      name={selectedEmployee.employeeName}
-                      src={`https://placehold.co/100x100/A0D9B1/000000?text=${selectedEmployee.employeeName
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}`}
-                    />{" "}
-                    {/* More colorful placeholder */}
+                      name={`${selectedEmployee.employee?.firstname} ${selectedEmployee.employee?.lastname}`}
+                      src={`https://placehold.co/100x100/A0D9B1/000000?text=${selectedEmployee.employee?.firstname?.charAt(
+                        0
+                      )}${selectedEmployee.employee?.lastname?.charAt(0)}`}
+                    />
                     <VStack align="flex-start" spacing={0}>
                       <Text fontSize="md" color="gray.500" fontWeight="medium">
-                        EMP ID: {selectedEmployee.employeeId}
+                        EMP ID: {selectedEmployee.employee?.employeeId || "N/A"}
                       </Text>
                       <Text
                         fontSize="2xl"
                         fontWeight="extrabold"
                         color="gray.800"
                       >
-                        {selectedEmployee.employeeName}
+                        {selectedEmployee.employee?.firstname}{" "}
+                        {selectedEmployee.employee?.lastname}
                       </Text>
                       <Text fontSize="md" color="gray.600">
-                        Product Designer (Remote)
+                        {selectedEmployee.employee?.role || "N/A"}
                       </Text>
                       <Tag
                         size="md"
@@ -1070,28 +861,16 @@ const Attendances = () => {
                       </Tag>
                     </VStack>
                   </HStack>
-                  <Button
-                    size="md"
-                    variant="outline"
-                    rightIcon={<ChevronDownIcon />}
-                    colorScheme="blue"
-                    mt={{ base: 4, sm: 0 }}
-                  >
-                    View Details
-                  </Button>
                 </Flex>
 
-                {/* Employment Details */}
                 <Box bg="blue.50" p={4} borderRadius="md" shadow="sm">
-                  {" "}
-                  {/* Added background */}
                   <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4}>
                     <HStack>
                       <Icon as={FaBriefcase} color="blue.600" />
                       <Text fontSize="sm" color="gray.700">
                         Department:{" "}
                         <Text as="span" fontWeight="semibold">
-                          {selectedEmployee.department}
+                          {selectedEmployee.employee?.department || "N/A"}
                         </Text>
                       </Text>
                     </HStack>
@@ -1100,7 +879,7 @@ const Attendances = () => {
                       <Text fontSize="sm" color="gray.700">
                         Role:{" "}
                         <Text as="span" fontWeight="semibold">
-                          {selectedEmployee.role}
+                          {selectedEmployee.employee?.role || "N/A"}
                         </Text>
                       </Text>
                     </HStack>
@@ -1109,25 +888,7 @@ const Attendances = () => {
                       <Text fontSize="sm" color="gray.700">
                         Employment:{" "}
                         <Text as="span" fontWeight="semibold">
-                          {selectedEmployee.employmentType}
-                        </Text>
-                      </Text>
-                    </HStack>
-                    <HStack>
-                      <Icon as={FaClock} color="blue.600" />
-                      <Text fontSize="sm" color="gray.700">
-                        Avg. Work Hours:{" "}
-                        <Text as="span" fontWeight="semibold">
-                          {selectedEmployee.avgWorkHours}
-                        </Text>
-                      </Text>
-                    </HStack>
-                    <HStack>
-                      <Icon as={TimeIcon} color="blue.600" />
-                      <Text fontSize="sm" color="gray.700">
-                        Avg. Overtime:{" "}
-                        <Text as="span" fontWeight="semibold">
-                          {selectedEmployee.avgOvertime}
+                          {selectedEmployee.employee?.employmentType || "N/A"}
                         </Text>
                       </Text>
                     </HStack>
@@ -1136,150 +897,45 @@ const Attendances = () => {
 
                 <Divider borderColor="gray.300" />
 
-                {/* Attendance Summary */}
                 <Box bg="green.50" p={4} borderRadius="md" shadow="sm">
-                  {" "}
-                  {/* Added background */}
                   <Heading size="md" mb={4} color="gray.700">
                     Attendance Summary
                   </Heading>
                   <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} spacing={4}>
                     <Stat>
-                      <StatLabel color="gray.600">Year of Employment</StatLabel>
+                      <StatLabel color="gray.600">Date</StatLabel>
                       <StatNumber
                         fontSize="xl"
                         fontWeight="bold"
                         color="green.700"
                       >
-                        {selectedEmployee.summary.yearOfEmployment}
+                        {formatDate(selectedEmployee.date)}
                       </StatNumber>
                     </Stat>
                     <Stat>
-                      <StatLabel color="gray.600">
-                        Total Presents Days
-                      </StatLabel>
+                      <StatLabel color="gray.600">Status</StatLabel>
                       <StatNumber
                         fontSize="xl"
                         fontWeight="bold"
                         color="green.700"
                       >
-                        {selectedEmployee.summary.totalPresentsDays}
+                        {selectedEmployee.status}
                       </StatNumber>
                     </Stat>
                     <Stat>
-                      <StatLabel color="gray.600">Total Absent Days</StatLabel>
+                      <StatLabel color="gray.600">Hours Worked</StatLabel>
                       <StatNumber
                         fontSize="xl"
                         fontWeight="bold"
-                        color="red.700"
+                        color="green.700"
                       >
-                        {selectedEmployee.summary.totalAbsentDays}
-                      </StatNumber>
-                    </Stat>
-                    <Stat>
-                      <StatLabel color="gray.600">Total Leave Days</StatLabel>
-                      <StatNumber
-                        fontSize="xl"
-                        fontWeight="bold"
-                        color="blue.700"
-                      >
-                        {selectedEmployee.summary.totalLeaveDays}
+                        {calculateHoursRendered(
+                          selectedEmployee.checkIn,
+                          selectedEmployee.checkOut
+                        )}
                       </StatNumber>
                     </Stat>
                   </SimpleGrid>
-                </Box>
-
-                <Divider borderColor="gray.300" />
-
-                {/* Detailed Attendance Log */}
-                <Box bg="purple.50" p={4} borderRadius="md" shadow="sm">
-                  {" "}
-                  {/* Added background */}
-                  <Flex justify="space-between" align="center" mb={4}>
-                    <Heading size="md" color="gray.700">
-                      March 2025 Log
-                    </Heading>
-                    <HStack>
-                      <Button
-                        leftIcon={<DownloadIcon />}
-                        size="sm"
-                        variant="outline"
-                        colorScheme="purple"
-                      >
-                        Export CSV
-                      </Button>
-                      <Button
-                        leftIcon={<SettingsIcon />}
-                        size="sm"
-                        variant="outline"
-                        colorScheme="purple"
-                      >
-                        Filter
-                      </Button>
-                    </HStack>
-                  </Flex>
-                  <Box overflowX="auto">
-                    <Table variant="simple" size="sm">
-                      <Thead>
-                        <Tr>
-                          <Th>Start Date</Th>
-                          <Th>Clock In - Out</Th>
-                          <Th>Overtime</Th>
-                          <Th>Location</Th>
-                          <Th>Status</Th>
-                          <Th>Action</Th>
-                        </Tr>
-                      </Thead>
-                      <Tbody>
-                        {selectedEmployee.attendanceLog &&
-                          selectedEmployee.attendanceLog.map((log, index) => (
-                            <Tr key={index}>
-                              <Td>{log.date}</Td>
-                              <Td>{log.clock}</Td>
-                              <Td>{log.overtime}</Td>
-                              <Td>{log.location}</Td>
-                              <Td>
-                                <Tag
-                                  size="sm"
-                                  colorScheme={
-                                    log.status === "Late"
-                                      ? "orange"
-                                      : log.status === "Early"
-                                      ? "green"
-                                      : "gray"
-                                  }
-                                  borderRadius="full"
-                                >
-                                  {log.status}
-                                </Tag>
-                              </Td>
-                              <Td>
-                                <IconButton
-                                  icon={<InfoOutlineIcon />}
-                                  aria-label="Log Details"
-                                  size="xs"
-                                  variant="ghost"
-                                  colorScheme="purple"
-                                />
-                              </Td>
-                            </Tr>
-                          ))}
-                        {selectedEmployee.attendanceLog.length === 0 && (
-                          <Tr>
-                            <Td
-                              colSpan={6}
-                              textAlign="center"
-                              py={4}
-                              color="gray.500"
-                            >
-                              No detailed attendance log available for this
-                              period.
-                            </Td>
-                          </Tr>
-                        )}
-                      </Tbody>
-                    </Table>
-                  </Box>
                 </Box>
               </VStack>
             )}
@@ -1298,11 +954,14 @@ const Attendances = () => {
               <VStack spacing={4}>
                 <FormControl>
                   <FormLabel>Employee Name</FormLabel>
-                  <Input value={editingRecord.employeeName} isReadOnly />
+                  <Input
+                    value={`${editingRecord.employee?.firstname} ${editingRecord.employee?.lastname}`}
+                    isReadOnly
+                  />
                 </FormControl>
                 <FormControl>
                   <FormLabel>Date</FormLabel>
-                  <Input value={editingRecord.date} isReadOnly />
+                  <Input value={formatDate(editingRecord.date)} isReadOnly />
                 </FormControl>
                 <FormControl>
                   <FormLabel>Status</FormLabel>
@@ -1376,7 +1035,12 @@ const Attendances = () => {
             <Button variant="ghost" onClick={onModalClose}>
               Cancel
             </Button>
-            <Button colorScheme="blue" ml={3} onClick={handleSaveRecord}>
+            <Button
+              colorScheme="blue"
+              ml={3}
+              onClick={handleSaveRecord}
+              isLoading={isLoading}
+            >
               Save
             </Button>
           </ModalFooter>

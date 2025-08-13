@@ -597,7 +597,7 @@ const updateEmployee = async (req, res) => {
         hasChanges = true;
         console.log(`  ✅ Field ${field} marked for update`);
       } else {
-        console.log(`  ❌ Field ${field} unchanged`);
+        console.log(`  ❌ Field ${field} unc hanged`);
       }
     }
 
