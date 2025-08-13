@@ -128,3 +128,53 @@ exports.updateAttendance = async (req, res) => {
       .json({ message: "Server error", error: error.message });
   }
 };
+
+// Update attendance
+exports.updateAttendance = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    if (updates.checkIn && updates.checkOut) {
+      updates.hoursRendered = getMinutesDiff(
+        new Date(updates.checkIn),
+        new Date(updates.checkOut)
+      );
+    }
+
+    if (updates.checkIn) {
+      const scheduledStart = new Date(updates.checkIn);
+      scheduledStart.setHours(9, 0, 0, 0);
+      const actualCheckIn = new Date(updates.checkIn);
+      updates.tardinessMinutes =
+        actualCheckIn > scheduledStart
+          ? getMinutesDiff(scheduledStart, actualCheckIn)
+          : 0;
+    }
+
+    const updated = await Attendance.findByIdAndUpdate(id, updates, {
+      new: true,
+    });
+
+    if (!updated)
+      return res.status(404).json({ message: "Attendance not found" });
+
+    res.json({ message: "Attendance updated successfully", data: updated });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Delete attendance
+exports.deleteAttendance = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await Attendance.findByIdAndDelete(id);
+    if (!deleted)
+      return res.status(404).json({ message: "Attendance not found" });
+
+    res.json({ message: "Attendance deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
