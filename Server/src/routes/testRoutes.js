@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const testusercreationController = require("../controllers/testusercreationController");
+/* const testuserAttendace = require("../controllers/testAttendanceController"); */
 
-router.post("/testusercreation", testusercreationController.CreateEmployee);
+/* router.post("/testuserAttendance", test.CreateEmployee); */
 module.exports = router;
