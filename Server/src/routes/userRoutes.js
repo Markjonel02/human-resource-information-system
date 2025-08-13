@@ -4,10 +4,10 @@ const router = express.Router();
 
 // Corrected paths for controllers and middleware
 // Please ensure these paths and filenames match your actual directory structure and file names.
-const authController = require("../controllers/authController"); // Assuming authController.js
-const Useradmin = require("../controllers/Admin/userAdmin"); // Assuming Useradmin.js
-const verifyJWT = require("../middlewares/verifyJWT"); // Assuming middleware/verifyJWT.js
-const authorizeRoles = require("../middlewares/authorizeRole"); // Assuming middleware/authorizeRoles.js
+const authController = require("../controllers/authController"); 
+const Useradmin = require("../controllers/Admin/userAdmin"); 
+const verifyJWT = require("../middlewares/verifyJWT"); 
+const authorizeRoles = require("../middlewares/authorizeRole"); 
 
 // Authentication routes (public access) - These do NOT need JWT verification
 router.post("/auth/register", authController.register);
