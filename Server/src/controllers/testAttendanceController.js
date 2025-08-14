@@ -239,6 +239,11 @@ const getAttendance = async (req, res) => {
 
 // Update attendance record
 const updateAttendance = async (req, res) => {
+  if (req.User.role !== "admin" && req.user.role !== "hr") {
+    return res.status(401).json({
+      message: "yo cannot update anything unless you are hr or admins",
+    });
+  }
   try {
     const { id } = req.params;
     const { status, checkIn, checkOut, leaveType, notes } = req.body;

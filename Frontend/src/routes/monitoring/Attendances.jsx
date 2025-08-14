@@ -358,7 +358,7 @@ const Attendances = () => {
     employeeId: "",
     date: new Date().toISOString().split("T")[0], // Default to today
     status: "present",
-    checkIn: "09:00 AM",
+    checkIn: "08:00 AM",
     checkOut: "05:00 PM",
     leaveType: "",
     notes: "",

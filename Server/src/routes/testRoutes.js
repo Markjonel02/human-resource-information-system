@@ -10,7 +10,7 @@ router.use(verifyJWT);
 
 router.post(
   "/create-attendance",
-  authorizeRoles("admin", "hr"),
+  authorizeRoles("admin", "hr", "employee"),
   testAttendance.addAttendance
 );
 
