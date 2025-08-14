@@ -1,6 +1,6 @@
 const user = require("../../models/user");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
+
 // @desc Create a new employee (admin only)
 // @route POST /employees
 // @access Private (Admin)
