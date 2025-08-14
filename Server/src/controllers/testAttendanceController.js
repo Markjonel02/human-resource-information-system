@@ -1,180 +1,372 @@
-const user = require("../models/user");
-const Attendance = require("../models/attendance");
+const Attendance = require("../models/Attendance");
+const User = require("../models/user"); // Assuming you have a User model
 
-//calculate total hours
-const getMinutesDiff = (start, end) => {
-  if (!start || !end) return 0;
-  return Math.max(0, Math.floor((end - start) / (1000 * 60)));
+// Helper function to calculate hours in minutes
+const calculateHoursInMinutes = (checkIn, checkOut) => {
+  if (!checkIn || !checkOut) return 0;
+  const diffMs = new Date(checkOut) - new Date(checkIn);
+  return Math.max(0, Math.floor(diffMs / (1000 * 60))); // Convert to minutes
 };
 
-//attemdance record
+// Helper function to calculate tardiness
+const calculateTardiness = (checkIn, scheduledCheckIn = "09:00") => {
+  if (!checkIn) return 0;
 
-exports.addAttendance = async (req, res) => {
-  if (req.user.role !== "admin" && req.user.role !== "hr") {
-    return res.status(401).json({
-      message: "Unauthrorize you cannot edit this page without admin consent",
-    });
+  const checkInTime = new Date(checkIn);
+  const scheduled = new Date(checkInTime);
+  const [hours, minutes] = scheduledCheckIn.split(":");
+  scheduled.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+  if (checkInTime > scheduled) {
+    return Math.floor((checkInTime - scheduled) / (1000 * 60)); // Minutes late
+  }
+  return 0;
+};
+
+// Helper function to parse time string to Date
+const parseTimeToDate = (timeStr, baseDate) => {
+  if (!timeStr || timeStr === "-") return null;
+
+  const [time, period] = timeStr.split(" ");
+  let [hours, minutes] = time.split(":").map(Number);
+
+  if (period === "PM" && hours !== 12) {
+    hours += 12;
+  } else if (period === "AM" && hours === 12) {
+    hours = 0;
   }
 
+  const date = new Date(baseDate);
+  date.setHours(hours, minutes, 0, 0);
+  return date;
+};
+
+// Add new attendance record
+const addAttendance = async (req, res) => {
   try {
-    const { employee, date, status, checkIn, checkOut, leaveType, notes } =
+    const { employeeId, date, status, checkIn, checkOut, leaveType, notes } =
       req.body;
 
-    let hoursRendered = 0;
-    let tardinessMinutes = 0;
-
-    //auto calculate tardiness if checkin is provided and schedultime fixed
-    const scheduleStart = new Date(checkIn, date);
-    scheduleStart.setHours(8, 0, 0, 0); // default hour
-
-    if (checkIn) {
-      const actualCheckIn = new Date(checkIn);
-      if (actualCheckIn > scheduleStart) {
-        tardinessMinutes = getMinutesDiff(scheduleStart, actualCheckIn);
-      }
+    // Validate required fields
+    if (!employeeId || !date || !status) {
+      return res.status(400).json({
+        message: "Employee ID, date, and status are required",
+      });
     }
 
-    const newAttendance = new Attendance({
-      employee,
-      date,
-      status,
-      checkin,
-      checkOut,
-      hoursRendered,
-      tardinessMinutes,
-      leaveType,
-      notes,
+    // Check if employee exists
+    const employee = await User.findById(employeeId);
+    if (!employee) {
+      return res.status(404).json({
+        message: "Employee not found",
+      });
+    }
+
+    // Check if attendance already exists for this date
+    const existingAttendance = await Attendance.findOne({
+      employee: employeeId,
+      date: new Date(date),
     });
 
+    if (existingAttendance) {
+      return res.status(400).json({
+        message: "Attendance record already exists for this date",
+      });
+    }
+
+    // Validate status
+    const validStatuses = ["present", "absent", "late", "on_leave"];
+    if (!validStatuses.includes(status.toLowerCase())) {
+      return res.status(400).json({
+        message: "Invalid status. Must be: present, absent, late, or on_leave",
+      });
+    }
+
+    // Prepare attendance data
+    const attendanceData = {
+      employee: employeeId,
+      date: new Date(date),
+      status: status.toLowerCase(),
+      notes: notes || "",
+    };
+
+    // Handle different status types
+    if (status.toLowerCase() === "present" || status.toLowerCase() === "late") {
+      if (checkIn) {
+        const checkInDate = parseTimeToDate(checkIn, date);
+        attendanceData.checkIn = checkInDate;
+
+        // Calculate tardiness for late status
+        if (status.toLowerCase() === "late") {
+          attendanceData.tardinessMinutes = calculateTardiness(checkInDate);
+        }
+      }
+
+      if (checkOut) {
+        const checkOutDate = parseTimeToDate(checkOut, date);
+        attendanceData.checkOut = checkOutDate;
+
+        // Calculate hours rendered if both check-in and check-out are provided
+        if (attendanceData.checkIn && checkOutDate) {
+          attendanceData.hoursRendered = calculateHoursInMinutes(
+            attendanceData.checkIn,
+            checkOutDate
+          );
+        }
+      }
+    } else if (status.toLowerCase() === "on_leave") {
+      // Validate leave type
+      const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "OS", "CL"];
+      if (!leaveType || !validLeaveTypes.includes(leaveType)) {
+        return res.status(400).json({
+          message: "Valid leave type is required for leave status",
+        });
+      }
+      attendanceData.leaveType = leaveType;
+    }
+
+    // Create new attendance record
+    const newAttendance = new Attendance(attendanceData);
     await newAttendance.save();
+
+    // Populate employee data before returning
+    const populatedAttendance = await Attendance.findById(
+      newAttendance._id
+    ).populate(
+      "employee",
+      "firstname lastname employeeId department role employmentType"
+    );
+
     res.status(201).json({
-      message: "Attendance successfully recorded!",
-      data: newAttendance,
+      message: "Attendance record created successfully",
+      attendance: populatedAttendance,
     });
   } catch (error) {
+    console.error("Error adding attendance:", error);
+
     if (error.code === 11000) {
       return res.status(400).json({
-        message: "Attendance for this date already exists for the employee",
+        message:
+          "Attendance record already exists for this employee on this date",
       });
-      res.status(500).json({ message: "Server error", error: error.message });
-    }
-  }
-};
-
-exports.getAttendance = async (req, res) => {
-  try {
-    const { month, year, status, employee } = req.query;
-    const filter = {};
-
-    if (status) filter.status = status;
-    if (employee) filter.employee = employee;
-
-    if (month && year) {
-      const start = new Date(year, month - 1, 1);
-      const end = new Date(year, month, 0, 23, 59, 59);
-      filter.date = { $gte: start, $lte: end };
     }
 
-    const records = await Attendance.find(filter)
-      .populate("employee", "firstname lastname")
-      .sort({ date: -1 });
-
-    res.json(records);
-  } catch (error) {
     res.status(500).json({
-      mesaage: "Server error while getting the data",
-      error: error.messsage,
+      message: "Internal server error",
+      error: error.message,
     });
   }
 };
 
-exports.updateAttendance = async (req, res) => {
-  if (req.user.role !== "admin") {
-    return res.status(401).json({ message: "Forbidden unauthorize role" });
+// Get all attendance records
+const getAttendance = async (req, res) => {
+  try {
+    const { status, employee, page = 1, limit = 100 } = req.query;
+
+    // Build query
+    const query = {};
+
+    if (status) {
+      query.status = status.toLowerCase();
+    }
+
+    if (employee) {
+      // Search by employee name or ID
+      const employees = await User.find({
+        $or: [
+          { firstname: { $regex: employee, $options: "i" } },
+          { lastname: { $regex: employee, $options: "i" } },
+          { employeeId: { $regex: employee, $options: "i" } },
+        ],
+      });
+
+      if (employees.length > 0) {
+        query.employee = { $in: employees.map((emp) => emp._id) };
+      } else {
+        // No matching employees found
+        return res.json([]);
+      }
+    }
+
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Fetch attendance records
+    const attendanceRecords = await Attendance.find(query)
+      .populate(
+        "employee",
+        "firstname lastname employeeId department role employmentType"
+      )
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Transform data to match frontend expectations
+    const transformedRecords = attendanceRecords.map((record) => ({
+      _id: record._id,
+      employee: record.employee,
+      date: record.date,
+      status: record.status.charAt(0).toUpperCase() + record.status.slice(1), // Capitalize
+      checkIn: record.checkIn
+        ? record.checkIn.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          })
+        : "-",
+      checkOut: record.checkOut
+        ? record.checkOut.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          })
+        : "-",
+      hoursRendered: record.hoursRendered,
+      tardinessMinutes: record.tardinessMinutes,
+      leaveType: record.leaveType,
+      notes: record.notes,
+    }));
+
+    res.json(transformedRecords);
+  } catch (error) {
+    console.error("Error fetching attendance:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
   }
+};
+
+// Update attendance record
+const updateAttendance = async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    const { status, checkIn, checkOut, leaveType, notes } = req.body;
 
-    if (updates.checkIn && update.checkOut) {
-      updates.hoursRendered = getMinutesDiff(
-        new Date(updates.checkIn),
-        new Date(updates.checkOut)
-      );
+    const attendance = await Attendance.findById(id);
+    if (!attendance) {
+      return res.status(404).json({
+        message: "Attendance record not found",
+      });
+    }
 
-      if (updates.checkIn) {
-        const scheduleStart = new Date(updates.checkIn);
-        scheduleStart(9, 0, 0, 0);
-        const actualCheckIn = new Date(updates.checkIn);
-        updates.tardinessMinutes =
-          actualCheckIn > scheduleStart
-            ? getMinutesDiff(scheduleStart, actualCheckIn)
-            : 0;
+    // Update basic fields
+    if (status) {
+      const validStatuses = ["present", "absent", "late", "on_leave"];
+      if (!validStatuses.includes(status.toLowerCase())) {
+        return res.status(400).json({
+          message: "Invalid status",
+        });
+      }
+      attendance.status = status.toLowerCase();
+    }
+
+    if (notes !== undefined) {
+      attendance.notes = notes;
+    }
+
+    // Handle status-specific updates
+    if (attendance.status === "present" || attendance.status === "late") {
+      if (checkIn) {
+        const checkInDate = parseTimeToDate(checkIn, attendance.date);
+        attendance.checkIn = checkInDate;
+
+        if (attendance.status === "late") {
+          attendance.tardinessMinutes = calculateTardiness(checkInDate);
+        } else {
+          attendance.tardinessMinutes = 0;
+        }
       }
 
-      const updated = await Attendance.findByIdAndUpdate(id, updates, {
-        new: true,
-      });
+      if (checkOut) {
+        const checkOutDate = parseTimeToDate(checkOut, attendance.date);
+        attendance.checkOut = checkOutDate;
 
-      if (!updated)
-        return res.status(404).json({ message: "Attendance not found" });
+        if (attendance.checkIn && checkOutDate) {
+          attendance.hoursRendered = calculateHoursInMinutes(
+            attendance.checkIn,
+            checkOutDate
+          );
+        }
+      }
 
-      res.json({ message: "Attendance updated successfully", data: updated });
+      // Clear leave type for non-leave status
+      attendance.leaveType = null;
+    } else if (attendance.status === "on_leave") {
+      if (leaveType) {
+        const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "OS", "CL"];
+        if (!validLeaveTypes.includes(leaveType)) {
+          return res.status(400).json({
+            message: "Invalid leave type",
+          });
+        }
+        attendance.leaveType = leaveType;
+      }
+
+      // Clear time-related fields for leave
+      attendance.checkIn = null;
+      attendance.checkOut = null;
+      attendance.hoursRendered = 0;
+      attendance.tardinessMinutes = 0;
+    } else if (attendance.status === "absent") {
+      // Clear all time-related fields for absent
+      attendance.checkIn = null;
+      attendance.checkOut = null;
+      attendance.hoursRendered = 0;
+      attendance.tardinessMinutes = 0;
+      attendance.leaveType = null;
     }
-  } catch (error) {
-    console.error(error);
-    return res
-      .status(500)
-      .json({ message: "Server error", error: error.message });
-  }
-};
 
-// Update attendance
-exports.updateAttendance = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
+    await attendance.save();
 
-    if (updates.checkIn && updates.checkOut) {
-      updates.hoursRendered = getMinutesDiff(
-        new Date(updates.checkIn),
-        new Date(updates.checkOut)
-      );
-    }
+    // Return populated record
+    const updatedRecord = await Attendance.findById(id).populate(
+      "employee",
+      "firstname lastname employeeId department role employmentType"
+    );
 
-    if (updates.checkIn) {
-      const scheduledStart = new Date(updates.checkIn);
-      scheduledStart.setHours(9, 0, 0, 0);
-      const actualCheckIn = new Date(updates.checkIn);
-      updates.tardinessMinutes =
-        actualCheckIn > scheduledStart
-          ? getMinutesDiff(scheduledStart, actualCheckIn)
-          : 0;
-    }
-
-    const updated = await Attendance.findByIdAndUpdate(id, updates, {
-      new: true,
+    res.json({
+      message: "Attendance record updated successfully",
+      attendance: updatedRecord,
     });
-
-    if (!updated)
-      return res.status(404).json({ message: "Attendance not found" });
-
-    res.json({ message: "Attendance updated successfully", data: updated });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Error updating attendance:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 };
 
-// Delete attendance
-exports.deleteAttendance = async (req, res) => {
+// Delete attendance record
+const deleteAttendance = async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = await Attendance.findByIdAndDelete(id);
-    if (!deleted)
-      return res.status(404).json({ message: "Attendance not found" });
 
-    res.json({ message: "Attendance deleted successfully" });
+    const attendance = await Attendance.findById(id);
+    if (!attendance) {
+      return res.status(404).json({
+        message: "Attendance record not found",
+      });
+    }
+
+    await Attendance.findByIdAndDelete(id);
+
+    res.json({
+      message: "Attendance record deleted successfully",
+    });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Error deleting attendance:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
   }
+};
+
+module.exports = {
+  addAttendance,
+  getAttendance,
+  updateAttendance,
+  deleteAttendance,
 };

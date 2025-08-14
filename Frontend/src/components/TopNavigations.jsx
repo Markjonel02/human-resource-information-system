@@ -13,6 +13,7 @@ import {
 import { SearchIcon, CalendarIcon } from "@chakra-ui/icons";
 import AddEmployeeButton from "./AddemployeeButton";
 import { useAuth } from "../context/AuthContext"; // Correct path to Auth context
+import AddingAttendanceButton from "./AddingAttendanceButton";
 
 const TopNavigations = () => {
   const bgColor = useColorModeValue("white", "gray.800");
@@ -76,6 +77,11 @@ const TopNavigations = () => {
             <Input type="text" placeholder="Search..." borderRadius="md" />
           </InputGroup>
 
+          <Tooltip label="Attendance" openDelay={500}>
+            <Box display="block">
+              <AddingAttendanceButton />
+            </Box>
+          </Tooltip>
           {/* Add Employee Button */}
           {(role === "admin" || role === "hr") && (
             <Tooltip label="Add Employee" openDelay={500}>
@@ -86,11 +92,6 @@ const TopNavigations = () => {
           )}
 
           {/* Calendar Icon */}
-          {/* <Tooltip label="Add Employee" openDelay={500}>
-            <Box display={{ base: "none", md: "none", lg: "block" }}>
-              <AddEmployeeButton />
-            </Box>
-          </Tooltip> */}
         </Flex>
       </Flex>
     </Box>
