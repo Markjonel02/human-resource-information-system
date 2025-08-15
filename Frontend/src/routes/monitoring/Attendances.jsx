@@ -337,6 +337,13 @@ const Attendances = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Company settings - can be made configurable
+  const [companySettings, setCompanySettings] = useState({
+    standardCheckIn: "09:00 AM",
+    standardCheckOut: "05:00 PM",
+  });
+
   const {
     isOpen: isDrawerOpen,
     onOpen: onDrawerOpen,
@@ -356,9 +363,9 @@ const Attendances = () => {
   const [editingRecord, setEditingRecord] = useState(null);
   const [newRecord, setNewRecord] = useState({
     employeeId: "",
-    date: new Date().toISOString().split("T")[0], // Default to today
+    date: new Date().toISOString().split("T")[0],
     status: "present",
-    checkIn: "08:00 AM",
+    checkIn: "09:00 AM",
     checkOut: "05:00 PM",
     leaveType: "",
     notes: "",
@@ -473,8 +480,8 @@ const Attendances = () => {
         employeeId: "",
         date: new Date().toISOString().split("T")[0],
         status: "present",
-        checkIn: "09:00 AM",
-        checkOut: "05:00 PM",
+        checkIn: companySettings.standardCheckIn,
+        checkOut: companySettings.standardCheckOut,
         leaveType: "",
         notes: "",
       });
@@ -582,8 +589,9 @@ const Attendances = () => {
     return attendanceRecords.filter((record) => {
       if (!searchTerm) return true;
 
-      const employeeName =
-        `${record.employee?.firstname} ${record.employee?.lastname}`.toLowerCase();
+      const employeeName = `${record.employee?.firstname || ""} ${
+        record.employee?.lastname || ""
+      }`.toLowerCase();
       const employeeId = record.employee?.employeeId?.toLowerCase() || "";
       const status = record.status.toLowerCase();
       const search = searchTerm.toLowerCase();
@@ -605,8 +613,10 @@ const Attendances = () => {
     filteredAttendance.forEach((record) => {
       if (record.status.toLowerCase() === "late" && record.checkIn) {
         const checkInMinutes = parseTimeToMinutes(record.checkIn);
-        const scheduledCheckInMinutes = 9 * 60; // 9:00 AM in minutes
-        if (checkInMinutes !== null) {
+        const scheduledCheckInMinutes = parseTimeToMinutes(
+          companySettings.standardCheckIn
+        );
+        if (checkInMinutes !== null && scheduledCheckInMinutes !== null) {
           const lateMinutes = checkInMinutes - scheduledCheckInMinutes;
           if (lateMinutes > 0) {
             totalMinLate += lateMinutes;
@@ -627,7 +637,7 @@ const Attendances = () => {
     });
 
     return { totalMinLate, numLate, numAbsent, leaveCounts };
-  }, [filteredAttendance]);
+  }, [filteredAttendance, companySettings.standardCheckIn]);
 
   const getStatusColorScheme = (status) => {
     const normalizedStatus = status.toLowerCase();
@@ -671,8 +681,10 @@ const Attendances = () => {
   const getTardiness = (record) => {
     if (record.status.toLowerCase() === "late" && record.checkIn) {
       const checkInMinutes = parseTimeToMinutes(record.checkIn);
-      const scheduledCheckInMinutes = 9 * 60; // 9:00 AM in minutes
-      if (checkInMinutes !== null) {
+      const scheduledCheckInMinutes = parseTimeToMinutes(
+        companySettings.standardCheckIn
+      );
+      if (checkInMinutes !== null && scheduledCheckInMinutes !== null) {
         const lateMinutes = checkInMinutes - scheduledCheckInMinutes;
         if (lateMinutes > 0) {
           return `${lateMinutes} min late`;
@@ -702,8 +714,8 @@ const Attendances = () => {
           updatedRecord.checkIn = "-";
           updatedRecord.checkOut = "-";
         } else if (prev.status === "Absent" || prev.status === "Leave") {
-          updatedRecord.checkIn = "09:00 AM";
-          updatedRecord.checkOut = "05:00 PM";
+          updatedRecord.checkIn = companySettings.standardCheckIn;
+          updatedRecord.checkOut = companySettings.standardCheckOut;
         }
 
         if (value !== "Leave") {
@@ -725,8 +737,8 @@ const Attendances = () => {
           updated.checkIn = "";
           updated.checkOut = "";
         } else {
-          updated.checkIn = "09:00 AM";
-          updated.checkOut = "05:00 PM";
+          updated.checkIn = companySettings.standardCheckIn;
+          updated.checkOut = companySettings.standardCheckOut;
         }
 
         if (value !== "Leave") {
@@ -764,7 +776,6 @@ const Attendances = () => {
           left={0}
           right={0}
           bottom={0}
-          bg="blackAlpha.500"
           zIndex={9999}
         >
           <Spinner size="xl" color="blue.500" />
@@ -1034,10 +1045,11 @@ const Attendances = () => {
                   <Td px={4} py={4}>
                     <VStack align="flex-start" spacing={1}>
                       <Text fontSize="sm" fontWeight="medium" color="gray.900">
-                        {record.employee?.firstname} {record.employee?.lastname}
+                        {record.employee?.firstname || "N/A"}{" "}
+                        {record.employee?.lastname || ""}
                       </Text>
                       <Text fontSize="xs" color="gray.500">
-                        {record.employee?.employeeId}
+                        {record.employee?.employeeId || "N/A"}
                       </Text>
                     </VStack>
                   </Td>
@@ -1137,13 +1149,13 @@ const Attendances = () => {
       </Box>
 
       {/* Add Attendance Modal */}
-      <Modal isOpen={isAddModalOpen} onClose={onAddModalClose} size="lg">
+      <Modal isOpen={isAddModalOpen} onClose={onAddModalClose} size="xl">
         <ModalOverlay />
-        <ModalContent>
+        <ModalContent maxW="800px">
           <ModalHeader>Add New Attendance Record</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            <VStack spacing={4}>
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
               <FormControl isRequired>
                 <FormLabel>Employee</FormLabel>
                 <Select
@@ -1184,6 +1196,25 @@ const Attendances = () => {
                 </Select>
               </FormControl>
 
+              {newRecord.status === "Leave" && (
+                <FormControl isRequired>
+                  <FormLabel>Leave Type</FormLabel>
+                  <Select
+                    name="leaveType"
+                    value={newRecord.leaveType}
+                    onChange={handleNewRecordChange}
+                    placeholder="Select Leave Type"
+                  >
+                    <option value="VL">Vacation Leave (VL)</option>
+                    <option value="SL">Sick Leave (SL)</option>
+                    <option value="LWOP">Leave Without Pay (LWOP)</option>
+                    <option value="BL">Bereavement Leave (BL)</option>
+                    <option value="OS">Offset (OS)</option>
+                    <option value="CL">Calamity Leave (CL)</option>
+                  </Select>
+                </FormControl>
+              )}
+
               {(newRecord.status === "present" ||
                 newRecord.status === "late") && (
                 <>
@@ -1209,38 +1240,19 @@ const Attendances = () => {
                   </FormControl>
                 </>
               )}
+            </SimpleGrid>
 
-              {newRecord.status === "Leave" && (
-                <FormControl isRequired>
-                  <FormLabel>Leave Type</FormLabel>
-                  <Select
-                    name="leaveType"
-                    value={newRecord.leaveType}
-                    onChange={handleNewRecordChange}
-                    placeholder="Select Leave Type"
-                  >
-                    <option value="VL">Vacation Leave (VL)</option>
-                    <option value="SL">Sick Leave (SL)</option>
-                    <option value="LWOP">Leave Without Pay (LWOP)</option>
-                    <option value="BL">Bereavement Leave (BL)</option>
-                    <option value="OS">Offset (OS)</option>
-                    <option value="CL">Calamity Leave (CL)</option>
-                  </Select>
-                </FormControl>
-              )}
-
-              <FormControl>
-                <FormLabel>Notes (Optional)</FormLabel>
-                <Textarea
-                  name="notes"
-                  placeholder="Additional notes..."
-                  value={newRecord.notes}
-                  onChange={handleNewRecordChange}
-                  resize="vertical"
-                  rows={3}
-                />
-              </FormControl>
-            </VStack>
+            <FormControl mt={4}>
+              <FormLabel>Notes (Optional)</FormLabel>
+              <Textarea
+                name="notes"
+                placeholder="Additional notes..."
+                value={newRecord.notes}
+                onChange={handleNewRecordChange}
+                resize="vertical"
+                rows={3}
+              />
+            </FormControl>
           </ModalBody>
 
           <ModalFooter>
@@ -1290,22 +1302,24 @@ const Attendances = () => {
                 >
                   <Avatar
                     size="lg"
-                    name={`${selectedEmployee.employee?.firstname} ${selectedEmployee.employee?.lastname}`}
+                    name={`${selectedEmployee.employee?.firstname || ""} ${
+                      selectedEmployee.employee?.lastname || ""
+                    }`}
                     bg="blue.500"
                     color="white"
                     mr={4}
                   />
                   <VStack align="flex-start" spacing={1}>
                     <Text fontSize="lg" fontWeight="bold" color="gray.800">
-                      {selectedEmployee.employee?.firstname}{" "}
-                      {selectedEmployee.employee?.lastname}
+                      {selectedEmployee.employee?.firstname || "N/A"}{" "}
+                      {selectedEmployee.employee?.lastname || ""}
                     </Text>
                     <Text fontSize="sm" color="gray.600">
-                      {selectedEmployee.employee?.employeeId}
+                      {selectedEmployee.employee?.employeeId || "N/A"}
                     </Text>
                     <Text fontSize="sm" color="gray.600">
-                      {selectedEmployee.employee?.role} -{" "}
-                      {selectedEmployee.employee?.department}
+                      {selectedEmployee.employee?.role || "N/A"} -{" "}
+                      {selectedEmployee.employee?.department || "N/A"}
                     </Text>
                   </VStack>
                 </Flex>
@@ -1504,100 +1518,104 @@ const Attendances = () => {
       </Drawer>
 
       {/* Edit Record Modal */}
-      <Modal isOpen={isEditModalOpen} onClose={onEditModalClose} size="lg">
+      <Modal isOpen={isEditModalOpen} onClose={onEditModalClose} size="xl">
         <ModalOverlay />
-        <ModalContent>
+        <ModalContent maxW="800px">
           <ModalHeader>Edit Attendance Record</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
             {editingRecord && (
-              <VStack spacing={4}>
-                <FormControl>
-                  <FormLabel>Employee</FormLabel>
-                  <Input
-                    value={`${editingRecord.employee?.firstname} ${editingRecord.employee?.lastname} (${editingRecord.employee?.employeeId})`}
-                    isReadOnly
-                    bg="gray.50"
-                  />
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>Date</FormLabel>
-                  <Input
-                    value={formatDate(editingRecord.date)}
-                    isReadOnly
-                    bg="gray.50"
-                  />
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>Status</FormLabel>
-                  <Select
-                    name="status"
-                    value={editingRecord.status}
-                    onChange={handleEditChange}
-                  >
-                    <option value="Present">Present</option>
-                    <option value="Absent">Absent</option>
-                    <option value="Late">Late</option>
-                    <option value="Leave">Leave</option>
-                  </Select>
-                </FormControl>
-
-                {(editingRecord.status === "Present" ||
-                  editingRecord.status === "Late") && (
-                  <>
-                    <FormControl>
-                      <FormLabel>Check-in Time</FormLabel>
-                      <Input
-                        type="text"
-                        name="checkIn"
-                        placeholder="e.g., 09:00 AM"
-                        value={
-                          editingRecord.checkIn === "-"
-                            ? ""
-                            : editingRecord.checkIn
-                        }
-                        onChange={handleEditChange}
-                      />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Check-out Time</FormLabel>
-                      <Input
-                        type="text"
-                        name="checkOut"
-                        placeholder="e.g., 05:00 PM"
-                        value={
-                          editingRecord.checkOut === "-"
-                            ? ""
-                            : editingRecord.checkOut
-                        }
-                        onChange={handleEditChange}
-                      />
-                    </FormControl>
-                  </>
-                )}
-
-                {editingRecord.status === "Leave" && (
+              <>
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
                   <FormControl>
-                    <FormLabel>Leave Type</FormLabel>
+                    <FormLabel>Employee</FormLabel>
+                    <Input
+                      value={`${editingRecord.employee?.firstname || "N/A"} ${
+                        editingRecord.employee?.lastname || ""
+                      } (${editingRecord.employee?.employeeId || "N/A"})`}
+                      isReadOnly
+                      bg="gray.50"
+                    />
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>Date</FormLabel>
+                    <Input
+                      value={formatDate(editingRecord.date)}
+                      isReadOnly
+                      bg="gray.50"
+                    />
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>Status</FormLabel>
                     <Select
-                      name="leaveType"
-                      value={editingRecord.leaveType || ""}
+                      name="status"
+                      value={editingRecord.status}
                       onChange={handleEditChange}
-                      placeholder="Select Leave Type"
                     >
-                      <option value="VL">Vacation Leave (VL)</option>
-                      <option value="SL">Sick Leave (SL)</option>
-                      <option value="LWOP">Leave Without Pay (LWOP)</option>
-                      <option value="BL">Bereavement Leave (BL)</option>
-                      <option value="OS">Offset (OS)</option>
-                      <option value="CL">Calamity Leave (CL)</option>
+                      <option value="Present">Present</option>
+                      <option value="Absent">Absent</option>
+                      <option value="Late">Late</option>
+                      <option value="Leave">Leave</option>
                     </Select>
                   </FormControl>
-                )}
 
-                <FormControl>
+                  {editingRecord.status === "Leave" && (
+                    <FormControl>
+                      <FormLabel>Leave Type</FormLabel>
+                      <Select
+                        name="leaveType"
+                        value={editingRecord.leaveType || ""}
+                        onChange={handleEditChange}
+                        placeholder="Select Leave Type"
+                      >
+                        <option value="VL">Vacation Leave (VL)</option>
+                        <option value="SL">Sick Leave (SL)</option>
+                        <option value="LWOP">Leave Without Pay (LWOP)</option>
+                        <option value="BL">Bereavement Leave (BL)</option>
+                        <option value="OS">Offset (OS)</option>
+                        <option value="CL">Calamity Leave (CL)</option>
+                      </Select>
+                    </FormControl>
+                  )}
+
+                  {(editingRecord.status === "Present" ||
+                    editingRecord.status === "Late") && (
+                    <>
+                      <FormControl>
+                        <FormLabel>Check-in Time</FormLabel>
+                        <Input
+                          type="text"
+                          name="checkIn"
+                          placeholder="e.g., 09:00 AM"
+                          value={
+                            editingRecord.checkIn === "-"
+                              ? ""
+                              : editingRecord.checkIn
+                          }
+                          onChange={handleEditChange}
+                        />
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel>Check-out Time</FormLabel>
+                        <Input
+                          type="text"
+                          name="checkOut"
+                          placeholder="e.g., 05:00 PM"
+                          value={
+                            editingRecord.checkOut === "-"
+                              ? ""
+                              : editingRecord.checkOut
+                          }
+                          onChange={handleEditChange}
+                        />
+                      </FormControl>
+                    </>
+                  )}
+                </SimpleGrid>
+
+                <FormControl mt={4}>
                   <FormLabel>Notes</FormLabel>
                   <Textarea
                     name="notes"
@@ -1608,7 +1626,7 @@ const Attendances = () => {
                     rows={3}
                   />
                 </FormControl>
-              </VStack>
+              </>
             )}
           </ModalBody>
 
