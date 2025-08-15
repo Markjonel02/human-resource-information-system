@@ -1223,7 +1223,7 @@ const Attendances = () => {
                     <Input
                       type="text"
                       name="checkIn"
-                      placeholder="e.g., 09:00 AM"
+                      placeholder="e.g., 08:00 AM"
                       value={newRecord.checkIn}
                       onChange={handleNewRecordChange}
                     />
