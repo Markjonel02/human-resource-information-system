@@ -238,7 +238,7 @@ const getAttendance = async (req, res) => {
 };
 
 // Update attendance record
-const updateAttendance = async (req, res) => {
+/* const updateAttendance = async (req, res) => {
   if (req.User.role !== "admin" && req.user.role !== "hr") {
     return res.status(401).json({
       message: "yo cannot update anything unless you are hr or admins",
@@ -341,8 +341,116 @@ const updateAttendance = async (req, res) => {
       error: error.message,
     });
   }
-};
+}; */
+const updateAttendance = async (req, res) => {
+  // Fixed: consistent use of req.user (lowercase 'u')
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res.status(403).json({
+      message:
+        "Access denied. Only HR and Admin users can update attendance records.",
+    });
+  }
 
+  try {
+    const { id } = req.params;
+    const { status, checkIn, checkOut, leaveType, notes } = req.body;
+
+    const attendance = await Attendance.findById(id);
+    if (!attendance) {
+      return res.status(404).json({
+        message: "Attendance record not found",
+      });
+    }
+
+    // Update basic fields
+    if (status) {
+      const validStatuses = ["present", "absent", "late", "on_leave"];
+      if (!validStatuses.includes(status.toLowerCase())) {
+        return res.status(400).json({
+          message:
+            "Invalid status. Valid statuses are: present, absent, late, on_leave",
+        });
+      }
+      attendance.status = status.toLowerCase();
+    }
+
+    if (notes !== undefined) {
+      attendance.notes = notes;
+    }
+
+    // Handle status-specific updates
+    if (attendance.status === "present" || attendance.status === "late") {
+      if (checkIn) {
+        const checkInDate = parseTimeToDate(checkIn, attendance.date);
+        attendance.checkIn = checkInDate;
+
+        if (attendance.status === "late") {
+          attendance.tardinessMinutes = calculateTardiness(checkInDate);
+        } else {
+          attendance.tardinessMinutes = 0;
+        }
+      }
+
+      if (checkOut) {
+        const checkOutDate = parseTimeToDate(checkOut, attendance.date);
+        attendance.checkOut = checkOutDate;
+
+        if (attendance.checkIn && checkOutDate) {
+          attendance.hoursRendered = calculateHoursInMinutes(
+            attendance.checkIn,
+            checkOutDate
+          );
+        }
+      }
+
+      // Clear leave type for non-leave status
+      attendance.leaveType = null;
+    } else if (attendance.status === "on_leave") {
+      if (leaveType) {
+        const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "OS", "CL"];
+        if (!validLeaveTypes.includes(leaveType)) {
+          return res.status(400).json({
+            message:
+              "Invalid leave type. Valid types are: VL, SL, LWOP, BL, OS, CL",
+          });
+        }
+        attendance.leaveType = leaveType;
+      }
+
+      // Clear time-related fields for leave
+      attendance.checkIn = null;
+      attendance.checkOut = null;
+      attendance.hoursRendered = 0;
+      attendance.tardinessMinutes = 0;
+    } else if (attendance.status === "absent") {
+      // Clear all time-related fields for absent
+      attendance.checkIn = null;
+      attendance.checkOut = null;
+      attendance.hoursRendered = 0;
+      attendance.tardinessMinutes = 0;
+      attendance.leaveType = null;
+    }
+
+    await attendance.save();
+
+    // Return populated record
+    const updatedRecord = await Attendance.findById(id).populate(
+      "employee",
+      "firstname lastname employeeId department role employmentType"
+    );
+
+    res.json({
+      message: "Attendance record updated successfully",
+      attendance: updatedRecord,
+    });
+  } catch (error) {
+    console.error("Error updating attendance:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
 // Delete attendance record
 const deleteAttendance = async (req, res) => {
   try {
