@@ -310,34 +310,50 @@ const addAttendance = async (req, res) => {
   }
 };
 
-// Get all attendance records
+// Get all attendance records (Admin/HR can see all, employees only their own)
 const getAttendance = async (req, res) => {
   try {
     const { status, employee, page = 1, limit = 100 } = req.query;
+    const currentUser = req.user;
 
     // Build query
     const query = {};
 
-    if (status) {
-      query.status = status.toLowerCase();
+    // Role-based access control
+    if (currentUser.role === "employee") {
+      // Employees can only see their own attendance
+      query.employee = currentUser._id;
+    } else if (currentUser.role === "admin" || currentUser.role === "hr") {
+      // Admin and HR can see all attendance records
+      if (status) {
+        query.status = status.toLowerCase();
+      }
+
+      if (employee) {
+        // Search by employee name or ID
+        const employees = await User.find({
+          $or: [
+            { firstname: { $regex: employee, $options: "i" } },
+            { lastname: { $regex: employee, $options: "i" } },
+            { employeeId: { $regex: employee, $options: "i" } },
+          ],
+        });
+
+        if (employees.length > 0) {
+          query.employee = { $in: employees.map((emp) => emp._id) };
+        } else {
+          // No matching employees found
+          return res.json([]);
+        }
+      }
+    } else {
+      // Default fallback - restrict to own records
+      query.employee = currentUser._id;
     }
 
-    if (employee) {
-      // Search by employee name or ID
-      const employees = await User.find({
-        $or: [
-          { firstname: { $regex: employee, $options: "i" } },
-          { lastname: { $regex: employee, $options: "i" } },
-          { employeeId: { $regex: employee, $options: "i" } },
-        ],
-      });
-
-      if (employees.length > 0) {
-        query.employee = { $in: employees.map((emp) => emp._id) };
-      } else {
-        // No matching employees found
-        return res.json([]);
-      }
+    // Apply status filter for employees too (if they want to filter their own records)
+    if (currentUser.role === "employee" && status) {
+      query.status = status.toLowerCase();
     }
 
     // Calculate pagination
@@ -379,19 +395,21 @@ const getAttendance = async (req, res) => {
       notes: record.notes,
     }));
 
-    // Log access (optional - you might want to disable this for frequent requests)
+    // Log access
     const performedBy = req.user ? req.user._id : null;
     if (performedBy) {
       await createAttendanceLog({
-        employeeId: null, // General access log
+        employeeId: currentUser.role === "employee" ? currentUser._id : null,
         action: "BULK_ACCESS",
-        description: `Accessed attendance records (${transformedRecords.length} records)`,
+        description: `Accessed attendance records (${transformedRecords.length} records) - Role: ${currentUser.role}`,
         performedBy: performedBy,
         metadata: {
           query: req.query,
           recordCount: transformedRecords.length,
           page: page,
           limit: limit,
+          userRole: currentUser.role,
+          restrictedToSelf: currentUser.role === "employee",
         },
       });
     }
@@ -399,6 +417,129 @@ const getAttendance = async (req, res) => {
     res.json(transformedRecords);
   } catch (error) {
     console.error("Error fetching attendance:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+// NEW FUNCTION: Get employee's own attendance records only
+const getMyAttendance = async (req, res) => {
+  try {
+    const { status, startDate, endDate, page = 1, limit = 50 } = req.query;
+    const currentUser = req.user;
+
+    // Build query - always restricted to current user
+    const query = {
+      employee: currentUser._id,
+    };
+
+    // Add status filter if provided
+    if (status) {
+      query.status = status.toLowerCase();
+    }
+
+    // Add date range filter if provided
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) {
+        query.date.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        query.date.$lte = new Date(endDate);
+      }
+    }
+
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Fetch attendance records
+    const attendanceRecords = await Attendance.find(query)
+      .populate(
+        "employee",
+        "firstname lastname employeeId department role employmentType"
+      )
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Get total count for pagination
+    const totalRecords = await Attendance.countDocuments(query);
+
+    // Transform data
+    const transformedRecords = attendanceRecords.map((record) => ({
+      _id: record._id,
+      employee: record.employee,
+      date: record.date,
+      status: record.status.charAt(0).toUpperCase() + record.status.slice(1),
+      checkIn: record.checkIn
+        ? record.checkIn.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          })
+        : "-",
+      checkOut: record.checkOut
+        ? record.checkOut.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          })
+        : "-",
+      hoursRendered: record.hoursRendered,
+      tardinessMinutes: record.tardinessMinutes,
+      leaveType: record.leaveType,
+      notes: record.notes,
+    }));
+
+    // Calculate summary statistics
+    const summary = {
+      totalRecords,
+      presentDays: attendanceRecords.filter(
+        (r) => r.status === "present" || r.status === "late"
+      ).length,
+      absentDays: attendanceRecords.filter((r) => r.status === "absent").length,
+      leaveDays: attendanceRecords.filter((r) => r.status === "on_leave")
+        .length,
+      lateDays: attendanceRecords.filter((r) => r.status === "late").length,
+      totalHours: attendanceRecords.reduce(
+        (sum, r) => sum + (r.hoursRendered || 0),
+        0
+      ),
+      totalTardinessMinutes: attendanceRecords.reduce(
+        (sum, r) => sum + (r.tardinessMinutes || 0),
+        0
+      ),
+    };
+
+    // Log access
+    await createAttendanceLog({
+      employeeId: currentUser._id,
+      action: "SELF_ACCESS",
+      description: `Employee accessed their own attendance records (${transformedRecords.length} records)`,
+      performedBy: currentUser._id,
+      metadata: {
+        query: req.query,
+        recordCount: transformedRecords.length,
+        page: page,
+        limit: limit,
+        summary: summary,
+      },
+    });
+
+    res.json({
+      attendance: transformedRecords,
+      summary: summary,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalRecords / parseInt(limit)),
+        totalItems: totalRecords,
+        itemsPerPage: parseInt(limit),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching my attendance:", error);
     res.status(500).json({
       message: "Internal server error",
       error: error.message,
@@ -707,51 +848,6 @@ const deleteAttendance = async (req, res) => {
 };
 
 // Get attendance logs
-/* const getAttendanceLogs = async (req, res) => {
-  try {
-    const {
-      employeeId,
-      attendanceId,
-      action,
-      page = 1,
-      limit = 50,
-    } = req.query;
-
-    // Build query
-    const query = {};
-
-    if (employeeId) {
-      query.employeeId = employeeId;
-    }
-
-    if (attendanceId) {
-      query.attendanceId = attendanceId;
-    }
-
-    if (action) {
-      query.action = action.toUpperCase();
-    }
-
-    // Calculate pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    // Fetch logs
-    const logs = await AttendanceLog.find(query)
-      .populate("employeeId", "firstname lastname employeeId")
-      .populate("performedBy", "firstname lastname employeeId")
-      .sort({ timestamp: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    res.json(logs);
-  } catch (error) {
-    console.error("Error fetching attendance logs:", error);
-    res.status(500).json({
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-}; */
 const getAttendanceLogs = async (req, res) => {
   try {
     const {
@@ -809,6 +905,7 @@ const getAttendanceLogs = async (req, res) => {
     });
   }
 };
+
 const getEmployeeAttendanceLogs = async (req, res) => {
   try {
     const { employeeId } = req.params;
@@ -857,8 +954,16 @@ const getEmployeeAttendanceLogs = async (req, res) => {
 const getRecentAttendanceLogs = async (req, res) => {
   try {
     const { limit = 20, actions } = req.query;
+    const currentUser = req.user;
 
     const query = {};
+
+    // Role-based access control for logs
+    if (currentUser.role === "employee") {
+      // Employees can only see their own logs
+      query.employeeId = currentUser._id;
+    }
+
     if (actions) {
       const actionArray = actions
         .split(",")
@@ -908,9 +1013,10 @@ const getRecentAttendanceLogs = async (req, res) => {
 module.exports = {
   addAttendance,
   getAttendance,
+  getMyAttendance, // New function for employees to get their own attendance
   updateAttendance,
   deleteAttendance,
-  getAttendanceLogs, // New endpoint for logs
+  getAttendanceLogs,
   getEmployeeAttendanceLogs,
   getRecentAttendanceLogs,
 };
