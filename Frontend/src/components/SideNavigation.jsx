@@ -101,6 +101,7 @@ const SideNavigation = () => {
       path: "/employees",
       roles: ["admin", "hr"],
     }, // Add a 'roles' property
+
     { icon: CheckSquare, label: "Attendances", path: "/attendances" },
     { icon: Calendar, label: "Calendar", path: "/calendar" },
     { icon: MdOutlineRequestPage, label: "Request", path: "/request" },

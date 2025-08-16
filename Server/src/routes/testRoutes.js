@@ -16,7 +16,7 @@ router.post(
 
 router.get(
   "/get-attendance",
-  authorizeRoles("admin", "hr"),
+  authorizeRoles("admin", "hr", "employee"),
   testAttendance.getAttendance
 );
 router.put(

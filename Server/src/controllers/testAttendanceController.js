@@ -9,7 +9,7 @@ const calculateHoursInMinutes = (checkIn, checkOut) => {
 };
 
 // Helper function to calculate tardiness
-const calculateTardiness = (checkIn, scheduledCheckIn = "09:00") => {
+const calculateTardiness = (checkIn, scheduledCheckIn = "08:00") => {
   if (!checkIn) return 0;
 
   const checkInTime = new Date(checkIn);
@@ -41,6 +41,7 @@ const parseTimeToDate = (timeStr, baseDate) => {
   return date;
 };
 
+// Add new attendance record
 // Add new attendance record
 const addAttendance = async (req, res) => {
   try {
@@ -82,23 +83,35 @@ const addAttendance = async (req, res) => {
       });
     }
 
+    let finalStatus = status.toLowerCase();
+
     // Prepare attendance data
     const attendanceData = {
       employee: employeeId,
       date: new Date(date),
-      status: status.toLowerCase(),
+      status: finalStatus,
       notes: notes || "",
     };
 
     // Handle different status types
-    if (status.toLowerCase() === "present" || status.toLowerCase() === "late") {
+    if (finalStatus === "present" || finalStatus === "late") {
       if (checkIn) {
         const checkInDate = parseTimeToDate(checkIn, date);
         attendanceData.checkIn = checkInDate;
 
-        // Calculate tardiness for late status
-        if (status.toLowerCase() === "late") {
+        // NEW LOGIC: Check if check-in is after the scheduled time and change status to 'late'
+        const scheduledTime = new Date(checkInDate);
+        scheduledTime.setHours(8, 0, 0, 0); // Assuming 08:00 is the scheduled time
+
+        if (checkInDate > scheduledTime) {
+          finalStatus = "late";
+          attendanceData.status = "late"; // Update the status in the attendance data
           attendanceData.tardinessMinutes = calculateTardiness(checkInDate);
+        } else {
+          // If a user checks in before or at 8:00, ensure their status is "present"
+          finalStatus = "present";
+          attendanceData.status = "present";
+          attendanceData.tardinessMinutes = 0;
         }
       }
 
@@ -114,7 +127,7 @@ const addAttendance = async (req, res) => {
           );
         }
       }
-    } else if (status.toLowerCase() === "on_leave") {
+    } else if (finalStatus === "on_leave") {
       // Validate leave type
       const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "OS", "CL"];
       if (!leaveType || !validLeaveTypes.includes(leaveType)) {
@@ -238,110 +251,6 @@ const getAttendance = async (req, res) => {
 };
 
 // Update attendance record
-/* const updateAttendance = async (req, res) => {
-  if (req.User.role !== "admin" && req.user.role !== "hr") {
-    return res.status(401).json({
-      message: "yo cannot update anything unless you are hr or admins",
-    });
-  }
-  try {
-    const { id } = req.params;
-    const { status, checkIn, checkOut, leaveType, notes } = req.body;
-
-    const attendance = await Attendance.findById(id);
-    if (!attendance) {
-      return res.status(404).json({
-        message: "Attendance record not found",
-      });
-    }
-
-    // Update basic fields
-    if (status) {
-      const validStatuses = ["present", "absent", "late", "on_leave"];
-      if (!validStatuses.includes(status.toLowerCase())) {
-        return res.status(400).json({
-          message: "Invalid status",
-        });
-      }
-      attendance.status = status.toLowerCase();
-    }
-
-    if (notes !== undefined) {
-      attendance.notes = notes;
-    }
-
-    // Handle status-specific updates
-    if (attendance.status === "present" || attendance.status === "late") {
-      if (checkIn) {
-        const checkInDate = parseTimeToDate(checkIn, attendance.date);
-        attendance.checkIn = checkInDate;
-
-        if (attendance.status === "late") {
-          attendance.tardinessMinutes = calculateTardiness(checkInDate);
-        } else {
-          attendance.tardinessMinutes = 0;
-        }
-      }
-
-      if (checkOut) {
-        const checkOutDate = parseTimeToDate(checkOut, attendance.date);
-        attendance.checkOut = checkOutDate;
-
-        if (attendance.checkIn && checkOutDate) {
-          attendance.hoursRendered = calculateHoursInMinutes(
-            attendance.checkIn,
-            checkOutDate
-          );
-        }
-      }
-
-      // Clear leave type for non-leave status
-      attendance.leaveType = null;
-    } else if (attendance.status === "on_leave") {
-      if (leaveType) {
-        const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "OS", "CL"];
-        if (!validLeaveTypes.includes(leaveType)) {
-          return res.status(400).json({
-            message: "Invalid leave type",
-          });
-        }
-        attendance.leaveType = leaveType;
-      }
-
-      // Clear time-related fields for leave
-      attendance.checkIn = null;
-      attendance.checkOut = null;
-      attendance.hoursRendered = 0;
-      attendance.tardinessMinutes = 0;
-    } else if (attendance.status === "absent") {
-      // Clear all time-related fields for absent
-      attendance.checkIn = null;
-      attendance.checkOut = null;
-      attendance.hoursRendered = 0;
-      attendance.tardinessMinutes = 0;
-      attendance.leaveType = null;
-    }
-
-    await attendance.save();
-
-    // Return populated record
-    const updatedRecord = await Attendance.findById(id).populate(
-      "employee",
-      "firstname lastname employeeId department role employmentType"
-    );
-
-    res.json({
-      message: "Attendance record updated successfully",
-      attendance: updatedRecord,
-    });
-  } catch (error) {
-    console.error("Error updating attendance:", error);
-    res.status(500).json({
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-}; */
 const updateAttendance = async (req, res) => {
   // Fixed: consistent use of req.user (lowercase 'u')
   if (req.user.role !== "admin" && req.user.role !== "hr") {
