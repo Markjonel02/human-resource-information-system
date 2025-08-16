@@ -19,31 +19,6 @@ router.post("/auth/logout", authController.logout);
 // This ensures that any subsequent route requires authentication.
 router.use(verifyJWT);
 //ping if user i inactive or still active
-/* router.get("/ping", verifyJWT, async (req, res) => {
-  try {
-    const { id, username } = req.user; // set by verifyJWT
-
-    const user = await User.findById(id); // safer and faster
-
-    if (!user || user.status === 0) {
-      return res.status(401).json({
-        message: "Your account has been deactivated.",
-        logout: true,
-      });
-    }
-
-    return res.status(200).json({ message: "Session OK" });
-  } catch (err) {
-    console.error("Ping error:", err);
-    return res.status(500).json({
-      message: "Server error.",
-      logout: true,
-    });
-  }
-});
- */
-// Admin-only routes for user creation and deletion, and full access to lists/details/updates
-// 'verifyJWT' is already applied by 'router.use(verifyJWT)' above, so no need to add it again here.
 router.post(
   "/create-employees",
   authorizeRoles("admin", "hr"), // Only admin can create employees

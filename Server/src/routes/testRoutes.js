@@ -5,6 +5,7 @@ const router = express.Router();
 const verifyJWT = require("../middlewares/verifyJWT");
 const authorizeRoles = require("../middlewares/authorizeRole");
 const testAttendance = require("../controllers/testAttendanceController");
+const AttendanceLog = require("../models/attendanceLogSchema");
 
 router.use(verifyJWT);
 
@@ -30,4 +31,21 @@ router.delete(
   authorizeRoles("admin", "hr"),
   testAttendance.deleteAttendance
 );
+
+router.get(
+  "/attendance-logs",
+  authorizeRoles("admin", "hr"),
+  testAttendance.getAttendanceLogs
+);
+router.get(
+  "/attendance-logs/employee/:employeeId",
+  authorizeRoles("admin", "hr"),
+  testAttendance.getEmployeeAttendanceLogs
+);
+router.get(
+  "/attendance-logs/recent",
+  authorizeRoles("admin", "hr"),
+  testAttendance.getRecentAttendanceLogs
+);
+
 module.exports = router;
