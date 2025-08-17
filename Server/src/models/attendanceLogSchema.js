@@ -4,7 +4,7 @@ const attendanceLogSchema = new mongoose.Schema(
   {
     employeeId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "user",
       required: false, // Some logs might be system-wide
       index: true,
     },
@@ -43,7 +43,7 @@ const attendanceLogSchema = new mongoose.Schema(
     },
     performedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "user",
       required: false, // System actions won't have a user
       index: true,
     },

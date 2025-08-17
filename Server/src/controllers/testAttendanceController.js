@@ -316,6 +316,12 @@ const getAttendance = async (req, res) => {
     const { status, employee, page = 1, limit = 100 } = req.query;
     const currentUser = req.user;
 
+    console.log("Current User:", {
+      id: currentUser._id,
+      role: currentUser.role,
+      name: `${currentUser.firstname} ${currentUser.lastname}`,
+    });
+
     // Build query
     const query = {};
 
@@ -323,6 +329,12 @@ const getAttendance = async (req, res) => {
     if (currentUser.role === "employee") {
       // Employees can only see their own attendance
       query.employee = currentUser._id;
+      console.log("Employee query:", query);
+
+      // Apply status filter for employees
+      if (status) {
+        query.status = status.toLowerCase();
+      }
     } else if (currentUser.role === "admin" || currentUser.role === "hr") {
       // Admin and HR can see all attendance records
       if (status) {
@@ -349,12 +361,10 @@ const getAttendance = async (req, res) => {
     } else {
       // Default fallback - restrict to own records
       query.employee = currentUser._id;
+      console.log("Fallback query:", query);
     }
 
-    // Apply status filter for employees too (if they want to filter their own records)
-    if (currentUser.role === "employee" && status) {
-      query.status = status.toLowerCase();
-    }
+    console.log("Final query:", query);
 
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -368,6 +378,8 @@ const getAttendance = async (req, res) => {
       .sort({ date: -1 })
       .skip(skip)
       .limit(parseInt(limit));
+
+    console.log("Found records:", attendanceRecords.length);
 
     // Transform data to match frontend expectations
     const transformedRecords = attendanceRecords.map((record) => ({
@@ -389,31 +401,37 @@ const getAttendance = async (req, res) => {
             hour12: true,
           })
         : "-",
-      hoursRendered: record.hoursRendered,
-      tardinessMinutes: record.tardinessMinutes,
+      hoursRendered: record.hoursRendered || 0,
+      tardinessMinutes: record.tardinessMinutes || 0,
       leaveType: record.leaveType,
       notes: record.notes,
     }));
 
-    // Log access
+    // Log access (only if user exists)
     const performedBy = req.user ? req.user._id : null;
     if (performedBy) {
-      await createAttendanceLog({
-        employeeId: currentUser.role === "employee" ? currentUser._id : null,
-        action: "BULK_ACCESS",
-        description: `Accessed attendance records (${transformedRecords.length} records) - Role: ${currentUser.role}`,
-        performedBy: performedBy,
-        metadata: {
-          query: req.query,
-          recordCount: transformedRecords.length,
-          page: page,
-          limit: limit,
-          userRole: currentUser.role,
-          restrictedToSelf: currentUser.role === "employee",
-        },
-      });
+      try {
+        await createAttendanceLog({
+          employeeId: currentUser.role === "employee" ? currentUser._id : null,
+          action: "BULK_ACCESS",
+          description: `Accessed attendance records (${transformedRecords.length} records) - Role: ${currentUser.role}`,
+          performedBy: performedBy,
+          metadata: {
+            query: req.query,
+            recordCount: transformedRecords.length,
+            page: page,
+            limit: limit,
+            userRole: currentUser.role,
+            restrictedToSelf: currentUser.role === "employee",
+          },
+        });
+      } catch (logError) {
+        console.error("Error creating attendance log:", logError);
+        // Continue without failing the main request
+      }
     }
 
+    console.log("Returning records:", transformedRecords.length);
     res.json(transformedRecords);
   } catch (error) {
     console.error("Error fetching attendance:", error);
@@ -425,10 +443,18 @@ const getAttendance = async (req, res) => {
 };
 
 // NEW FUNCTION: Get employee's own attendance records only
+
+// Alternative function specifically for employees to get their own attendance
 const getMyAttendance = async (req, res) => {
   try {
     const { status, startDate, endDate, page = 1, limit = 50 } = req.query;
     const currentUser = req.user;
+
+    console.log("Getting my attendance for user:", {
+      id: currentUser._id,
+      role: currentUser.role,
+      name: `${currentUser.firstname} ${currentUser.lastname}`,
+    });
 
     // Build query - always restricted to current user
     const query = {
@@ -451,6 +477,8 @@ const getMyAttendance = async (req, res) => {
       }
     }
 
+    console.log("My attendance query:", query);
+
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
@@ -466,6 +494,10 @@ const getMyAttendance = async (req, res) => {
 
     // Get total count for pagination
     const totalRecords = await Attendance.countDocuments(query);
+
+    console.log(
+      `Found ${attendanceRecords.length} records out of ${totalRecords} total`
+    );
 
     // Transform data
     const transformedRecords = attendanceRecords.map((record) => ({
@@ -487,8 +519,8 @@ const getMyAttendance = async (req, res) => {
             hour12: true,
           })
         : "-",
-      hoursRendered: record.hoursRendered,
-      tardinessMinutes: record.tardinessMinutes,
+      hoursRendered: record.hoursRendered || 0,
+      tardinessMinutes: record.tardinessMinutes || 0,
       leaveType: record.leaveType,
       notes: record.notes,
     }));
@@ -514,19 +546,24 @@ const getMyAttendance = async (req, res) => {
     };
 
     // Log access
-    await createAttendanceLog({
-      employeeId: currentUser._id,
-      action: "SELF_ACCESS",
-      description: `Employee accessed their own attendance records (${transformedRecords.length} records)`,
-      performedBy: currentUser._id,
-      metadata: {
-        query: req.query,
-        recordCount: transformedRecords.length,
-        page: page,
-        limit: limit,
-        summary: summary,
-      },
-    });
+    try {
+      await createAttendanceLog({
+        employeeId: currentUser._id,
+        action: "SELF_ACCESS",
+        description: `Employee accessed their own attendance records (${transformedRecords.length} records)`,
+        performedBy: currentUser._id,
+        metadata: {
+          query: req.query,
+          recordCount: transformedRecords.length,
+          page: page,
+          limit: limit,
+          summary: summary,
+        },
+      });
+    } catch (logError) {
+      console.error("Error creating attendance log:", logError);
+      // Continue without failing the main request
+    }
 
     res.json({
       attendance: transformedRecords,
