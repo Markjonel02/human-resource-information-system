@@ -26,6 +26,9 @@ const EmployeeDashboard = lazy(() =>
   import("./pages/employee/EmployeeDashboard")
 );
 
+const EmployeeRoutes = lazy(() =>
+  import("./routes/employee/EmployeeAttendance")
+);
 /**
  * Loader Component
  * Displays a full-screen, centered loading spinner with a semi-transparent background.
@@ -111,6 +114,11 @@ const App = () => {
                               element={<EmployeeDashboard />} // Use the employee dashboard component
                             />
                             <Route path="/employees" element={<Employees />} />
+
+                            <Route
+                              path="/employees-attendance"
+                              element={<EmployeeRoutes />}
+                            />
                             <Route
                               path="/attendances"
                               element={<Attendances />}
