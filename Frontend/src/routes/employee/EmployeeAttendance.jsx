@@ -117,22 +117,63 @@ const axiosInstance = {
         ],
       };
     }
-    if (url === "/get-attendance") {
+    if (url === "/attendance") {
       return { data: mockAttendanceData };
     }
-    if (url.includes("/attendance-logs/employee/")) {
-      return { data: mockAttendanceLogs };
+    if (url.includes("/attendance/employee/") && url.includes("/today")) {
+      return {
+        data: {
+          hasCheckedIn: false,
+          hasCheckedOut: false,
+          canCheckIn: true,
+          canCheckOut: false,
+          attendance: null,
+        },
+      };
+    }
+    if (url.includes("/attendance/employee/")) {
+      return { data: { attendance: mockAttendanceData, summary: mockSummary } };
+    }
+    if (url === "/attendance/stats") {
+      return { data: mockStats };
     }
     return { data: [] };
   },
-  post: async (url, data) => ({
-    data: { attendance: { ...data, _id: Date.now().toString() } },
-  }),
+  post: async (url, data) => {
+    if (url === "/attendance/check-in") {
+      return {
+        data: {
+          message: "Check-in successful",
+          attendance: {
+            ...data,
+            _id: Date.now().toString(),
+            checkIn: new Date(),
+          },
+          checkInTime: new Date().toLocaleTimeString(),
+        },
+      };
+    }
+    if (url === "/attendance/check-out") {
+      return {
+        data: {
+          message: "Check-out successful",
+          attendance: {
+            ...data,
+            _id: Date.now().toString(),
+            checkOut: new Date(),
+          },
+          checkOutTime: new Date().toLocaleTimeString(),
+          hoursRendered: "8h 30m",
+        },
+      };
+    }
+    return { data: { attendance: { ...data, _id: Date.now().toString() } } };
+  },
   put: async (url, data) => ({ data }),
   delete: async (url) => ({ data: {} }),
 };
 
-// Mock data
+// Mock data - focused on check-in/checkout only
 const mockAttendanceData = [
   {
     _id: "1",
@@ -146,8 +187,10 @@ const mockAttendanceData = [
     },
     date: "2024-08-18",
     status: "present",
-    checkIn: "08:15 AM",
-    checkOut: "05:30 PM",
+    checkIn: new Date("2024-08-18T08:15:00"),
+    checkOut: new Date("2024-08-18T17:30:00"),
+    hoursRendered: 495, // 8h 15m in minutes
+    tardinessMinutes: 15,
     notes: "Normal working day",
   },
   {
@@ -162,8 +205,10 @@ const mockAttendanceData = [
     },
     date: "2024-08-18",
     status: "late",
-    checkIn: "08:45 AM",
-    checkOut: "05:15 PM",
+    checkIn: new Date("2024-08-18T08:45:00"),
+    checkOut: new Date("2024-08-18T17:15:00"),
+    hoursRendered: 510, // 8h 30m in minutes
+    tardinessMinutes: 45,
     notes: "Traffic delay",
   },
   {
@@ -177,42 +222,92 @@ const mockAttendanceData = [
       department: "Operations",
     },
     date: "2024-08-18",
-    status: "on_leave",
-    checkIn: "-",
-    checkOut: "-",
-    leaveType: "VL",
-    notes: "Annual vacation",
+    status: "present",
+    checkIn: new Date("2024-08-18T07:55:00"),
+    checkOut: null, // Still at work
+    hoursRendered: 0,
+    tardinessMinutes: 0,
+    notes: "Early arrival",
   },
 ];
 
-const mockAttendanceLogs = [
+const mockSummary = {
+  totalDays: 30,
+  presentDays: 22,
+  lateDays: 5,
+  absentDays: 2,
+  leaveDays: 1,
+  totalHoursRendered: 12600, // in minutes
+  totalTardinessMinutes: 180,
+};
+
+const mockStats = {
+  today: [
+    { _id: "present", count: 15, totalTardiness: 30, totalHours: 7200 },
+    { _id: "late", count: 3, totalTardiness: 90, totalHours: 1440 },
+    { _id: "absent", count: 2, totalTardiness: 0, totalHours: 0 },
+  ],
+  monthly: [
+    { _id: "present", count: 450, totalTardiness: 600, totalHours: 216000 },
+    { _id: "late", count: 85, totalTardiness: 2550, totalHours: 40800 },
+    { _id: "absent", count: 25, totalTardiness: 0, totalHours: 0 },
+  ],
+  leaveBreakdown: { VL: 8, SL: 6, LWOP: 5, BL: 5, OS: 7, CL: 5 },
+};
+
+const mockCheckInOutLogs = [
   {
     employeeId: "1",
     action: "Check In",
     timestamp: "2024-08-18T08:15:00Z",
     description: "Employee checked in at main entrance",
+    location: "Main Entrance",
   },
   {
     employeeId: "1",
     action: "Check Out",
     timestamp: "2024-08-18T17:30:00Z",
     description: "Employee checked out at main entrance",
+    location: "Main Entrance",
+  },
+  {
+    employeeId: "2",
+    action: "Check In",
+    timestamp: "2024-08-18T08:45:00Z",
+    description: "Late check-in due to traffic",
+    location: "Main Entrance",
   },
 ];
 
 // Helper functions
 const parseTimeToMinutes = (timeStr) => {
-  if (!timeStr || timeStr === "-" || timeStr === "") return null;
-  const [time, period] = timeStr.split(" ");
-  let [hours, minutes] = time.split(":").map(Number);
-  if (period === "PM" && hours !== 12) {
-    hours += 12;
-  } else if (period === "AM" && hours === 12) {
-    hours = 0;
+  // Ensure we have a string to work with
+  if (typeof timeStr !== "string") {
+    timeStr = String(timeStr || "");
   }
-  return hours * 60 + minutes;
-};
 
+  timeStr = timeStr.trim();
+  if (!timeStr || timeStr === "-" || timeStr === "") return null;
+
+  try {
+    const [time, period] = timeStr.split(" ");
+    if (!time) return null;
+
+    let [hours, minutes] = time.split(":").map(Number);
+
+    if (isNaN(hours) || isNaN(minutes)) return null;
+
+    if (period === "PM" && hours !== 12) {
+      hours += 12;
+    } else if (period === "AM" && hours === 12) {
+      hours = 0;
+    }
+    return hours * 60 + minutes;
+  } catch (error) {
+    console.warn("Error parsing time:", timeStr, error);
+    return null;
+  }
+};
 const formatLogTimestamp = (timestamp) => {
   const date = new Date(timestamp);
   return date.toLocaleDateString() + " " + date.toLocaleTimeString();
@@ -250,6 +345,13 @@ const EmployeeAttendanceTracker = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [todayStatus, setTodayStatus] = useState({
+    hasCheckedIn: false,
+    hasCheckedOut: false,
+    canCheckIn: true,
+    canCheckOut: false,
+    attendance: null,
+  });
 
   // Check-in/Check-out states
   const [isCheckingIn, setIsCheckingIn] = useState(false);
@@ -272,7 +374,14 @@ const EmployeeAttendanceTracker = () => {
     onClose: onDrawerClose,
   } = useDisclosure();
 
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [selectedEmployee, setSelectedEmployee] = useState({
+    employee: {},
+    date: "",
+    status: "",
+    checkIn: null,
+    checkOut: null,
+    // other default fields
+  });
   const toast = useToast();
 
   // Auto refresh every 30 seconds
@@ -283,13 +392,22 @@ const EmployeeAttendanceTracker = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch attendance records
+  // Fetch attendance records and today's status
   useEffect(() => {
     const fetchAttendance = async () => {
       try {
         setIsLoading(true);
-        const response = await axiosInstance.get("/get-attendance");
+
+        // Fetch all attendance records
+        const response = await axiosInstance.get("/attendance");
         setAttendanceRecords(response.data);
+
+        // Fetch today's status for current employee
+        const todayResponse = await axiosInstance.get(
+          `/attendance/employee/${currentEmployee._id}/today`
+        );
+        setTodayStatus(todayResponse.data);
+
         setError(null);
       } catch (err) {
         setError(err.message || "Failed to fetch attendance data");
@@ -300,41 +418,21 @@ const EmployeeAttendanceTracker = () => {
     };
 
     fetchAttendance();
-  }, [refreshKey]);
+  }, [refreshKey, currentEmployee._id]);
 
   // Handle check-in
   const handleCheckIn = async () => {
     try {
       setIsCheckingIn(true);
-      const now = new Date();
-      const currentTime = now.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
 
-      // Determine if late
-      const isLate = shouldBeMarkedAsLate(
-        currentTime,
-        companySettings.standardCheckIn
-      );
-
-      const checkInData = {
+      const response = await axiosInstance.post("/attendance/check-in", {
         employeeId: currentEmployee._id,
-        date: now.toISOString().split("T")[0],
-        status: isLate ? "late" : "present",
-        checkIn: currentTime,
-        action: "check_in",
-      };
-
-      await axiosInstance.post("/attendance/check-in", checkInData);
+      });
 
       toast({
         title: "Success",
-        description: `Checked in at ${currentTime}${
-          isLate ? " (Marked as late)" : ""
-        }`,
-        status: isLate ? "warning" : "success",
+        description: response.data.message,
+        status: response.data.message.includes("late") ? "warning" : "success",
         duration: 3000,
         isClosable: true,
       });
@@ -343,7 +441,7 @@ const EmployeeAttendanceTracker = () => {
     } catch (err) {
       toast({
         title: "Error",
-        description: "Failed to check in",
+        description: err.response?.data?.message || "Failed to check in",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -357,26 +455,16 @@ const EmployeeAttendanceTracker = () => {
   const handleCheckOut = async () => {
     try {
       setIsCheckingOut(true);
-      const now = new Date();
-      const currentTime = now.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
 
-      const checkOutData = {
+      const response = await axiosInstance.post("/attendance/check-out", {
         employeeId: currentEmployee._id,
-        checkOut: currentTime,
-        action: "check_out",
-      };
-
-      await axiosInstance.post("/attendance/check-out", checkOutData);
+      });
 
       toast({
         title: "Success",
-        description: `Checked out at ${currentTime}`,
+        description: `${response.data.message} - Total hours: ${response.data.hoursRendered}`,
         status: "success",
-        duration: 3000,
+        duration: 4000,
         isClosable: true,
       });
 
@@ -384,7 +472,7 @@ const EmployeeAttendanceTracker = () => {
     } catch (err) {
       toast({
         title: "Error",
-        description: "Failed to check out",
+        description: err.response?.data?.message || "Failed to check out",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -484,59 +572,60 @@ const EmployeeAttendanceTracker = () => {
   };
 
   const calculateHoursRendered = (checkIn, checkOut) => {
-    if (checkIn === "-" || checkOut === "-" || !checkIn || !checkOut)
-      return "-";
+    if (!checkIn || !checkOut) return "-";
 
-    const checkInMinutes = parseTimeToMinutes(checkIn);
-    const checkOutMinutes = parseTimeToMinutes(checkOut);
+    const checkInTime = new Date(checkIn);
+    const checkOutTime = new Date(checkOut);
 
-    if (
-      checkInMinutes === null ||
-      checkOutMinutes === null ||
-      checkOutMinutes < checkInMinutes
-    ) {
-      return "-";
-    }
+    if (checkOutTime <= checkInTime) return "-";
 
-    const totalMinutes = checkOutMinutes - checkInMinutes;
+    const totalMinutes = Math.floor((checkOutTime - checkInTime) / (1000 * 60));
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
 
     return `${hours}h ${minutes}m`;
   };
 
+  const formatTime = (dateTime) => {
+    if (!dateTime) return "-";
+    const date = dateTime instanceof Date ? dateTime : new Date(dateTime);
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
   const getTardiness = (record) => {
-    if (record.status.toLowerCase() === "late" && record.checkIn) {
-      const lateMinutes = calculateLateMinutes(
-        record.checkIn,
-        companySettings.standardCheckIn
-      );
-      if (lateMinutes > 0) {
-        return `${lateMinutes} min late`;
-      }
+    if (record.tardinessMinutes && record.tardinessMinutes > 0) {
+      return `${record.tardinessMinutes} min late`;
     }
     return "-";
   };
 
   const handleViewDetails = async (employee) => {
-    setSelectedEmployee(employee);
     try {
+      // Set basic employee info first
+      setSelectedEmployee({
+        ...employee,
+        employee: employee.employee || {},
+      });
+
       const logsResponse = await axiosInstance.get(
-        `/attendance-logs/employee/${employee.employee._id}`
+        `/attendance/employee/${employee.employee._id}`
       );
-      setAttendanceLogs(logsResponse.data || []);
+      setAttendanceLogs(logsResponse.data.attendance || []);
+      onDrawerOpen();
     } catch (err) {
       toast({
         title: "Error",
-        description: "Failed to fetch attendance logs",
+        description: "Failed to fetch attendance details",
         status: "error",
         duration: 3000,
         isClosable: true,
       });
     }
-    onDrawerOpen();
   };
-
   const formatDate = (dateString) => {
     const options = { year: "numeric", month: "short", day: "numeric" };
     return new Date(dateString).toLocaleDateString("en-US", options);
@@ -622,20 +711,22 @@ const EmployeeAttendanceTracker = () => {
             colorScheme="green"
             onClick={handleCheckIn}
             isLoading={isCheckingIn}
+            isDisabled={!todayStatus.canCheckIn}
             loadingText="Checking In..."
             size={{ base: "sm", md: "md" }}
           >
-            Check In
+            {todayStatus.hasCheckedIn ? "Already Checked In" : "Check In"}
           </Button>
           <Button
             leftIcon={<FaSignOutAlt />}
             colorScheme="red"
             onClick={handleCheckOut}
             isLoading={isCheckingOut}
+            isDisabled={!todayStatus.canCheckOut}
             loadingText="Checking Out..."
             size={{ base: "sm", md: "md" }}
           >
-            Check Out
+            {todayStatus.hasCheckedOut ? "Already Checked Out" : "Check Out"}
           </Button>
           <InputGroup w={{ base: "full", sm: "300px" }}>
             <InputLeftElement pointerEvents="none">
@@ -879,8 +970,10 @@ const EmployeeAttendanceTracker = () => {
                   >
                     <HStack spacing={1}>
                       <TimeIcon w={3} h={3} color="gray.500" />
-                      <Text fontSize="sm" color="gray.900">
-                        {record.checkIn || "-"}
+                      <Text fontSize="md" fontWeight="bold" color="green.700">
+                        {selectedEmployee.checkIn
+                          ? formatTime(selectedEmployee.checkIn)
+                          : "-"}
                       </Text>
                     </HStack>
                   </Td>
@@ -892,7 +985,7 @@ const EmployeeAttendanceTracker = () => {
                     <HStack spacing={1}>
                       <TimeIcon w={3} h={3} color="gray.500" />
                       <Text fontSize="sm" color="gray.900">
-                        {record.checkOut || "-"}
+                        {record.checkOut ? formatTime(record.checkOut) : "-"}
                       </Text>
                     </HStack>
                   </Td>
@@ -1094,82 +1187,81 @@ const EmployeeAttendanceTracker = () => {
                           </SimpleGrid>
                         </Box>
 
-                        {selectedEmployee.checkIn &&
-                          selectedEmployee.checkIn !== "-" && (
-                            <Box
-                              bg="green.50"
-                              p={4}
-                              borderRadius="lg"
-                              border="1px"
-                              borderColor="green.200"
-                            >
-                              <Heading size="sm" mb={3} color="green.700">
-                                <HStack>
-                                  <Icon as={TimeIcon} color="green.500" />
-                                  <Text>Time Records</Text>
-                                </HStack>
-                              </Heading>
-                              <SimpleGrid columns={1} spacing={3}>
-                                <HStack justify="space-between">
-                                  <Text fontSize="sm" color="gray.600">
-                                    Check-in:
-                                  </Text>
-                                  <Text
-                                    fontSize="md"
-                                    fontWeight="bold"
-                                    color="green.700"
-                                  >
-                                    {selectedEmployee.checkIn}
-                                  </Text>
-                                </HStack>
-                                {selectedEmployee.checkOut &&
-                                  selectedEmployee.checkOut !== "-" && (
-                                    <HStack justify="space-between">
-                                      <Text fontSize="sm" color="gray.600">
-                                        Check-out:
-                                      </Text>
-                                      <Text
-                                        fontSize="md"
-                                        fontWeight="bold"
-                                        color="green.700"
-                                      >
-                                        {selectedEmployee.checkOut}
-                                      </Text>
-                                    </HStack>
-                                  )}
-                                <Divider />
-                                <HStack justify="space-between">
-                                  <Text fontSize="sm" color="gray.600">
-                                    Hours Worked:
-                                  </Text>
-                                  <Text
-                                    fontSize="md"
-                                    fontWeight="bold"
-                                    color="blue.700"
-                                  >
-                                    {calculateHoursRendered(
-                                      selectedEmployee.checkIn,
-                                      selectedEmployee.checkOut
-                                    )}
-                                  </Text>
-                                </HStack>
-                                {getTardiness(selectedEmployee) !== "-" && (
+                        {selectedEmployee.checkIn && (
+                          <Box
+                            bg="green.50"
+                            p={4}
+                            borderRadius="lg"
+                            border="1px"
+                            borderColor="green.200"
+                          >
+                            <Heading size="sm" mb={3} color="green.700">
+                              <HStack>
+                                <Icon as={TimeIcon} color="green.500" />
+                                <Text>Time Records</Text>
+                              </HStack>
+                            </Heading>
+                            <SimpleGrid columns={1} spacing={3}>
+                              <HStack justify="space-between">
+                                <Text fontSize="sm" color="gray.600">
+                                  Check-in:
+                                </Text>
+                                <Text
+                                  fontSize="md"
+                                  fontWeight="bold"
+                                  color="green.700"
+                                >
+                                  {selectedEmployee.checkIn}
+                                </Text>
+                              </HStack>
+                              {selectedEmployee.checkOut &&
+                                selectedEmployee.checkOut !== "-" && (
                                   <HStack justify="space-between">
                                     <Text fontSize="sm" color="gray.600">
-                                      Tardiness:
+                                      Check-out:
                                     </Text>
                                     <Text
                                       fontSize="md"
                                       fontWeight="bold"
-                                      color="orange.600"
+                                      color="green.700"
                                     >
-                                      {getTardiness(selectedEmployee)}
+                                      {selectedEmployee.checkOut}
                                     </Text>
                                   </HStack>
                                 )}
-                              </SimpleGrid>
-                            </Box>
-                          )}
+                              <Divider />
+                              <HStack justify="space-between">
+                                <Text fontSize="sm" color="gray.600">
+                                  Hours Worked:
+                                </Text>
+                                <Text
+                                  fontSize="md"
+                                  fontWeight="bold"
+                                  color="blue.700"
+                                >
+                                  {calculateHoursRendered(
+                                    selectedEmployee.checkIn,
+                                    selectedEmployee.checkOut
+                                  )}
+                                </Text>
+                              </HStack>
+                              {getTardiness(selectedEmployee) !== "-" && (
+                                <HStack justify="space-between">
+                                  <Text fontSize="sm" color="gray.600">
+                                    Tardiness:
+                                  </Text>
+                                  <Text
+                                    fontSize="md"
+                                    fontWeight="bold"
+                                    color="orange.600"
+                                  >
+                                    {getTardiness(selectedEmployee)}
+                                  </Text>
+                                </HStack>
+                              )}
+                            </SimpleGrid>
+                          </Box>
+                        )}
 
                         {selectedEmployee.leaveType && (
                           <Box

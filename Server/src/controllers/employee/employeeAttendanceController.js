@@ -1,13 +1,24 @@
 const Attendance = require("../models/Attendance");
-const User = require("../models/User"); // Assuming you have a User model
+const User = require("../models/User");
+const { isValidObjectId } = require("mongoose");
+
+// Constants for business rules
+const STANDARD_START_TIME = "08:00";
+const MINUTES_PER_HOUR = 60;
 
 // Helper function to calculate minutes between two times
 const calculateMinutesBetween = (startTime, endTime) => {
+  if (!startTime || !endTime) return 0;
   return Math.floor((endTime - startTime) / (1000 * 60));
 };
 
 // Helper function to calculate tardiness
-const calculateTardiness = (checkInTime, standardStartTime = "08:00") => {
+const calculateTardiness = (
+  checkInTime,
+  standardStartTime = STANDARD_START_TIME
+) => {
+  if (!checkInTime) return 0;
+
   const checkIn = new Date(checkInTime);
   const today = new Date(checkIn);
   const [hours, minutes] = standardStartTime.split(":").map(Number);
@@ -15,26 +26,23 @@ const calculateTardiness = (checkInTime, standardStartTime = "08:00") => {
   const standardStart = new Date(today);
   standardStart.setHours(hours, minutes, 0, 0);
 
-  if (checkIn > standardStart) {
-    return calculateMinutesBetween(standardStart, checkIn);
-  }
-  return 0;
+  return checkIn > standardStart
+    ? calculateMinutesBetween(standardStart, checkIn)
+    : 0;
 };
 
-// Helper function to determine status based on check-in time
-const determineStatus = (checkInTime, standardStartTime = "08:00") => {
-  const tardiness = calculateTardiness(checkInTime, standardStartTime);
-  return tardiness > 0 ? "late" : "present";
+// Helper function to determine status
+const determineStatus = (checkInTime) => {
+  return calculateTardiness(checkInTime) > 0 ? "late" : "present";
 };
 
-// Get all attendance records with populated employee data
+// Get all attendance records
 exports.getAllAttendance = async (req, res) => {
   try {
     const { employee, status, date, page = 1, limit = 50 } = req.query;
-
     const query = {};
 
-    // Filter by employee name or ID
+    // Employee filter
     if (employee) {
       const users = await User.find({
         $or: [
@@ -42,43 +50,46 @@ exports.getAllAttendance = async (req, res) => {
           { lastname: { $regex: employee, $options: "i" } },
           { employeeId: { $regex: employee, $options: "i" } },
         ],
-      });
+      }).select("_id");
 
-      if (users.length > 0) {
-        query.employee = { $in: users.map((user) => user._id) };
-      } else {
-        return res.json([]); // No matching employees
-      }
+      query.employee = { $in: users.map((user) => user._id) };
     }
 
-    // Filter by status
-    if (status) {
-      query.status = status;
-    }
+    // Status filter
+    if (status) query.status = status;
 
-    // Filter by date
+    // Date filter
     if (date) {
       const startDate = new Date(date);
       const endDate = new Date(date);
       endDate.setDate(endDate.getDate() + 1);
-
-      query.date = {
-        $gte: startDate,
-        $lt: endDate,
-      };
+      query.date = { $gte: startDate, $lt: endDate };
     }
 
-    const attendance = await Attendance.find(query)
-      .populate("employee", "firstname lastname employeeId role department")
-      .sort({ date: -1, createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .lean();
+    const [attendance, total] = await Promise.all([
+      Attendance.find(query)
+        .populate("employee", "firstname lastname employeeId role department")
+        .sort({ date: -1, createdAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit)
+        .lean(),
+      Attendance.countDocuments(query),
+    ]);
 
-    res.json(attendance);
+    res.json({
+      data: attendance,
+      pagination: {
+        currentPage: Number(page),
+        totalPages: Math.ceil(total / limit),
+        totalRecords: total,
+      },
+    });
   } catch (error) {
     console.error("Error fetching attendance:", error);
-    res.status(500).json({ message: "Failed to fetch attendance records" });
+    res.status(500).json({
+      message: "Failed to fetch attendance records",
+      error: error.message,
+    });
   }
 };
 
@@ -86,18 +97,23 @@ exports.getAllAttendance = async (req, res) => {
 exports.checkIn = async (req, res) => {
   try {
     const { employeeId } = req.body;
-    const checkInTime = new Date();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
 
-    // Verify employee exists
+    // Validate employeeId
+    if (!isValidObjectId(employeeId)) {
+      return res.status(400).json({ message: "Invalid employee ID" });
+    }
+
     const employee = await User.findById(employeeId);
     if (!employee) {
       return res.status(404).json({ message: "Employee not found" });
     }
 
-    // Check if employee already checked in today
-    const existingAttendance = await Attendance.findOne({
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkInTime = new Date();
+
+    // Check existing attendance
+    let attendance = await Attendance.findOne({
       employee: employeeId,
       date: {
         $gte: today,
@@ -105,54 +121,52 @@ exports.checkIn = async (req, res) => {
       },
     });
 
-    if (existingAttendance && existingAttendance.checkIn) {
+    if (attendance?.checkIn) {
       return res.status(400).json({
-        message: "Employee already checked in today",
-        checkInTime: existingAttendance.checkIn,
+        message: "Already checked in today",
+        checkInTime: attendance.checkIn,
       });
     }
 
-    // Calculate tardiness and status
+    // Calculate metrics
     const tardinessMinutes = calculateTardiness(checkInTime);
     const status = determineStatus(checkInTime);
 
-    let attendance;
-
-    if (existingAttendance) {
+    if (attendance) {
       // Update existing record
-      existingAttendance.checkIn = checkInTime;
-      existingAttendance.status = status;
-      existingAttendance.tardinessMinutes = tardinessMinutes;
-      attendance = await existingAttendance.save();
+      attendance.checkIn = checkInTime;
+      attendance.status = status;
+      attendance.tardinessMinutes = tardinessMinutes;
     } else {
-      // Create new attendance record
+      // Create new record
       attendance = new Attendance({
         employee: employeeId,
         date: today,
         checkIn: checkInTime,
-        status: status,
-        tardinessMinutes: tardinessMinutes,
+        status,
+        tardinessMinutes,
       });
-      await attendance.save();
     }
 
-    // Populate employee data for response
+    await attendance.save();
     await attendance.populate(
       "employee",
       "firstname lastname employeeId role department"
     );
 
     res.json({
-      message: `Check-in successful${
-        status === "late" ? " (Marked as late)" : ""
-      }`,
+      message:
+        status === "late" ? "Late check-in recorded" : "Check-in successful",
       attendance,
-      checkInTime: checkInTime.toLocaleTimeString(),
+      checkInTime: checkInTime.toISOString(),
       tardinessMinutes,
     });
   } catch (error) {
-    console.error("Error during check-in:", error);
-    res.status(500).json({ message: "Check-in failed" });
+    console.error("Check-in error:", error);
+    res.status(500).json({
+      message: "Check-in failed",
+      error: error.message,
+    });
   }
 };
 
@@ -160,17 +174,16 @@ exports.checkIn = async (req, res) => {
 exports.checkOut = async (req, res) => {
   try {
     const { employeeId } = req.body;
-    const checkOutTime = new Date();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
 
-    // Verify employee exists
-    const employee = await User.findById(employeeId);
-    if (!employee) {
-      return res.status(404).json({ message: "Employee not found" });
+    if (!isValidObjectId(employeeId)) {
+      return res.status(400).json({ message: "Invalid employee ID" });
     }
 
-    // Find today's attendance record
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkOutTime = new Date();
+
+    // Find today's attendance
     const attendance = await Attendance.findOne({
       employee: employeeId,
       date: {
@@ -181,62 +194,60 @@ exports.checkOut = async (req, res) => {
 
     if (!attendance) {
       return res.status(400).json({
-        message: "No check-in record found for today. Please check in first.",
-      });
-    }
-
-    if (!attendance.checkIn) {
-      return res.status(400).json({
-        message: "Cannot check out without checking in first.",
+        message: "No check-in record found for today",
       });
     }
 
     if (attendance.checkOut) {
       return res.status(400).json({
-        message: "Employee already checked out today",
+        message: "Already checked out today",
         checkOutTime: attendance.checkOut,
       });
     }
 
-    // Calculate hours rendered
-    const hoursRendered = calculateMinutesBetween(
+    // Calculate hours worked
+    const minutesWorked = calculateMinutesBetween(
       attendance.checkIn,
       checkOutTime
     );
+    const hoursDisplay = `${Math.floor(minutesWorked / MINUTES_PER_HOUR)}h ${
+      minutesWorked % MINUTES_PER_HOUR
+    }m`;
 
-    // Update attendance record
+    // Update record
     attendance.checkOut = checkOutTime;
-    attendance.hoursRendered = hoursRendered;
+    attendance.hoursRendered = minutesWorked;
     await attendance.save();
-
-    // Populate employee data for response
     await attendance.populate(
       "employee",
       "firstname lastname employeeId role department"
     );
 
-    const hoursDisplay = `${Math.floor(hoursRendered / 60)}h ${
-      hoursRendered % 60
-    }m`;
-
     res.json({
       message: "Check-out successful",
       attendance,
-      checkOutTime: checkOutTime.toLocaleTimeString(),
+      checkOutTime: checkOutTime.toISOString(),
       hoursRendered: hoursDisplay,
-      totalMinutes: hoursRendered,
+      totalMinutes: minutesWorked,
     });
   } catch (error) {
-    console.error("Error during check-out:", error);
-    res.status(500).json({ message: "Check-out failed" });
+    console.error("Check-out error:", error);
+    res.status(500).json({
+      message: "Check-out failed",
+      error: error.message,
+    });
   }
 };
 
-// Get employee's attendance history
+// Get employee attendance history
 exports.getEmployeeAttendance = async (req, res) => {
   try {
     const { employeeId } = req.params;
     const { startDate, endDate, page = 1, limit = 30 } = req.query;
+
+    if (!isValidObjectId(employeeId)) {
+      return res.status(400).json({ message: "Invalid employee ID" });
+    }
 
     const query = { employee: employeeId };
 
@@ -244,55 +255,69 @@ exports.getEmployeeAttendance = async (req, res) => {
     if (startDate || endDate) {
       query.date = {};
       if (startDate) query.date.$gte = new Date(startDate);
-      if (endDate) {
-        const end = new Date(endDate);
-        end.setDate(end.getDate() + 1);
-        query.date.$lt = end;
-      }
+      if (endDate)
+        query.date.$lt = new Date(
+          new Date(endDate).setDate(new Date(endDate).getDate() + 1)
+        );
     }
 
-    const attendance = await Attendance.find(query)
-      .populate("employee", "firstname lastname employeeId role department")
-      .sort({ date: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .lean();
+    const [attendance, total] = await Promise.all([
+      Attendance.find(query)
+        .populate("employee", "firstname lastname employeeId role department")
+        .sort({ date: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit)
+        .lean(),
+      Attendance.countDocuments(query),
+    ]);
 
-    // Calculate summary statistics
-    const summary = {
-      totalDays: attendance.length,
-      presentDays: attendance.filter((a) => a.status === "present").length,
-      lateDays: attendance.filter((a) => a.status === "late").length,
-      absentDays: attendance.filter((a) => a.status === "absent").length,
-      leaveDays: attendance.filter((a) => a.status === "on_leave").length,
-      totalHoursRendered: attendance.reduce(
-        (sum, a) => sum + (a.hoursRendered || 0),
-        0
-      ),
-      totalTardinessMinutes: attendance.reduce(
-        (sum, a) => sum + (a.tardinessMinutes || 0),
-        0
-      ),
-    };
+    // Calculate summary
+    const summary = attendance.reduce(
+      (acc, record) => {
+        acc.totalDays++;
+        acc[`${record.status}Days`]++;
+        acc.totalHoursRendered += record.hoursRendered || 0;
+        acc.totalTardinessMinutes += record.tardinessMinutes || 0;
+        return acc;
+      },
+      {
+        totalDays: 0,
+        presentDays: 0,
+        lateDays: 0,
+        absentDays: 0,
+        leaveDays: 0,
+        totalHoursRendered: 0,
+        totalTardinessMinutes: 0,
+      }
+    );
 
     res.json({
-      attendance,
+      data: attendance,
       summary,
       pagination: {
-        currentPage: page,
-        totalPages: Math.ceil(attendance.length / limit),
+        currentPage: Number(page),
+        totalPages: Math.ceil(total / limit),
+        totalRecords: total,
       },
     });
   } catch (error) {
-    console.error("Error fetching employee attendance:", error);
-    res.status(500).json({ message: "Failed to fetch employee attendance" });
+    console.error("Employee attendance error:", error);
+    res.status(500).json({
+      message: "Failed to fetch employee attendance",
+      error: error.message,
+    });
   }
 };
 
-// Get today's attendance status for an employee
+// Get today's attendance status
 exports.getTodayAttendance = async (req, res) => {
   try {
     const { employeeId } = req.params;
+
+    if (!isValidObjectId(employeeId)) {
+      return res.status(400).json({ message: "Invalid employee ID" });
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -310,74 +335,74 @@ exports.getTodayAttendance = async (req, res) => {
         hasCheckedOut: false,
         canCheckIn: true,
         canCheckOut: false,
-        message: "No attendance record for today",
       });
     }
 
-    const hasCheckedIn = !!attendance.checkIn;
-    const hasCheckedOut = !!attendance.checkOut;
-
     res.json({
       attendance,
-      hasCheckedIn,
-      hasCheckedOut,
-      canCheckIn: !hasCheckedIn,
-      canCheckOut: hasCheckedIn && !hasCheckedOut,
+      hasCheckedIn: !!attendance.checkIn,
+      hasCheckedOut: !!attendance.checkOut,
+      canCheckIn: !attendance.checkIn,
+      canCheckOut: !!attendance.checkIn && !attendance.checkOut,
       hoursRendered: attendance.hoursRendered || 0,
       tardinessMinutes: attendance.tardinessMinutes || 0,
     });
   } catch (error) {
-    console.error("Error fetching today's attendance:", error);
-    res.status(500).json({ message: "Failed to fetch today's attendance" });
+    console.error("Today's attendance error:", error);
+    res.status(500).json({
+      message: "Failed to fetch today's attendance",
+      error: error.message,
+    });
   }
 };
 
-// Get attendance statistics for dashboard
+// Get attendance statistics
 exports.getAttendanceStats = async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    // Today's statistics
-    const todayStats = await Attendance.aggregate([
-      {
-        $match: {
-          date: { $gte: today, $lt: tomorrow },
-        },
-      },
-      {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 },
-          totalTardiness: { $sum: "$tardinessMinutes" },
-          totalHours: { $sum: "$hoursRendered" },
-        },
-      },
-    ]);
-
-    // Monthly statistics
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 1);
 
-    const monthlyStats = await Attendance.aggregate([
-      {
-        $match: {
-          date: { $gte: monthStart, $lt: monthEnd },
+    const [todayStats, monthlyStats, leaveData] = await Promise.all([
+      // Today's stats
+      Attendance.aggregate([
+        { $match: { date: { $gte: today } } },
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 },
+            totalTardiness: { $sum: "$tardinessMinutes" },
+            totalHours: { $sum: "$hoursRendered" },
+          },
         },
-      },
-      {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 },
-          totalTardiness: { $sum: "$tardinessMinutes" },
-          totalHours: { $sum: "$hoursRendered" },
+      ]),
+      // Monthly stats
+      Attendance.aggregate([
+        { $match: { date: { $gte: monthStart, $lt: monthEnd } } },
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 },
+            totalTardiness: { $sum: "$tardinessMinutes" },
+            totalHours: { $sum: "$hoursRendered" },
+          },
         },
-      },
+      ]),
+      // Leave data
+      Attendance.aggregate([
+        {
+          $match: {
+            status: "on_leave",
+            leaveType: { $exists: true },
+            date: { $gte: monthStart, $lt: monthEnd },
+          },
+        },
+        { $group: { _id: "$leaveType", count: { $sum: 1 } } },
+      ]),
     ]);
 
-    // Ensure minimum 5 for each leave type (as requested)
+    // Process leave stats with minimum 5
     const leaveStats = {
       VL: 5,
       SL: 5,
@@ -387,24 +412,6 @@ exports.getAttendanceStats = async (req, res) => {
       CL: 5,
     };
 
-    // Add actual leave counts from database
-    const leaveData = await Attendance.aggregate([
-      {
-        $match: {
-          status: "on_leave",
-          leaveType: { $exists: true, $ne: null },
-          date: { $gte: monthStart, $lt: monthEnd },
-        },
-      },
-      {
-        $group: {
-          _id: "$leaveType",
-          count: { $sum: 1 },
-        },
-      },
-    ]);
-
-    // Add actual counts to minimum 5
     leaveData.forEach((leave) => {
       if (leaveStats[leave._id] !== undefined) {
         leaveStats[leave._id] += leave.count;
@@ -417,7 +424,10 @@ exports.getAttendanceStats = async (req, res) => {
       leaveBreakdown: leaveStats,
     });
   } catch (error) {
-    console.error("Error fetching attendance statistics:", error);
-    res.status(500).json({ message: "Failed to fetch attendance statistics" });
+    console.error("Stats error:", error);
+    res.status(500).json({
+      message: "Failed to fetch attendance statistics",
+      error: error.message,
+    });
   }
 };
