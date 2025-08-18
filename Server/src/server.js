@@ -34,8 +34,7 @@ app.get("/", (req, res) => {
   res.send("API is Connected!");
 }); */
 
-// Use your other test routes separately
-app.use("/api", testRoutes);
+//
 // Error handling middleware (optional, but good practice)
 app.use((err, req, res, next) => {
   console.error(err.stack);

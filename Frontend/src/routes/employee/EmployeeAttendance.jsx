@@ -62,6 +62,7 @@ import {
   Card,
   CardBody,
   CardHeader,
+  Select,
 } from "@chakra-ui/react";
 import {
   SearchIcon,
@@ -71,6 +72,9 @@ import {
   WarningIcon,
   CheckCircleIcon,
   InfoIcon,
+  AddIcon,
+  EditIcon,
+  DeleteIcon,
 } from "@chakra-ui/icons";
 import {
   FaUserTie,
@@ -79,209 +83,12 @@ import {
   FaClock,
   FaHistory,
   FaExclamationTriangle,
-  FaSignInAlt,
-  FaSignOutAlt,
 } from "react-icons/fa";
-
-// Mock axios instance for demo
-const axiosInstance = {
-  get: async (url, config) => {
-    // Mock API responses
-    if (url === "/employees") {
-      return {
-        data: [
-          {
-            _id: "1",
-            firstname: "John",
-            lastname: "Doe",
-            employeeId: "EMP001",
-            role: "Developer",
-            department: "IT",
-          },
-          {
-            _id: "2",
-            firstname: "Jane",
-            lastname: "Smith",
-            employeeId: "EMP002",
-            role: "Designer",
-            department: "Design",
-          },
-          {
-            _id: "3",
-            firstname: "Mike",
-            lastname: "Johnson",
-            employeeId: "EMP003",
-            role: "Manager",
-            department: "Operations",
-          },
-        ],
-      };
-    }
-    if (url === "/attendance") {
-      return { data: mockAttendanceData };
-    }
-    if (url.includes("/attendance/employee/") && url.includes("/today")) {
-      return {
-        data: {
-          hasCheckedIn: false,
-          hasCheckedOut: false,
-          canCheckIn: true,
-          canCheckOut: false,
-          attendance: null,
-        },
-      };
-    }
-    if (url.includes("/attendance/employee/")) {
-      return { data: { attendance: mockAttendanceData, summary: mockSummary } };
-    }
-    if (url === "/attendance/stats") {
-      return { data: mockStats };
-    }
-    return { data: [] };
-  },
-  post: async (url, data) => {
-    if (url === "/attendance/check-in") {
-      return {
-        data: {
-          message: "Check-in successful",
-          attendance: {
-            ...data,
-            _id: Date.now().toString(),
-            checkIn: new Date(),
-          },
-          checkInTime: new Date().toLocaleTimeString(),
-        },
-      };
-    }
-    if (url === "/attendance/check-out") {
-      return {
-        data: {
-          message: "Check-out successful",
-          attendance: {
-            ...data,
-            _id: Date.now().toString(),
-            checkOut: new Date(),
-          },
-          checkOutTime: new Date().toLocaleTimeString(),
-          hoursRendered: "8h 30m",
-        },
-      };
-    }
-    return { data: { attendance: { ...data, _id: Date.now().toString() } } };
-  },
-  put: async (url, data) => ({ data }),
-  delete: async (url) => ({ data: {} }),
-};
-
-// Mock data - focused on check-in/checkout only
-const mockAttendanceData = [
-  {
-    _id: "1",
-    employee: {
-      _id: "1",
-      firstname: "John",
-      lastname: "Doe",
-      employeeId: "EMP001",
-      role: "Developer",
-      department: "IT",
-    },
-    date: "2024-08-18",
-    status: "present",
-    checkIn: new Date("2024-08-18T08:15:00"),
-    checkOut: new Date("2024-08-18T17:30:00"),
-    hoursRendered: 495, // 8h 15m in minutes
-    tardinessMinutes: 15,
-    notes: "Normal working day",
-  },
-  {
-    _id: "2",
-    employee: {
-      _id: "2",
-      firstname: "Jane",
-      lastname: "Smith",
-      employeeId: "EMP002",
-      role: "Designer",
-      department: "Design",
-    },
-    date: "2024-08-18",
-    status: "late",
-    checkIn: new Date("2024-08-18T08:45:00"),
-    checkOut: new Date("2024-08-18T17:15:00"),
-    hoursRendered: 510, // 8h 30m in minutes
-    tardinessMinutes: 45,
-    notes: "Traffic delay",
-  },
-  {
-    _id: "3",
-    employee: {
-      _id: "3",
-      firstname: "Mike",
-      lastname: "Johnson",
-      employeeId: "EMP003",
-      role: "Manager",
-      department: "Operations",
-    },
-    date: "2024-08-18",
-    status: "present",
-    checkIn: new Date("2024-08-18T07:55:00"),
-    checkOut: null, // Still at work
-    hoursRendered: 0,
-    tardinessMinutes: 0,
-    notes: "Early arrival",
-  },
-];
-
-const mockSummary = {
-  totalDays: 30,
-  presentDays: 22,
-  lateDays: 5,
-  absentDays: 2,
-  leaveDays: 1,
-  totalHoursRendered: 12600, // in minutes
-  totalTardinessMinutes: 180,
-};
-
-const mockStats = {
-  today: [
-    { _id: "present", count: 15, totalTardiness: 30, totalHours: 7200 },
-    { _id: "late", count: 3, totalTardiness: 90, totalHours: 1440 },
-    { _id: "absent", count: 2, totalTardiness: 0, totalHours: 0 },
-  ],
-  monthly: [
-    { _id: "present", count: 450, totalTardiness: 600, totalHours: 216000 },
-    { _id: "late", count: 85, totalTardiness: 2550, totalHours: 40800 },
-    { _id: "absent", count: 25, totalTardiness: 0, totalHours: 0 },
-  ],
-  leaveBreakdown: { VL: 8, SL: 6, LWOP: 5, BL: 5, OS: 7, CL: 5 },
-};
-
-const mockCheckInOutLogs = [
-  {
-    employeeId: "1",
-    action: "Check In",
-    timestamp: "2024-08-18T08:15:00Z",
-    description: "Employee checked in at main entrance",
-    location: "Main Entrance",
-  },
-  {
-    employeeId: "1",
-    action: "Check Out",
-    timestamp: "2024-08-18T17:30:00Z",
-    description: "Employee checked out at main entrance",
-    location: "Main Entrance",
-  },
-  {
-    employeeId: "2",
-    action: "Check In",
-    timestamp: "2024-08-18T08:45:00Z",
-    description: "Late check-in due to traffic",
-    location: "Main Entrance",
-  },
-];
+import axios from "axios";
+import axiosInstance from "../../lib/axiosInstance";
 
 // Helper functions
 const parseTimeToMinutes = (timeStr) => {
-  // Ensure we have a string to work with
   if (typeof timeStr !== "string") {
     timeStr = String(timeStr || "");
   }
@@ -308,6 +115,7 @@ const parseTimeToMinutes = (timeStr) => {
     return null;
   }
 };
+
 const formatLogTimestamp = (timestamp) => {
   const date = new Date(timestamp);
   return date.toLocaleDateString() + " " + date.toLocaleTimeString();
@@ -324,18 +132,14 @@ const minutesToTimeString = (minutes) => {
     .padStart(2, "0")} ${period}`;
 };
 
-const shouldBeMarkedAsLate = (checkInTime, standardCheckIn = "08:00 AM") => {
-  const checkInMinutes = parseTimeToMinutes(checkInTime);
-  const standardMinutes = parseTimeToMinutes(standardCheckIn);
-  if (checkInMinutes === null || standardMinutes === null) return false;
-  return checkInMinutes > standardMinutes;
+const formatDate = (dateString) => {
+  const options = { year: "numeric", month: "short", day: "numeric" };
+  return new Date(dateString).toLocaleDateString("en-US", options);
 };
 
-const calculateLateMinutes = (checkInTime, standardCheckIn = "08:00 AM") => {
-  const checkInMinutes = parseTimeToMinutes(checkInTime);
-  const standardMinutes = parseTimeToMinutes(standardCheckIn);
-  if (checkInMinutes === null || standardMinutes === null) return 0;
-  return Math.max(0, checkInMinutes - standardMinutes);
+const capitalizeStatus = (status) => {
+  if (status.toLowerCase() === "on_leave") return "Leave";
+  return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
 };
 
 const EmployeeAttendanceTracker = () => {
@@ -345,27 +149,19 @@ const EmployeeAttendanceTracker = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [todayStatus, setTodayStatus] = useState({
-    hasCheckedIn: false,
-    hasCheckedOut: false,
-    canCheckIn: true,
-    canCheckOut: false,
-    attendance: null,
-  });
-
-  // Check-in/Check-out states
-  const [isCheckingIn, setIsCheckingIn] = useState(false);
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [currentEmployee] = useState({
-    _id: "1",
-    firstname: "John",
-    lastname: "Doe",
-    employeeId: "EMP001",
-  });
-
-  const [companySettings] = useState({
-    standardCheckIn: "08:00 AM",
-    standardCheckOut: "05:00 PM",
+  const [employees, setEmployees] = useState([]); // Initialize as empty array
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [currentRecord, setCurrentRecord] = useState(null);
+  const [formData, setFormData] = useState({
+    employeeId: "",
+    date: "",
+    status: "present",
+    checkIn: "",
+    checkOut: "",
+    leaveType: "",
+    notes: "",
   });
 
   const {
@@ -380,7 +176,6 @@ const EmployeeAttendanceTracker = () => {
     status: "",
     checkIn: null,
     checkOut: null,
-    // other default fields
   });
   const toast = useToast();
 
@@ -392,167 +187,51 @@ const EmployeeAttendanceTracker = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch attendance records and today's status
+  // Fetch attendance records and employees
   useEffect(() => {
-    const fetchAttendance = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
 
-        // Fetch all attendance records
-        const response = await axiosInstance.get("/attendance");
-        setAttendanceRecords(response.data);
+        // Fetch all attendance records using axiosInstance
+        const attendanceResponse = await axiosInstance.get("/attendance");
+        const records = Array.isArray(attendanceResponse.data)
+          ? attendanceResponse.data
+          : [];
+        setAttendanceRecords(records);
 
-        // Fetch today's status for current employee
-        const todayResponse = await axiosInstance.get(
-          `/attendance/employee/${currentEmployee._id}/today`
-        );
-        setTodayStatus(todayResponse.data);
+        // Fetch employees with proper error handling
+        try {
+          const employeesResponse = await axiosInstance.get("/employees"); // Update this endpoint if different
+          // Ensure employees data is always an array
+          const employeesData = Array.isArray(employeesResponse.data)
+            ? employeesResponse.data
+            : employeesResponse.data?.employees || [];
+          setEmployees(employeesData);
+        } catch (employeesError) {
+          console.error("Error fetching employees:", employeesError);
+          setEmployees([]);
+          toast({
+            title: "Warning",
+            description:
+              "Failed to fetch employees list. You may not be able to add new records.",
+            status: "warning",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
 
         setError(null);
       } catch (err) {
-        setError(err.message || "Failed to fetch attendance data");
+        setError(err.message || "Failed to fetch data");
         console.error(err);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchAttendance();
-  }, [refreshKey, currentEmployee._id]);
-
-  // Handle check-in
-  const handleCheckIn = async () => {
-    try {
-      setIsCheckingIn(true);
-
-      const response = await axiosInstance.post("/attendance/check-in", {
-        employeeId: currentEmployee._id,
-      });
-
-      toast({
-        title: "Success",
-        description: response.data.message,
-        status: response.data.message.includes("late") ? "warning" : "success",
-        duration: 3000,
-        isClosable: true,
-      });
-
-      setRefreshKey((prev) => prev + 1);
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: err.response?.data?.message || "Failed to check in",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    } finally {
-      setIsCheckingIn(false);
-    }
-  };
-
-  // Handle check-out
-  const handleCheckOut = async () => {
-    try {
-      setIsCheckingOut(true);
-
-      const response = await axiosInstance.post("/attendance/check-out", {
-        employeeId: currentEmployee._id,
-      });
-
-      toast({
-        title: "Success",
-        description: `${response.data.message} - Total hours: ${response.data.hoursRendered}`,
-        status: "success",
-        duration: 4000,
-        isClosable: true,
-      });
-
-      setRefreshKey((prev) => prev + 1);
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: err.response?.data?.message || "Failed to check out",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    } finally {
-      setIsCheckingOut(false);
-    }
-  };
-
-  const filteredAttendance = useMemo(() => {
-    return attendanceRecords.filter((record) => {
-      if (!searchTerm) return true;
-
-      const employeeName = `${record.employee?.firstname || ""} ${
-        record.employee?.lastname || ""
-      }`.toLowerCase();
-      const employeeId = record.employee?.employeeId?.toLowerCase() || "";
-      const status = record.status.toLowerCase();
-      const search = searchTerm.toLowerCase();
-
-      return (
-        employeeName.includes(search) ||
-        employeeId.includes(search) ||
-        status.includes(search)
-      );
-    });
-  }, [searchTerm, attendanceRecords]);
-
-  const {
-    totalMinLate,
-    numLate,
-    numAbsent,
-    numPresent,
-    leaveCounts,
-    absentEmployees,
-  } = useMemo(() => {
-    let totalMinLate = 0;
-    let numLate = 0;
-    let numAbsent = 0;
-    let numPresent = 0;
-    // Ensure minimum 5 for each leave type
-    const leaveCounts = { VL: 5, SL: 5, LWOP: 5, BL: 5, OS: 5, CL: 5 };
-    const absentEmployees = [];
-
-    filteredAttendance.forEach((record) => {
-      const normalizedStatus = record.status.toLowerCase();
-
-      if (normalizedStatus === "late") {
-        numLate++;
-        if (record.checkIn) {
-          const lateMinutes = calculateLateMinutes(
-            record.checkIn,
-            companySettings.standardCheckIn
-          );
-          totalMinLate += lateMinutes;
-        }
-      } else if (normalizedStatus === "absent") {
-        numAbsent++;
-        absentEmployees.push(record);
-      } else if (normalizedStatus === "present") {
-        numPresent++;
-      } else if (
-        (normalizedStatus === "leave" || normalizedStatus === "on_leave") &&
-        record.leaveType
-      ) {
-        if (leaveCounts.hasOwnProperty(record.leaveType)) {
-          leaveCounts[record.leaveType]++;
-        }
-      }
-    });
-
-    return {
-      totalMinLate,
-      numLate,
-      numAbsent,
-      numPresent,
-      leaveCounts,
-      absentEmployees,
-    };
-  }, [filteredAttendance, companySettings.standardCheckIn]);
+    fetchData();
+  }, [refreshKey, toast]);
 
   const getStatusColorScheme = (status) => {
     const normalizedStatus = status.toLowerCase();
@@ -605,16 +284,15 @@ const EmployeeAttendanceTracker = () => {
 
   const handleViewDetails = async (employee) => {
     try {
-      // Set basic employee info first
       setSelectedEmployee({
         ...employee,
         employee: employee.employee || {},
       });
 
-      const logsResponse = await axiosInstance.get(
-        `/attendance/employee/${employee.employee._id}`
+      const logsResponse = await axios.get(
+        `/api/attendance/logs/employee/${employee.employee._id}`
       );
-      setAttendanceLogs(logsResponse.data.attendance || []);
+      setAttendanceLogs(logsResponse.data.logs || []);
       onDrawerOpen();
     } catch (err) {
       toast({
@@ -626,20 +304,185 @@ const EmployeeAttendanceTracker = () => {
       });
     }
   };
-  const formatDate = (dateString) => {
-    const options = { year: "numeric", month: "short", day: "numeric" };
-    return new Date(dateString).toLocaleDateString("en-US", options);
-  };
 
-  const capitalizeStatus = (status) => {
-    if (status.toLowerCase() === "on_leave") return "Leave";
-    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
-  };
+  const filteredAttendance = useMemo(() => {
+    return attendanceRecords.filter((record) => {
+      if (!searchTerm) return true;
+
+      const employeeName = `${record.employee?.firstname || ""} ${
+        record.employee?.lastname || ""
+      }`.toLowerCase();
+      const employeeId = record.employee?.employeeId?.toLowerCase() || "";
+      const status = record.status.toLowerCase();
+      const search = searchTerm.toLowerCase();
+
+      return (
+        employeeName.includes(search) ||
+        employeeId.includes(search) ||
+        status.includes(search)
+      );
+    });
+  }, [searchTerm, attendanceRecords]);
+
+  const {
+    totalMinLate,
+    numLate,
+    numAbsent,
+    numPresent,
+    leaveCounts,
+    absentEmployees,
+  } = useMemo(() => {
+    let totalMinLate = 0;
+    let numLate = 0;
+    let numAbsent = 0;
+    let numPresent = 0;
+    const leaveCounts = { VL: 0, SL: 0, LWOP: 0, BL: 0, OS: 0, CL: 0 };
+    const absentEmployees = [];
+
+    filteredAttendance.forEach((record) => {
+      const normalizedStatus = record.status.toLowerCase();
+
+      if (normalizedStatus === "late") {
+        numLate++;
+        if (record.checkIn) {
+          totalMinLate += record.tardinessMinutes || 0;
+        }
+      } else if (normalizedStatus === "absent") {
+        numAbsent++;
+        absentEmployees.push(record);
+      } else if (normalizedStatus === "present") {
+        numPresent++;
+      } else if (
+        (normalizedStatus === "leave" || normalizedStatus === "on_leave") &&
+        record.leaveType
+      ) {
+        if (leaveCounts.hasOwnProperty(record.leaveType)) {
+          leaveCounts[record.leaveType]++;
+        }
+      }
+    });
+
+    return {
+      totalMinLate,
+      numLate,
+      numAbsent,
+      numPresent,
+      leaveCounts,
+      absentEmployees,
+    };
+  }, [filteredAttendance]);
 
   const getAttendanceRate = () => {
     const total = filteredAttendance.length;
     if (total === 0) return 0;
     return Math.round((numPresent / total) * 100);
+  };
+
+  const handleAddAttendance = () => {
+    setFormData({
+      employeeId: "",
+      date: "",
+      status: "present",
+      checkIn: "",
+      checkOut: "",
+      leaveType: "",
+      notes: "",
+    });
+    setIsAddModalOpen(true);
+  };
+
+  const handleEditAttendance = (record) => {
+    setCurrentRecord(record);
+    setFormData({
+      employeeId: record.employee._id,
+      date: formatDate(record.date),
+      status: record.status,
+      checkIn: record.checkIn ? formatTime(record.checkIn) : "",
+      checkOut: record.checkOut ? formatTime(record.checkOut) : "",
+      leaveType: record.leaveType || "",
+      notes: record.notes || "",
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteAttendance = (record) => {
+    setCurrentRecord(record);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setIsLoading(true);
+
+      if (isAddModalOpen) {
+        await axios.post("/api/attendance", formData);
+        toast({
+          title: "Success",
+          description: "Attendance record added successfully",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      } else if (isEditModalOpen) {
+        await axios.put(`/api/attendance/${currentRecord._id}`, formData);
+        toast({
+          title: "Success",
+          description: "Attendance record updated successfully",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+
+      setRefreshKey((prev) => prev + 1);
+      setIsAddModalOpen(false);
+      setIsEditModalOpen(false);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err.response?.data?.message || "Failed to save record",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      setIsLoading(true);
+      await axios.delete(`/api/attendance/${currentRecord._id}`);
+      toast({
+        title: "Success",
+        description: "Attendance record deleted successfully",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      setRefreshKey((prev) => prev + 1);
+      setIsDeleteModalOpen(false);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err.response?.data?.message || "Failed to delete record",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -695,7 +538,7 @@ const EmployeeAttendanceTracker = () => {
             Employee Attendance
           </Heading>
           <Text fontSize="sm" color="gray.600">
-            Welcome, {currentEmployee.firstname} {currentEmployee.lastname}
+            Manual Attendance Management
           </Text>
           <Text fontSize="xs" color="gray.500">
             Last updated: {new Date().toLocaleString()}
@@ -707,26 +550,12 @@ const EmployeeAttendanceTracker = () => {
           w={{ base: "full", md: "auto" }}
         >
           <Button
-            leftIcon={<FaSignInAlt />}
-            colorScheme="green"
-            onClick={handleCheckIn}
-            isLoading={isCheckingIn}
-            isDisabled={!todayStatus.canCheckIn}
-            loadingText="Checking In..."
+            leftIcon={<AddIcon />}
+            colorScheme="blue"
+            onClick={handleAddAttendance}
             size={{ base: "sm", md: "md" }}
           >
-            {todayStatus.hasCheckedIn ? "Already Checked In" : "Check In"}
-          </Button>
-          <Button
-            leftIcon={<FaSignOutAlt />}
-            colorScheme="red"
-            onClick={handleCheckOut}
-            isLoading={isCheckingOut}
-            isDisabled={!todayStatus.canCheckOut}
-            loadingText="Checking Out..."
-            size={{ base: "sm", md: "md" }}
-          >
-            {todayStatus.hasCheckedOut ? "Already Checked Out" : "Check Out"}
+            Add Attendance
           </Button>
           <InputGroup w={{ base: "full", sm: "300px" }}>
             <InputLeftElement pointerEvents="none">
@@ -802,7 +631,6 @@ const EmployeeAttendanceTracker = () => {
             </Stat>
           </CardBody>
         </Card>
-
         <Card borderLeft="4px" borderColor="blue.400">
           <CardBody p={6}>
             <Stat>
@@ -820,11 +648,11 @@ const EmployeeAttendanceTracker = () => {
         </Card>
       </SimpleGrid>
 
-      {/* Leave Breakdown with minimum 5 for each */}
+      {/* Leave Breakdown */}
       <Card mb={6}>
         <CardHeader>
           <Heading size="md" color="gray.700">
-            Leave Breakdown (Minimum 5 per category)
+            Leave Breakdown
           </Heading>
         </CardHeader>
         <CardBody pt={0}>
@@ -970,10 +798,8 @@ const EmployeeAttendanceTracker = () => {
                   >
                     <HStack spacing={1}>
                       <TimeIcon w={3} h={3} color="gray.500" />
-                      <Text fontSize="md" fontWeight="bold" color="green.700">
-                        {selectedEmployee.checkIn
-                          ? formatTime(selectedEmployee.checkIn)
-                          : "-"}
+                      <Text fontSize="sm" color="gray.900">
+                        {record.checkIn ? formatTime(record.checkIn) : "-"}
                       </Text>
                     </HStack>
                   </Td>
@@ -1023,6 +849,19 @@ const EmployeeAttendanceTracker = () => {
                         size="sm"
                       />
                       <MenuList>
+                        <MenuItem
+                          icon={<EditIcon />}
+                          onClick={() => handleEditAttendance(record)}
+                        >
+                          Edit
+                        </MenuItem>
+                        <MenuItem
+                          icon={<DeleteIcon />}
+                          onClick={() => handleDeleteAttendance(record)}
+                          color="red.500"
+                        >
+                          Delete
+                        </MenuItem>
                         <MenuItem onClick={() => handleViewDetails(record)}>
                           View Details
                         </MenuItem>
@@ -1035,6 +874,271 @@ const EmployeeAttendanceTracker = () => {
           </Tbody>
         </Table>
       </Card>
+
+      {/* Add Attendance Modal */}
+      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Add Attendance Record</ModalHeader>
+          <ModalCloseButton />
+          <form onSubmit={handleSubmit}>
+            <ModalBody pb={6}>
+              <FormControl isRequired mb={4}>
+                <FormLabel>Employee</FormLabel>
+                <Select
+                  name="employeeId"
+                  value={formData.employeeId}
+                  onChange={handleFormChange}
+                  placeholder="Select employee"
+                >
+                  {Array.isArray(employees) && employees.length > 0 ? (
+                    employees.map((employee) => (
+                      <option key={employee._id} value={employee._id}>
+                        {employee.firstname} {employee.lastname} (
+                        {employee.employeeId})
+                      </option>
+                    ))
+                  ) : (
+                    <option disabled>No employees found</option>
+                  )}
+                </Select>
+              </FormControl>
+
+              <FormControl isRequired mb={4}>
+                <FormLabel>Date</FormLabel>
+                <Input
+                  type="date"
+                  name="date"
+                  value={formData.date}
+                  onChange={handleFormChange}
+                />
+              </FormControl>
+
+              <FormControl isRequired mb={4}>
+                <FormLabel>Status</FormLabel>
+                <Select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleFormChange}
+                >
+                  <option value="present">Present</option>
+                  <option value="absent">Absent</option>
+                  <option value="late">Late</option>
+                  <option value="on_leave">On Leave</option>
+                </Select>
+              </FormControl>
+
+              {formData.status === "present" || formData.status === "late" ? (
+                <>
+                  <FormControl mb={4}>
+                    <FormLabel>Check-in Time</FormLabel>
+                    <Input
+                      type="time"
+                      name="checkIn"
+                      value={formData.checkIn}
+                      onChange={handleFormChange}
+                    />
+                  </FormControl>
+
+                  <FormControl mb={4}>
+                    <FormLabel>Check-out Time</FormLabel>
+                    <Input
+                      type="time"
+                      name="checkOut"
+                      value={formData.checkOut}
+                      onChange={handleFormChange}
+                    />
+                  </FormControl>
+                </>
+              ) : formData.status === "on_leave" ? (
+                <FormControl isRequired mb={4}>
+                  <FormLabel>Leave Type</FormLabel>
+                  <Select
+                    name="leaveType"
+                    value={formData.leaveType}
+                    onChange={handleFormChange}
+                  >
+                    <option value="">Select leave type</option>
+                    <option value="VL">Vacation Leave</option>
+                    <option value="SL">Sick Leave</option>
+                    <option value="LWOP">Leave Without Pay</option>
+                    <option value="BL">Birthday Leave</option>
+                    <option value="OS">Official Business</option>
+                    <option value="CL">Compassionate Leave</option>
+                  </Select>
+                </FormControl>
+              ) : null}
+
+              <FormControl mb={4}>
+                <FormLabel>Notes</FormLabel>
+                <Textarea
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleFormChange}
+                  placeholder="Additional notes..."
+                />
+              </FormControl>
+            </ModalBody>
+
+            <ModalFooter>
+              <Button
+                colorScheme="blue"
+                mr={3}
+                type="submit"
+                isLoading={isLoading}
+              >
+                Save
+              </Button>
+              <Button onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
+            </ModalFooter>
+          </form>
+        </ModalContent>
+      </Modal>
+
+      {/* Edit Attendance Modal */}
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Edit Attendance Record</ModalHeader>
+          <ModalCloseButton />
+          <form onSubmit={handleSubmit}>
+            <ModalBody pb={6}>
+              <FormControl mb={4}>
+                <FormLabel>Employee</FormLabel>
+                <Text fontWeight="bold">
+                  {currentRecord?.employee?.firstname}{" "}
+                  {currentRecord?.employee?.lastname}
+                </Text>
+              </FormControl>
+
+              <FormControl isRequired mb={4}>
+                <FormLabel>Date</FormLabel>
+                <Input
+                  type="date"
+                  name="date"
+                  value={formData.date}
+                  onChange={handleFormChange}
+                />
+              </FormControl>
+
+              <FormControl isRequired mb={4}>
+                <FormLabel>Status</FormLabel>
+                <Select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleFormChange}
+                >
+                  <option value="present">Present</option>
+                  <option value="absent">Absent</option>
+                  <option value="late">Late</option>
+                  <option value="on_leave">On Leave</option>
+                </Select>
+              </FormControl>
+
+              {formData.status === "present" || formData.status === "late" ? (
+                <>
+                  <FormControl mb={4}>
+                    <FormLabel>Check-in Time</FormLabel>
+                    <Input
+                      type="time"
+                      name="checkIn"
+                      value={formData.checkIn}
+                      onChange={handleFormChange}
+                    />
+                  </FormControl>
+
+                  <FormControl mb={4}>
+                    <FormLabel>Check-out Time</FormLabel>
+                    <Input
+                      type="time"
+                      name="checkOut"
+                      value={formData.checkOut}
+                      onChange={handleFormChange}
+                    />
+                  </FormControl>
+                </>
+              ) : formData.status === "on_leave" ? (
+                <FormControl isRequired mb={4}>
+                  <FormLabel>Leave Type</FormLabel>
+                  <Select
+                    name="leaveType"
+                    value={formData.leaveType}
+                    onChange={handleFormChange}
+                  >
+                    <option value="">Select leave type</option>
+                    <option value="VL">Vacation Leave</option>
+                    <option value="SL">Sick Leave</option>
+                    <option value="LWOP">Leave Without Pay</option>
+                    <option value="BL">Birthday Leave</option>
+                    <option value="OS">Official Business</option>
+                    <option value="CL">Compassionate Leave</option>
+                  </Select>
+                </FormControl>
+              ) : null}
+
+              <FormControl mb={4}>
+                <FormLabel>Notes</FormLabel>
+                <Textarea
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleFormChange}
+                  placeholder="Additional notes..."
+                />
+              </FormControl>
+            </ModalBody>
+
+            <ModalFooter>
+              <Button
+                colorScheme="blue"
+                mr={3}
+                type="submit"
+                isLoading={isLoading}
+              >
+                Save Changes
+              </Button>
+              <Button onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+            </ModalFooter>
+          </form>
+        </ModalContent>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Delete Attendance Record</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Text mb={4}>
+              Are you sure you want to delete the attendance record for{" "}
+              <strong>
+                {currentRecord?.employee?.firstname}{" "}
+                {currentRecord?.employee?.lastname}
+              </strong>{" "}
+              on {formatDate(currentRecord?.date)}?
+            </Text>
+            <Alert status="warning" borderRadius="md">
+              <AlertIcon />
+              This action cannot be undone.
+            </Alert>
+          </ModalBody>
+
+          <ModalFooter>
+            <Button
+              colorScheme="red"
+              mr={3}
+              onClick={handleDelete}
+              isLoading={isLoading}
+            >
+              Delete
+            </Button>
+            <Button onClick={() => setIsDeleteModalOpen(false)}>Cancel</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       {/* Enhanced Employee Details Drawer */}
       <Drawer
@@ -1124,13 +1228,12 @@ const EmployeeAttendanceTracker = () => {
                 {/* Tabs for different sections */}
                 <Tabs>
                   <TabList bg="gray.50">
-                    <Tab>Today's Record</Tab>
-                    <Tab>Check-in/out Logs</Tab>
-                    <Tab>Employee Info</Tab>
+                    <Tab>Attendance Record</Tab>
+                    <Tab>Activity Logs</Tab>
                   </TabList>
 
                   <TabPanels>
-                    {/* Today's Record Tab */}
+                    {/* Attendance Record Tab */}
                     <TabPanel p={6}>
                       <VStack align="stretch" spacing={4}>
                         <Box
@@ -1211,7 +1314,9 @@ const EmployeeAttendanceTracker = () => {
                                   fontWeight="bold"
                                   color="green.700"
                                 >
-                                  {selectedEmployee.checkIn}
+                                  {selectedEmployee.checkIn
+                                    ? formatTime(selectedEmployee.checkIn)
+                                    : "-"}
                                 </Text>
                               </HStack>
                               {selectedEmployee.checkOut &&
@@ -1225,7 +1330,9 @@ const EmployeeAttendanceTracker = () => {
                                       fontWeight="bold"
                                       color="green.700"
                                     >
-                                      {selectedEmployee.checkOut}
+                                      {selectedEmployee.checkOut
+                                        ? formatTime(selectedEmployee.checkOut)
+                                        : "-"}
                                     </Text>
                                   </HStack>
                                 )}
@@ -1306,160 +1413,58 @@ const EmployeeAttendanceTracker = () => {
                       </VStack>
                     </TabPanel>
 
-                    {/* Check-in/out Logs Tab */}
+                    {/* Activity Logs Tab */}
                     <TabPanel p={6}>
                       <VStack align="stretch" spacing={4}>
                         <Heading size="sm" color="gray.700">
                           <HStack>
                             <Icon as={FaClock} color="indigo.500" />
-                            <Text>Check-in/Check-out Activity</Text>
+                            <Text>Attendance Activity Logs</Text>
                           </HStack>
                         </Heading>
 
-                        <Alert status="info" borderRadius="md">
-                          <AlertIcon />
-                          <VStack align="flex-start" spacing={1}>
-                            <Text fontSize="sm" fontWeight="medium">
-                              Real-time Tracking Active
-                            </Text>
-                            <Text fontSize="xs" color="gray.600">
-                              All check-in and check-out activities are logged
-                              automatically
-                            </Text>
-                          </VStack>
-                        </Alert>
-
-                        {/* Today's Check-in/out Summary */}
-                        <Box
-                          bg="gradient-to-r"
-                          bgGradient="linear(to-r, green.50, blue.50)"
-                          p={4}
-                          borderRadius="lg"
-                          border="1px"
-                          borderColor="green.200"
-                        >
-                          <Heading size="sm" mb={3} color="gray.700">
-                            Today's Activity Summary
-                          </Heading>
-                          <SimpleGrid columns={2} spacing={4}>
-                            <VStack align="center" spacing={2}>
-                              <Icon
-                                as={FaSignInAlt}
-                                w={6}
-                                h={6}
-                                color="green.500"
-                              />
-                              <Text fontSize="xs" color="gray.600">
-                                Check-in Time
-                              </Text>
-                              <Text
-                                fontSize="lg"
-                                fontWeight="bold"
-                                color="green.600"
-                              >
-                                {selectedEmployee.checkIn || "Not yet"}
-                              </Text>
-                            </VStack>
-                            <VStack align="center" spacing={2}>
-                              <Icon
-                                as={FaSignOutAlt}
-                                w={6}
-                                h={6}
-                                color="red.500"
-                              />
-                              <Text fontSize="xs" color="gray.600">
-                                Check-out Time
-                              </Text>
-                              <Text
-                                fontSize="lg"
-                                fontWeight="bold"
-                                color="red.600"
-                              >
-                                {selectedEmployee.checkOut || "Not yet"}
-                              </Text>
-                            </VStack>
-                          </SimpleGrid>
-                        </Box>
-
-                        {/* Activity Logs */}
-                        {attendanceLogs.length > 0 ? (
+                        {Array.isArray(attendanceLogs) &&
+                        attendanceLogs.length > 0 ? (
                           <VStack align="stretch" spacing={2}>
-                            <Text
-                              fontSize="sm"
-                              fontWeight="semibold"
-                              color="gray.700"
-                            >
-                              Recent Activity Logs
-                            </Text>
-                            {attendanceLogs
-                              .filter(
-                                (log) =>
-                                  log.employeeId ===
-                                  selectedEmployee.employee?._id
-                              )
-                              .slice(0, 10)
-                              .map((log, index) => (
-                                <Box
-                                  key={index}
-                                  bg="white"
-                                  p={4}
-                                  borderRadius="md"
-                                  border="1px"
-                                  borderColor="gray.200"
-                                  position="relative"
-                                >
-                                  <HStack justify="space-between" mb={2}>
-                                    <HStack spacing={3}>
-                                      <Icon
-                                        as={
-                                          log.action === "Check In"
-                                            ? FaSignInAlt
-                                            : FaSignOutAlt
-                                        }
-                                        color={
-                                          log.action === "Check In"
-                                            ? "green.500"
-                                            : "red.500"
-                                        }
-                                        w={4}
-                                        h={4}
-                                      />
-                                      <Text
-                                        fontSize="sm"
-                                        fontWeight="medium"
-                                        color="gray.800"
-                                      >
-                                        {log.action}
-                                      </Text>
-                                    </HStack>
-                                    <Badge
-                                      colorScheme={
-                                        log.action === "Check In"
-                                          ? "green"
-                                          : "red"
-                                      }
-                                      fontSize="xs"
-                                    >
-                                      {formatLogTimestamp(log.timestamp)}
-                                    </Badge>
-                                  </HStack>
-                                  <Text fontSize="xs" color="gray.600" ml={7}>
-                                    {log.description}
+                            {attendanceLogs.slice(0, 10).map((log, index) => (
+                              <Box
+                                key={index}
+                                bg="white"
+                                p={4}
+                                borderRadius="md"
+                                border="1px"
+                                borderColor="gray.200"
+                                position="relative"
+                              >
+                                <HStack justify="space-between" mb={2}>
+                                  <Text
+                                    fontSize="sm"
+                                    fontWeight="medium"
+                                    color="gray.800"
+                                  >
+                                    {log.action}
                                   </Text>
+                                  <Badge colorScheme="gray" fontSize="xs">
+                                    {formatLogTimestamp(log.timestamp)}
+                                  </Badge>
+                                </HStack>
+                                <Text fontSize="xs" color="gray.600">
+                                  {log.description}
+                                </Text>
 
-                                  {/* Timeline connector */}
-                                  {index < attendanceLogs.length - 1 && (
-                                    <Box
-                                      position="absolute"
-                                      left="13px"
-                                      bottom="-8px"
-                                      w="2px"
-                                      h="8px"
-                                      bg="gray.200"
-                                    />
-                                  )}
-                                </Box>
-                              ))}
+                                {/* Timeline connector */}
+                                {index < attendanceLogs.length - 1 && (
+                                  <Box
+                                    position="absolute"
+                                    left="13px"
+                                    bottom="-8px"
+                                    w="2px"
+                                    h="8px"
+                                    bg="gray.200"
+                                  />
+                                )}
+                              </Box>
+                            ))}
                           </VStack>
                         ) : (
                           <Box textAlign="center" py={8}>
@@ -1475,87 +1480,6 @@ const EmployeeAttendanceTracker = () => {
                             </Text>
                           </Box>
                         )}
-                      </VStack>
-                    </TabPanel>
-
-                    {/* Employee Info Tab */}
-                    <TabPanel p={6}>
-                      <VStack align="stretch" spacing={4}>
-                        <Box
-                          bg="white"
-                          p={4}
-                          borderRadius="lg"
-                          border="1px"
-                          borderColor="gray.200"
-                        >
-                          <Heading size="sm" mb={4} color="gray.700">
-                            <HStack>
-                              <Icon as={FaBriefcase} color="purple.500" />
-                              <Text>Professional Information</Text>
-                            </HStack>
-                          </Heading>
-                          <VStack align="stretch" spacing={3}>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm" color="gray.600">
-                                Department:
-                              </Text>
-                              <Badge colorScheme="purple" variant="subtle">
-                                {selectedEmployee.employee?.department || "N/A"}
-                              </Badge>
-                            </HStack>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm" color="gray.600">
-                                Position:
-                              </Text>
-                              <Badge colorScheme="blue" variant="subtle">
-                                {selectedEmployee.employee?.role || "N/A"}
-                              </Badge>
-                            </HStack>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm" color="gray.600">
-                                Employment Type:
-                              </Text>
-                              <Badge colorScheme="green" variant="subtle">
-                                {selectedEmployee.employee?.employmentType ||
-                                  "Full-time"}
-                              </Badge>
-                            </HStack>
-                          </VStack>
-                        </Box>
-
-                        {/* Quick Actions for Employee */}
-                        <Box
-                          bg="gradient-to-r"
-                          bgGradient="linear(to-r, blue.50, purple.50)"
-                          p={4}
-                          borderRadius="lg"
-                          border="1px"
-                          borderColor="blue.200"
-                        >
-                          <Heading size="sm" mb={3} color="gray.700">
-                            Quick Actions
-                          </Heading>
-                          <HStack spacing={3}>
-                            <Button
-                              size="sm"
-                              colorScheme="green"
-                              leftIcon={<FaSignInAlt />}
-                              onClick={handleCheckIn}
-                              isLoading={isCheckingIn}
-                            >
-                              Check In
-                            </Button>
-                            <Button
-                              size="sm"
-                              colorScheme="red"
-                              leftIcon={<FaSignOutAlt />}
-                              onClick={handleCheckOut}
-                              isLoading={isCheckingOut}
-                            >
-                              Check Out
-                            </Button>
-                          </HStack>
-                        </Box>
                       </VStack>
                     </TabPanel>
                   </TabPanels>

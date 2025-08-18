@@ -30,7 +30,58 @@ const restrictEmployeeCreation = (req, res, next) => {
   next();
 };
 
+// Middleware to restrict employees from updating/deleting other's records
+const restrictEmployeeAccess = (req, res, next) => {
+  const currentUser = req.user;
+
+  // If user is an employee, add restriction for their own records only
+  if (currentUser.role === "employee") {
+    req.employeeRestriction = currentUser._id.toString();
+  }
+  next();
+};
+
+// ============ MAIN ATTENDANCE ROUTES ============
+
+// GET /api/attendance - Main route for getting attendance records
+// Role-based access: Admin/HR see all, employees see only their own
+router.get(
+  "/",
+  authorizeRoles("admin", "hr", "employee"),
+  restrictEmployeeAccess,
+  testAttendance.getAttendance
+);
+
+// POST /api/attendance - Main route for creating attendance records
 // Employee can create their own attendance, admin/hr can create for anyone
+router.post(
+  "/",
+  authorizeRoles("admin", "hr", "employee"),
+  restrictEmployeeCreation,
+  testAttendance.addAttendance
+);
+
+// PUT /api/attendance/:id - Update attendance records
+// Admin/HR can update any, employees can only update their own
+router.put(
+  "/:id",
+  authorizeRoles("admin", "hr", "employee"),
+  restrictEmployeeAccess,
+  testAttendance.updateAttendance
+);
+
+// DELETE /api/attendance/:id - Delete attendance records
+// Admin/HR can delete any, employees can only delete their own
+router.delete(
+  "/:id",
+  authorizeRoles("admin", "hr", "employee"),
+  restrictEmployeeAccess,
+  testAttendance.deleteAttendance
+);
+
+// ============ LEGACY/ALTERNATIVE ROUTES ============
+
+// Alternative POST route (for backward compatibility)
 router.post(
   "/create-attendance",
   authorizeRoles("admin", "hr", "employee"),
@@ -38,69 +89,22 @@ router.post(
   testAttendance.addAttendance
 );
 
-// Get attendance records - role-based access is handled in the controller
+// Alternative GET route (for backward compatibility)
 router.get(
   "/get-attendance",
   authorizeRoles("admin", "hr", "employee"),
+  restrictEmployeeAccess,
   testAttendance.getAttendance
 );
 
-// NEW: Dedicated endpoint for employees to get their own attendance with enhanced features
+// ============ EMPLOYEE-SPECIFIC ROUTES ============
+
+// Dedicated endpoint for employees to get their own attendance with enhanced features
 router.get(
   "/my-attendance",
   authorizeRoles("employee"), // Only employees can access this
   testAttendance.getMyAttendance
 );
-
-// Admin/HR only - Update attendance records
-router.put(
-  "/update-attendance/:id",
-  authorizeRoles("admin", "hr"),
-  testAttendance.updateAttendance
-);
-
-// Admin/HR only - Delete attendance records
-router.delete(
-  "/delete-attendance/:id",
-  authorizeRoles("admin", "hr"),
-  testAttendance.deleteAttendance
-);
-
-// Admin/HR only - Get all attendance logs
-router.get(
-  "/attendance-logs",
-  authorizeRoles("admin", "hr"),
-  testAttendance.getAttendanceLogs
-);
-
-// Get specific employee's attendance logs
-// Admin/HR can access any employee's logs, employees can only access their own
-router.get(
-  "/attendance-logs/employee/:employeeId",
-  authorizeRoles("admin", "hr", "employee"),
-  testAttendance.getEmployeeAttendanceLogs
-);
-
-// NEW: Allow employees to get their own attendance logs
-router.get(
-  "/attendance-logs/my-logs",
-  authorizeRoles("employee"),
-  (req, res, next) => {
-    // Set the employeeId to current user's ID for employees
-    req.params.employeeId = req.user._id.toString();
-    next();
-  },
-  testAttendance.getEmployeeAttendanceLogs
-);
-
-// Get recent attendance logs - role-based filtering handled in controller
-router.get(
-  "/attendance-logs/recent",
-  authorizeRoles("admin", "hr", "employee"),
-  testAttendance.getRecentAttendanceLogs
-);
-
-// NEW: Additional convenience routes for employees
 
 // Get employee's attendance summary/statistics
 router.get(
@@ -108,7 +112,6 @@ router.get(
   authorizeRoles("employee"),
   async (req, res) => {
     try {
-      // You can create a dedicated controller function for this, or handle it here
       const { startDate, endDate } = req.query;
 
       // Redirect to getMyAttendance with summary flag
@@ -122,6 +125,121 @@ router.get(
       });
     }
   }
+);
+
+// ============ ADMIN/HR ONLY ROUTES ============
+
+// Admin/HR only - Update attendance records (legacy route)
+router.put(
+  "/update-attendance/:id",
+  authorizeRoles("admin", "hr"),
+  testAttendance.updateAttendance
+);
+
+// Admin/HR only - Delete attendance records (legacy route)
+router.delete(
+  "/delete-attendance/:id",
+  authorizeRoles("admin", "hr"),
+  testAttendance.deleteAttendance
+);
+
+// ============ ATTENDANCE LOGS ROUTES ============
+
+// Admin/HR only - Get all attendance logs
+router.get(
+  "/logs",
+  authorizeRoles("admin", "hr"),
+  testAttendance.getAttendanceLogs
+);
+
+// Get specific employee's attendance logs
+// Admin/HR can access any employee's logs, employees can only access their own
+router.get(
+  "/logs/employee/:employeeId",
+  authorizeRoles("admin", "hr", "employee"),
+  (req, res, next) => {
+    const currentUser = req.user;
+    const requestedEmployeeId = req.params.employeeId;
+
+    // If user is an employee, they can only access their own logs
+    if (currentUser.role === "employee") {
+      if (requestedEmployeeId !== currentUser._id.toString()) {
+        return res.status(403).json({
+          message:
+            "Access denied. Employees can only access their own attendance logs.",
+        });
+      }
+    }
+    next();
+  },
+  testAttendance.getEmployeeAttendanceLogs
+);
+
+// Allow employees to get their own attendance logs
+router.get(
+  "/logs/my-logs",
+  authorizeRoles("employee"),
+  (req, res, next) => {
+    // Set the employeeId to current user's ID for employees
+    req.params.employeeId = req.user._id.toString();
+    next();
+  },
+  testAttendance.getEmployeeAttendanceLogs
+);
+
+// Get recent attendance logs - role-based filtering handled in controller
+router.get(
+  "/logs/recent",
+  authorizeRoles("admin", "hr", "employee"),
+  restrictEmployeeAccess,
+  testAttendance.getRecentAttendanceLogs
+);
+
+// Legacy route for attendance logs
+router.get(
+  "/attendance-logs",
+  authorizeRoles("admin", "hr"),
+  testAttendance.getAttendanceLogs
+);
+
+// Legacy route for employee attendance logs
+router.get(
+  "/attendance-logs/employee/:employeeId",
+  authorizeRoles("admin", "hr", "employee"),
+  (req, res, next) => {
+    const currentUser = req.user;
+    const requestedEmployeeId = req.params.employeeId;
+
+    if (currentUser.role === "employee") {
+      if (requestedEmployeeId !== currentUser._id.toString()) {
+        return res.status(403).json({
+          message:
+            "Access denied. Employees can only access their own attendance logs.",
+        });
+      }
+    }
+    next();
+  },
+  testAttendance.getEmployeeAttendanceLogs
+);
+
+// Legacy route for employee's own logs
+router.get(
+  "/attendance-logs/my-logs",
+  authorizeRoles("employee"),
+  (req, res, next) => {
+    req.params.employeeId = req.user._id.toString();
+    next();
+  },
+  testAttendance.getEmployeeAttendanceLogs
+);
+
+// Legacy route for recent logs
+router.get(
+  "/attendance-logs/recent",
+  authorizeRoles("admin", "hr", "employee"),
+  restrictEmployeeAccess,
+  testAttendance.getRecentAttendanceLogs
 );
 
 module.exports = router;
