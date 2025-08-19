@@ -35,12 +35,35 @@ const AttendanceSchema = new mongoose.Schema(
     },
     leaveType: {
       type: String,
-      enum: ["VL", "SL", "LWOP", "BL", "OS", "CL", null], // matches your UI
+      enum: ["VL", "SL", "LWOP", "BL", "OS", "CL", null],
       default: null,
     },
     notes: {
       type: String,
       trim: true,
+    },
+    // New fields for leave management
+    isApproved: {
+      type: Boolean,
+      default: null, // null for non-leave records, true/false for leaves
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "user",
+      default: null,
+    },
+    approvedAt: {
+      type: Date,
+      default: null,
+    },
+    rejectionReason: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "user",
     },
   },
   {

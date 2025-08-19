@@ -963,6 +963,7 @@ const Attendances = () => {
               >
                 Leave Type
               </Th>
+              
               <Th
                 py={3}
                 px={4}
