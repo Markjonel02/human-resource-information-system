@@ -204,7 +204,7 @@ const EmployeeAttendanceTracker = () => {
 
         // Fetch employee's own attendance records
         const attendanceResponse = await axiosInstance.get(
-          "/attendanceRoutes/my"
+          "/employeeAttendance/my"
         );
         setAttendanceRecords(
           Array.isArray(attendanceResponse.data) ? attendanceResponse.data : []
@@ -212,7 +212,7 @@ const EmployeeAttendanceTracker = () => {
 
         // Fetch employee's leave credits
         const leaveCreditsResponse = await axiosInstance.get(
-          "/attendanceRoutes/my-leave-credits"
+          "/employeeAttendance/my-leave-credits"
         );
         setLeaveCredits(leaveCreditsResponse.data?.credits || {});
 
@@ -251,7 +251,7 @@ const EmployeeAttendanceTracker = () => {
     const checkInTime = new Date(checkIn);
     const checkOutTime = new Date(checkOut);
 
-    if (checkOutTime <= checkInTime) return "-";
+    if (checkOutTime <= checkInTime) return "0h 0m";
 
     const totalMinutes = Math.floor((checkOutTime - checkInTime) / (1000 * 60));
     const hours = Math.floor(totalMinutes / 60);
@@ -259,7 +259,6 @@ const EmployeeAttendanceTracker = () => {
 
     return `${hours}h ${minutes}m`;
   };
-
   const formatTime = (dateTime) => {
     if (!dateTime) return "-";
     const date = dateTime instanceof Date ? dateTime : new Date(dateTime);
@@ -375,7 +374,7 @@ const EmployeeAttendanceTracker = () => {
 
   const handleAddAttendance = () => {
     setFormData({
-      employeeId: "",
+      employeeId: loggedInUser._id || loggedInUser.id || "",
       date: "",
       status: "present",
       checkIn: "",
@@ -419,7 +418,7 @@ const EmployeeAttendanceTracker = () => {
       setIsLoading(true);
 
       if (isAddModalOpen) {
-        await axios.post("/api/attendance", formData);
+        await axiosInstance.post("/employeeAttendance/my", formData);
         toast({
           title: "Success",
           description: "Attendance record added successfully",
@@ -428,7 +427,10 @@ const EmployeeAttendanceTracker = () => {
           isClosable: true,
         });
       } else if (isEditModalOpen) {
-        await axios.put(`/api/attendance/${currentRecord._id}`, formData);
+        await axiosInstance.put(
+          `/api/attendance/${currentRecord._id}`,
+          formData
+        );
         toast({
           title: "Success",
           description: "Attendance record updated successfully",
@@ -454,7 +456,7 @@ const EmployeeAttendanceTracker = () => {
     }
   };
 
-  const handleDelete = async () => {
+  /*   const handleDelete = async () => {
     try {
       setIsLoading(true);
       await axios.delete(`/api/attendance/${currentRecord._id}`);
@@ -478,7 +480,7 @@ const EmployeeAttendanceTracker = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }; */
 
   return (
     <Box
@@ -711,6 +713,9 @@ const EmployeeAttendanceTracker = () => {
               <Th py={3} px={4} display={{ base: "none", xl: "table-cell" }}>
                 Leave Type
               </Th>
+              <Th py={3} px={4} display={{ base: "none", xl: "table-cell" }}>
+                Notes
+              </Th>
               <Th py={3} px={4} textAlign="right">
                 Actions
               </Th>
@@ -834,6 +839,20 @@ const EmployeeAttendanceTracker = () => {
                       </Text>
                     )}
                   </Td>
+                  <Td
+                    px={4}
+                    py={4}
+                    maxW="200px"
+                    display={{ base: "none", xl: "table-cell" }}
+                  >
+                    <Text isTruncated title={record.notes || ""}>
+                      {record.notes
+                        ? record.notes.length > 5
+                          ? `${record.notes.substring(0, 5)}...`
+                          : record.notes
+                        : "-"}
+                    </Text>
+                  </Td>
                   <Td px={4} py={4} textAlign="right">
                     <Menu>
                       <MenuButton
@@ -850,13 +869,13 @@ const EmployeeAttendanceTracker = () => {
                         >
                           Edit
                         </MenuItem>
-                        <MenuItem
+                        {/*  <MenuItem
                           icon={<DeleteIcon />}
                           onClick={() => handleDeleteAttendance(record)}
                           color="red.500"
                         >
                           Delete
-                        </MenuItem>
+                        </MenuItem> */}
                         <MenuItem onClick={() => handleViewDetails(record)}>
                           View Details
                         </MenuItem>
@@ -1097,7 +1116,7 @@ const EmployeeAttendanceTracker = () => {
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <Modal
+      {/* <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
       >
@@ -1132,7 +1151,7 @@ const EmployeeAttendanceTracker = () => {
             <Button onClick={() => setIsDeleteModalOpen(false)}>Cancel</Button>
           </ModalFooter>
         </ModalContent>
-      </Modal>
+      </Modal> */}
 
       {/* Enhanced Employee Details Drawer */}
       <Drawer
@@ -1340,10 +1359,16 @@ const EmployeeAttendanceTracker = () => {
                                   fontWeight="bold"
                                   color="blue.700"
                                 >
-                                  {calculateHoursRendered(
-                                    selectedEmployee.checkIn,
-                                    selectedEmployee.checkOut
-                                  )}
+                                  <Text
+                                    fontSize="sm"
+                                    color="gray.900"
+                                    fontWeight="medium"
+                                  >
+                                    {calculateHoursRendered(
+                                      record.checkIn,
+                                      record.checkOut
+                                    )}
+                                  </Text>
                                 </Text>
                               </HStack>
                               {getTardiness(selectedEmployee) !== "-" && (
