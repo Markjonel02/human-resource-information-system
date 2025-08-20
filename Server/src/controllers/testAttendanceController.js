@@ -403,106 +403,6 @@ const getAttendance = async (req, res) => {
   }
 };
 
-// --- REMOVED: The `getMyAttendance` function was removed as it was specifically for employees to get their own attendance. ---
-const getMyAttendance = async (req, res) => {
-  if (req.user.role !== "employee") {
-    return res
-      .status(403)
-      .json({ message: "Only employees can access this route." });
-  }
-  try {
-    const records = await Attendance.find({ employee: req.user._id })
-      .populate("employee", "firstname lastname employeeId department role")
-      .sort({ date: -1 });
-    res.json(
-      records.map((record) => ({
-        _id: record._id,
-        employee: record.employee,
-        date: record.date,
-        status: record.status,
-        checkIn: record.checkIn,
-        checkOut: record.checkOut,
-        hoursRendered: record.hoursRendered || 0,
-        tardinessMinutes: record.tardinessMinutes || 0,
-        leaveType: record.leaveType,
-        notes: record.notes,
-      }))
-    );
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Internal server error", error: error.message });
-  }
-};
-
-const getMyLeaveCredits = async (req, res) => {
-  try {
-    console.log("req.user in getMyLeaveCredits:", req.user); // <-- Add this line
-    let credits = await LeaveCredits.findOne({ employee: req.user._id });
-    const currentYear = new Date().getFullYear();
-    if (!credits) {
-      credits = await LeaveCredits.create({
-        employee: req.user._id,
-        year: currentYear,
-      });
-    } else if (credits.year !== currentYear) {
-      credits.resetCredits();
-      credits.year = currentYear;
-      await credits.save();
-    }
-    res.json(credits);
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Internal server error", error: error.message });
-  }
-};
-
-const createMyAttendance = async (req, res) => {
-  if (req.user.role !== "employee") {
-    return res
-      .status(403)
-      .json({ message: "Only employees can create their own attendance." });
-  }
-  try {
-    const { date, status, checkIn, checkOut, leaveType, notes } = req.body;
-    if (!date || !status) {
-      return res.status(400).json({ message: "Date and status are required." });
-    }
-    // Prevent duplicate for the same day
-    const exists = await Attendance.findOne({
-      employee: req.user._id,
-      date: new Date(date),
-    });
-    if (exists) {
-      return res
-        .status(400)
-        .json({ message: "Attendance already filed for this date." });
-    }
-    // If leave, check credits
-    if (status === "on_leave") {
-      const credits = await LeaveCredits.findOne({ employee: req.user._id });
-      if (
-        !credits ||
-        !credits.credits[leaveType] ||
-        credits.credits[leaveType].remaining <= 0
-      ) {
-        return res
-          .status(400)
-          .json({ message: "No leave credits available for this type." });
-      }
-      credits.useCredit(leaveType);
-      await credits.save();
-    }
-    // Use existing logic for attendance creation
-    req.body.employeeId = req.user._id;
-    await addAttendance(req, res);
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Internal server error", error: error.message });
-  }
-};
 // Update attendance record
 const updateAttendance = async (req, res) => {
   // Fixed: consistent use of req.user (lowercase 'u')
@@ -970,7 +870,4 @@ module.exports = {
   getAttendanceLogs,
   getEmployeeAttendanceLogs,
   getRecentAttendanceLogs,
-  getMyAttendance,
-  getMyLeaveCredits,
-  createMyAttendance,
 };
