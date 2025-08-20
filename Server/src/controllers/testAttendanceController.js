@@ -419,21 +419,9 @@ const getMyAttendance = async (req, res) => {
         _id: record._id,
         employee: record.employee,
         date: record.date,
-        status: record.status.charAt(0).toUpperCase() + record.status.slice(1),
-        checkIn: record.checkIn
-          ? record.checkIn.toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: true,
-            })
-          : "-",
-        checkOut: record.checkOut
-          ? record.checkOut.toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: true,
-            })
-          : "-",
+        status: record.status,
+        checkIn: record.checkIn,
+        checkOut: record.checkOut,
         hoursRendered: record.hoursRendered || 0,
         tardinessMinutes: record.tardinessMinutes || 0,
         leaveType: record.leaveType,
@@ -447,9 +435,9 @@ const getMyAttendance = async (req, res) => {
   }
 };
 
-
 const getMyLeaveCredits = async (req, res) => {
   try {
+    console.log("req.user in getMyLeaveCredits:", req.user); // <-- Add this line
     let credits = await LeaveCredits.findOne({ employee: req.user._id });
     const currentYear = new Date().getFullYear();
     if (!credits) {
@@ -982,5 +970,7 @@ module.exports = {
   getAttendanceLogs,
   getEmployeeAttendanceLogs,
   getRecentAttendanceLogs,
-  
+  getMyAttendance,
+  getMyLeaveCredits,
+  createMyAttendance,
 };

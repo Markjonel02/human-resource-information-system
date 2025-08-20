@@ -82,6 +82,7 @@ const verifyJWT = async (req, res, next) => {
       // Attach live user info (optional but more accurate)
       req.user = {
         id: user._id,
+        _id: user._id,
         username: user.username,
         role: user.role,
       };
