@@ -1,4 +1,4 @@
- import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Flex,
@@ -221,16 +221,19 @@ const Attendances = () => {
           }
         }
 
-        const response = await axiosInstance.get("/get-attendance", {
-          params,
-        });
+        const response = await axiosInstance.get(
+          "/attendanceRoutes/get-attendance",
+          {
+            params,
+          }
+        );
         setAttendanceRecords(response.data);
         setError(null);
 
         // Only fetch logs if needed (optimization)
         if (isDrawerOpen && selectedEmployee) {
           const logsResponse = await axiosInstance.get(
-            `/attendance-logs/employee/${selectedEmployee.employee._id}`
+            `/attendanceRoutes/attendance-logs/employee/${selectedEmployee.employee._id}`
           );
           setAttendanceLogs(logsResponse.data || []);
         }
@@ -294,7 +297,7 @@ const Attendances = () => {
       };
 
       const response = await axiosInstance.post(
-        "/create-attendance",
+        "/attendanceRoutes/create-attendance",
         recordData
       );
 
@@ -372,7 +375,7 @@ const Attendances = () => {
       };
 
       const response = await axiosInstance.put(
-        `/update-attendance/${editingRecord._id}`,
+        `/attendanceRoutes/update-attendance/${editingRecord._id}`,
         updateData
       );
 
@@ -417,7 +420,7 @@ const Attendances = () => {
     if (window.confirm("Are you sure you want to delete this record?")) {
       try {
         setIsLoading(true);
-        await axiosInstance.delete(`/delete-attendance/${id}`);
+        await axiosInstance.delete(`/attendanceRoutes/delete-attendance/${id}`);
         setAttendanceRecords((prev) => prev.filter((rec) => rec._id !== id));
         setRefreshKey((prev) => prev + 1);
         toast({
@@ -568,7 +571,7 @@ const Attendances = () => {
     setSelectedEmployee(employee);
     try {
       const logsResponse = await axiosInstance.get(
-        `/attendance-logs/employee/${employee.employee._id}`
+        `/attendanceRoutes/attendance-logs/employee/${employee.employee._id}`
       );
       setAttendanceLogs(logsResponse.data || []);
     } catch (err) {
@@ -963,7 +966,7 @@ const Attendances = () => {
               >
                 Leave Type
               </Th>
-              
+
               <Th
                 py={3}
                 px={4}

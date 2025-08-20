@@ -6,6 +6,9 @@ const cookieParser = require("cookie-parser");
 const connectDB = require("./config/connection.js");
 const userRoutes = require("./routes/userRoutes.js");
 const testRoutes = require("./routes/testRoutes.js");
+const employeeAttendanceRoutes = require("./routes/employee/employeeRoutes.js");
+// ...existing code...
+
 dotenv.config();
 const app = express();
 const port = process.env.PORT;
@@ -24,7 +27,8 @@ app.use(
 /* routes */
 // All routes defined in routes.js will now be accessible from the root path '/'
 app.use("/api", userRoutes);
-app.use("/api", testRoutes);
+app.use("/api/attendanceRoutes", testRoutes);
+app.use("/api/employee-attendance", employeeAttendanceRoutes);
 // Basic root route (can be removed if all routes are in routes.js)
 app.get("/", (req, res) => {
   res.send("API is running!");
