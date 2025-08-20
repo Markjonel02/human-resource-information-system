@@ -3,7 +3,7 @@ const LeaveCredits = require("../../models/attendanceSchema/leaveCreditsSchema")
 const calculateHoursInMinutes = (checkIn, checkOut) => {
   if (!checkIn || !checkOut) return 0;
   const diffMs = new Date(checkOut) - new Date(checkIn);
-  return Math.max(0, Math.floor(diffMs / (1000 * 60))); // Convert to minutes
+  return Math.max(0, Math.floor(diffMs / (1000 * 60))); // minutes
 };
 
 // Helper function to calculate tardiness

@@ -276,29 +276,6 @@ const EmployeeAttendanceTracker = () => {
     return "-";
   };
 
-  const handleViewDetails = async (employee) => {
-    try {
-      setSelectedEmployee({
-        ...employee,
-        employee: employee.employee || {},
-      });
-
-      const logsResponse = await axios.get(
-        `/api/attendance/logs/employee/${employee.employee._id}`
-      );
-      setAttendanceLogs(logsResponse.data.logs || []);
-      onDrawerOpen();
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch attendance details",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
   const filteredAttendance = useMemo(() => {
     return attendanceRecords.filter((record) => {
       if (!searchTerm) return true;
@@ -397,11 +374,6 @@ const EmployeeAttendanceTracker = () => {
       notes: record.notes || "",
     });
     setIsEditModalOpen(true);
-  };
-
-  const handleDeleteAttendance = (record) => {
-    setCurrentRecord(record);
-    setIsDeleteModalOpen(true);
   };
 
   const handleFormChange = (e) => {
@@ -821,7 +793,12 @@ const EmployeeAttendanceTracker = () => {
                     display={{ base: "none", xl: "table-cell" }}
                   >
                     <Text fontSize="sm" color="gray.900" fontWeight="medium">
-                      {calculateHoursRendered(record.checkIn, record.checkOut)}
+                      {record.hoursRendered !== undefined &&
+                      record.hoursRendered !== null
+                        ? `${Math.floor(record.hoursRendered / 60)}h ${
+                            record.hoursRendered % 60
+                          }m`
+                        : "-"}
                     </Text>
                   </Td>
                   <Td
@@ -854,7 +831,7 @@ const EmployeeAttendanceTracker = () => {
                     </Text>
                   </Td>
                   <Td px={4} py={4} textAlign="right">
-                    <Menu>
+                    <Menu placement="bottom-end" portal>
                       <MenuButton
                         as={IconButton}
                         aria-label="Options"
@@ -862,22 +839,12 @@ const EmployeeAttendanceTracker = () => {
                         variant="ghost"
                         size="sm"
                       />
-                      <MenuList>
+                      <MenuList zIndex={1500}>
                         <MenuItem
                           icon={<EditIcon />}
                           onClick={() => handleEditAttendance(record)}
                         >
                           Edit
-                        </MenuItem>
-                        {/*  <MenuItem
-                          icon={<DeleteIcon />}
-                          onClick={() => handleDeleteAttendance(record)}
-                          color="red.500"
-                        >
-                          Delete
-                        </MenuItem> */}
-                        <MenuItem onClick={() => handleViewDetails(record)}>
-                          View Details
                         </MenuItem>
                       </MenuList>
                     </Menu>
@@ -1016,79 +983,78 @@ const EmployeeAttendanceTracker = () => {
           <ModalCloseButton />
           <form onSubmit={handleSubmit}>
             <ModalBody pb={6}>
-              <FormControl mb={4}>
-                <FormLabel>Employee</FormLabel>
-                <Text fontWeight="bold">
-                  {currentRecord?.employee?.firstname}{" "}
-                  {currentRecord?.employee?.lastname}
-                </Text>
-              </FormControl>
-
-              <FormControl isRequired mb={4}>
-                <FormLabel>Date</FormLabel>
-                <Input
-                  type="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleFormChange}
-                />
-              </FormControl>
-
-              <FormControl isRequired mb={4}>
-                <FormLabel>Status</FormLabel>
-                <Select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleFormChange}
-                >
-                  <option value="present">Present</option>
-                  <option value="absent">Absent</option>
-                  <option value="late">Late</option>
-                  <option value="on_leave">On Leave</option>
-                </Select>
-              </FormControl>
-
-              {formData.status === "present" || formData.status === "late" ? (
-                <>
-                  <FormControl mb={4}>
-                    <FormLabel>Check-in Time</FormLabel>
-                    <Input
-                      type="time"
-                      name="checkIn"
-                      value={formData.checkIn}
-                      onChange={handleFormChange}
-                    />
-                  </FormControl>
-
-                  <FormControl mb={4}>
-                    <FormLabel>Check-out Time</FormLabel>
-                    <Input
-                      type="time"
-                      name="checkOut"
-                      value={formData.checkOut}
-                      onChange={handleFormChange}
-                    />
-                  </FormControl>
-                </>
-              ) : formData.status === "on_leave" ? (
+              <SimpleGrid columns={2} spacing={4}>
+                {" "}
+                <FormControl mb={4}>
+                  <FormLabel>Employee</FormLabel>
+                  <Text fontWeight="bold">
+                    {currentRecord?.employee?.firstname}{" "}
+                    {currentRecord?.employee?.lastname}
+                  </Text>
+                </FormControl>
                 <FormControl isRequired mb={4}>
-                  <FormLabel>Leave Type</FormLabel>
+                  <FormLabel>Date</FormLabel>
+                  <Input
+                    type="date"
+                    name="date"
+                    value={formData.date}
+                    onChange={handleFormChange}
+                  />
+                </FormControl>
+                <FormControl isRequired mb={4}>
+                  <FormLabel>Status</FormLabel>
                   <Select
-                    name="leaveType"
-                    value={formData.leaveType}
+                    name="status"
+                    value={formData.status}
                     onChange={handleFormChange}
                   >
-                    <option value="">Select leave type</option>
-                    <option value="VL">Vacation Leave</option>
-                    <option value="SL">Sick Leave</option>
-                    <option value="LWOP">Leave Without Pay</option>
-                    <option value="BL">Birthday Leave</option>
-                    <option value="OS">Official Business</option>
-                    <option value="CL">Compassionate Leave</option>
+                    <option value="present">Present</option>
+                    <option value="absent">Absent</option>
+                    <option value="late">Late</option>
+                    <option value="on_leave">On Leave</option>
                   </Select>
                 </FormControl>
-              ) : null}
+                {formData.status === "present" || formData.status === "late" ? (
+                  <>
+                    <FormControl mb={4}>
+                      <FormLabel>Check-in Time</FormLabel>
+                      <Input
+                        type="time"
+                        name="checkIn"
+                        value={formData.checkIn}
+                        onChange={handleFormChange}
+                      />
+                    </FormControl>
 
+                    <FormControl mb={4}>
+                      <FormLabel>Check-out Time</FormLabel>
+                      <Input
+                        type="time"
+                        name="checkOut"
+                        value={formData.checkOut}
+                        onChange={handleFormChange}
+                      />
+                    </FormControl>
+                  </>
+                ) : formData.status === "on_leave" ? (
+                  <FormControl isRequired mb={4}>
+                    <FormLabel>Leave Type</FormLabel>
+                    <Select
+                      name="leaveType"
+                      value={formData.leaveType}
+                      onChange={handleFormChange}
+                    >
+                      <option value="">Select leave type</option>
+                      <option value="VL">Vacation Leave</option>
+                      <option value="SL">Sick Leave</option>
+                      <option value="LWOP">Leave Without Pay</option>
+                      <option value="BL">Birthday Leave</option>
+                      <option value="OS">Official Business</option>
+                      <option value="CL">Compassionate Leave</option>
+                    </Select>
+                  </FormControl>
+                ) : null}
+              </SimpleGrid>{" "}
               <FormControl mb={4}>
                 <FormLabel>Notes</FormLabel>
                 <Textarea
@@ -1114,44 +1080,6 @@ const EmployeeAttendanceTracker = () => {
           </form>
         </ModalContent>
       </Modal>
-
-      {/* Delete Confirmation Modal */}
-      {/* <Modal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-      >
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Delete Attendance Record</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Text mb={4}>
-              Are you sure you want to delete the attendance record for{" "}
-              <strong>
-                {currentRecord?.employee?.firstname}{" "}
-                {currentRecord?.employee?.lastname}
-              </strong>{" "}
-              on {formatDate(currentRecord?.date)}?
-            </Text>
-            <Alert status="warning" borderRadius="md">
-              <AlertIcon />
-              This action cannot be undone.
-            </Alert>
-          </ModalBody>
-
-          <ModalFooter>
-            <Button
-              colorScheme="red"
-              mr={3}
-              onClick={handleDelete}
-              isLoading={isLoading}
-            >
-              Delete
-            </Button>
-            <Button onClick={() => setIsDeleteModalOpen(false)}>Cancel</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal> */}
 
       {/* Enhanced Employee Details Drawer */}
       <Drawer
