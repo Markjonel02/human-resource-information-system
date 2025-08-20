@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Flex,
@@ -21,23 +21,22 @@ import {
   MenuItem,
   HStack,
   VStack,
-  Select,
-  SimpleGrid, // For grid layout of summary cards
+  SimpleGrid,
   Stat,
   StatLabel,
-  StatNumber, // For summary statistics
+  StatNumber,
   Drawer,
   DrawerOverlay,
   DrawerContent,
   DrawerHeader,
   DrawerBody,
   DrawerCloseButton,
-  useDisclosure, // For modal control
+  useDisclosure,
   Avatar,
   Divider,
-  Icon, // For custom icons
-  Button, // For export CSV
-  Modal, // For edit record modal
+  Icon,
+  Button,
+  Modal,
   ModalOverlay,
   ModalContent,
   ModalHeader,
@@ -46,546 +45,377 @@ import {
   FormControl,
   ModalCloseButton,
   FormLabel,
+  Alert,
+  AlertIcon,
+  Spinner,
+  useToast,
+  Textarea,
+  Badge,
+  Progress,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanels,
+  TabPanel,
+  StatHelpText,
+  StatArrow,
+  Card,
+  CardBody,
+  CardHeader,
+  Select,
 } from "@chakra-ui/react";
 import {
   SearchIcon,
   ChevronDownIcon,
   CalendarIcon,
   TimeIcon,
-  InfoOutlineIcon, // For general info
-  DownloadIcon, // For export CSV
-  SettingsIcon, // For actions menu
-  CheckCircleIcon, // For active status
-  WarningIcon, // For late status
-  CloseIcon, // For inactive/absent status
-  MinusIcon, // For general placeholder
+  WarningIcon,
+  CheckCircleIcon,
+  InfoIcon,
+  AddIcon,
+  EditIcon,
+  DeleteIcon,
 } from "@chakra-ui/icons";
 import {
   FaUserTie,
   FaBriefcase,
-  FaClock,
-  FaClipboardList,
   FaFileAlt,
-} from "react-icons/fa"; // For employment icons
+  FaClock,
+  FaHistory,
+  FaExclamationTriangle,
+} from "react-icons/fa";
+import axios from "axios";
+import axiosInstance from "../../lib/axiosInstance";
 
-// Helper function to parse time (e.g., "08:55 AM") into minutes from midnight
+// Helper functions
 const parseTimeToMinutes = (timeStr) => {
-  if (!timeStr || timeStr === "-") return null;
-  const [time, period] = timeStr.split(" ");
-  let [hours, minutes] = time.split(":").map(Number);
-  if (period === "PM" && hours !== 12) {
-    hours += 12;
-  } else if (period === "AM" && hours === 12) {
-    hours = 0; // Midnight
+  if (typeof timeStr !== "string") {
+    timeStr = String(timeStr || "");
   }
-  return hours * 60 + minutes;
+
+  timeStr = timeStr.trim();
+  if (!timeStr || timeStr === "-" || timeStr === "") return null;
+
+  try {
+    const [time, period] = timeStr.split(" ");
+    if (!time) return null;
+
+    let [hours, minutes] = time.split(":").map(Number);
+
+    if (isNaN(hours) || isNaN(minutes)) return null;
+
+    if (period === "PM" && hours !== 12) {
+      hours += 12;
+    } else if (period === "AM" && hours === 12) {
+      hours = 0;
+    }
+    return hours * 60 + minutes;
+  } catch (error) {
+    console.warn("Error parsing time:", timeStr, error);
+    return null;
+  }
 };
 
-// Sample attendance data with scheduledCheckIn for tardiness calculation
-const initialAttendanceData = [
-  {
-    id: 1,
-    employeeName: "Floyd Miles",
-    date: "Jul. 10, 2025",
-    status: "Present",
-    checkIn: "08:55 AM",
-    checkOut: "05:00 PM",
-    scheduledCheckIn: "09:00 AM", // Added for tardiness calculation
-    leaveType: null,
-    employeeId: "EMP12345",
-    department: "Design",
-    role: "Lead Designer",
-    employmentType: "Full Time",
-    avgWorkHours: "9hrs 43mins",
-    avgOvertime: "1hrs 30mins",
-    attendanceLog: [
-      {
-        date: "May 1st 2025",
-        clock: "7:30 AM - 3:30 PM",
-        overtime: "2hrs 30min",
-        location: "Withston Street, Ware...",
-        status: "Late",
-      },
-      {
-        date: "May 2nd 2025",
-        clock: "7:30 AM - 3:30 PM",
-        overtime: "-",
-        location: "Withston Street, Ware...",
-        status: "Early",
-      },
-      {
-        date: "May 3rd 2025",
-        clock: "7:30 AM - 3:30 PM",
-        overtime: "2hrs 30min",
-        location: "Withston Street, Ware...",
-        status: "Late",
-      },
-      {
-        date: "May 4th 2025",
-        clock: "7:30 AM - 3:30 PM",
-        overtime: "-",
-        location: "Withston Street, Ware...",
-        status: "Late",
-      },
-      {
-        date: "May 5th 2025",
-        clock: "7:30 AM - 3:30 PM",
-        overtime: "-",
-        location: "Withston Street, Ware...",
-        status: "Early",
-      },
-      {
-        date: "May 6th 2025",
-        clock: "7:30 AM - 3:30 PM",
-        overtime: "-",
-        location: "Withston Street, Ware...",
-        status: "Early",
-      },
-    ],
-    summary: {
-      yearOfEmployment: "2021",
-      totalPresentsDays: "1,298 days",
-      totalAbsentDays: "30 Days",
-      totalLeaveDays: "423 Days",
-    },
-  },
-  {
-    id: 2,
-    employeeName: "Savannah Nguyen",
-    date: "Jul. 10, 2025",
-    status: "Absent",
-    checkIn: "-",
-    checkOut: "-",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: null,
-    employeeId: "EMP12346",
-    department: "Research",
-    role: "Researcher",
-    employmentType: "Full Time",
-    avgWorkHours: "8hrs 00mins",
-    avgOvertime: "0hrs 00mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2022",
-      totalPresentsDays: "500 days",
-      totalAbsentDays: "15 Days",
-      totalLeaveDays: "20 Days",
-    },
-  },
-  {
-    id: 3,
-    employeeName: "Cameron Williamson",
-    date: "Jul. 10, 2025",
-    status: "Late",
-    checkIn: "09:15 AM",
-    checkOut: "05:05 PM",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: null,
-    employeeId: "EMP12347",
-    department: "Development",
-    role: "Software Engineer",
-    employmentType: "Full Time",
-    avgWorkHours: "9hrs 00mins",
-    avgOvertime: "1hrs 00mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2023",
-      totalPresentsDays: "300 days",
-      totalAbsentDays: "5 Days",
-      totalLeaveDays: "10 Days",
-    },
-  },
-  {
-    id: 4,
-    employeeName: "Darrell Steward",
-    date: "Jul. 10, 2025",
-    status: "Present",
-    checkIn: "08:45 AM",
-    checkOut: "04:50 PM",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: null,
-    employeeId: "EMP12348",
-    department: "AI & ML",
-    role: "ML Engineer",
-    employmentType: "Full Time",
-    avgWorkHours: "9hrs 30mins",
-    avgOvertime: "0hrs 45mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2024",
-      totalPresentsDays: "150 days",
-      totalAbsentDays: "2 Days",
-      totalLeaveDays: "5 Days",
-    },
-  },
-  {
-    id: 5,
-    employeeName: "Laura Bran",
-    date: "Jul. 09, 2025",
-    status: "Present",
-    checkIn: "08:50 AM",
-    checkOut: "05:00 PM",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: null,
-    employeeId: "EMP12349",
-    department: "Design",
-    role: "UX Designer",
-    employmentType: "Part Time",
-    avgWorkHours: "4hrs 00mins",
-    avgOvertime: "0hrs 00mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2023",
-      totalPresentsDays: "200 days",
-      totalAbsentDays: "3 Days",
-      totalLeaveDays: "7 Days",
-    },
-  },
-  {
-    id: 6,
-    employeeName: "Alfred Frook",
-    date: "Jul. 09, 2025",
-    status: "Absent",
-    checkIn: "-",
-    checkOut: "-",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: null,
-    employeeId: "EMP12350",
-    department: "Design",
-    role: "Graphic Designer",
-    employmentType: "Full Time",
-    avgWorkHours: "8hrs 00mins",
-    avgOvertime: "0hrs 00mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2022",
-      totalPresentsDays: "600 days",
-      totalAbsentDays: "20 Days",
-      totalLeaveDays: "30 Days",
-    },
-  },
-  {
-    id: 7,
-    employeeName: "Biren Singh",
-    date: "Jul. 09, 2025",
-    status: "Present",
-    checkIn: "08:58 AM",
-    checkOut: "05:02 PM",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: null,
-    employeeId: "EMP12351",
-    department: "Design",
-    role: "Product Designer",
-    employmentType: "Full Time",
-    avgWorkHours: "8hrs 00mins",
-    avgOvertime: "0hrs 00mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2021",
-      totalPresentsDays: "1000 days",
-      totalAbsentDays: "25 Days",
-      totalLeaveDays: "50 Days",
-    },
-  },
-  // Adding some leave data for demonstration
-  {
-    id: 8,
-    employeeName: "Alice Johnson",
-    date: "Jul. 08, 2025",
-    status: "Leave",
-    checkIn: "-",
-    checkOut: "-",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: "VL", // Vacation Leave
-    employeeId: "EMP12352",
-    department: "HR",
-    role: "HR Manager",
-    employmentType: "Full Time",
-    avgWorkHours: "8hrs 00mins",
-    avgOvertime: "0hrs 00mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2020",
-      totalPresentsDays: "1500 days",
-      totalAbsentDays: "40 Days",
-      totalLeaveDays: "80 Days",
-    },
-  },
-  {
-    id: 9,
-    employeeName: "Bob Williams",
-    date: "Jul. 08, 2025",
-    status: "Leave",
-    checkIn: "-",
-    checkOut: "-",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: "SL", // Sick Leave
-    employeeId: "EMP12353",
-    department: "Sales",
-    role: "Sales Representative",
-    employmentType: "Full Time",
-    avgWorkHours: "8hrs 00mins",
-    avgOvertime: "0hrs 00mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2021",
-      totalPresentsDays: "1100 days",
-      totalAbsentDays: "35 Days",
-      totalLeaveDays: "60 Days",
-    },
-  },
-  {
-    id: 10,
-    employeeName: "Charlie Brown",
-    date: "Jul. 08, 2025",
-    status: "Leave",
-    checkIn: "-",
-    checkOut: "-",
-    scheduledCheckIn: "09:00 AM",
-    leaveType: "LWOP", // Leave Without Pay
-    employeeId: "EMP12354",
-    department: "Marketing",
-    role: "Marketing Specialist",
-    employmentType: "Full Time",
-    avgWorkHours: "8hrs 00mins",
-    avgOvertime: "0hrs 00mins",
-    attendanceLog: [],
-    summary: {
-      yearOfEmployment: "2022",
-      totalPresentsDays: "700 days",
-      totalAbsentDays: "10 Days",
-      totalLeaveDays: "25 Days",
-    },
-  },
-];
+const formatLogTimestamp = (timestamp) => {
+  const date = new Date(timestamp);
+  return date.toLocaleDateString() + " " + date.toLocaleTimeString();
+};
 
-const AttendancesTrackingEmployee = () => {
-  const [attendanceRecords, setAttendanceRecords] = useState(
-    initialAttendanceData
-  );
+const minutesToTimeString = (minutes) => {
+  if (minutes === null || isNaN(minutes)) return "-";
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  const period = hours >= 12 ? "PM" : "AM";
+  const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+  return `${displayHours.toString().padStart(2, "0")}:${mins
+    .toString()
+    .padStart(2, "0")} ${period}`;
+};
+
+const formatDate = (dateString) => {
+  const options = { year: "numeric", month: "short", day: "numeric" };
+  return new Date(dateString).toLocaleDateString("en-US", options);
+};
+
+const capitalizeStatus = (status) => {
+  if (status.toLowerCase() === "on_leave") return "Leave";
+  return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+};
+
+const EmployeAttendanceTracking = () => {
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState("");
-  const [selectedYear, setSelectedYear] = useState("");
+  const [attendanceLogs, setAttendanceLogs] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [employees, setEmployees] = useState([]); // Initialize as empty array
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [currentRecord, setCurrentRecord] = useState(null);
+  const [leaveCredits, setLeaveCredits] = useState({});
+  const [formData, setFormData] = useState({
+    employeeId: "",
+    date: "",
+    status: "present",
+    checkIn: "",
+    checkOut: "",
+    leaveType: "",
+    notes: "",
+  });
+
   const {
     isOpen: isDrawerOpen,
     onOpen: onDrawerOpen,
     onClose: onDrawerClose,
   } = useDisclosure();
-  const {
-    isOpen: isModalOpen,
-    onOpen: onModalOpen,
-    onClose: onModalClose,
-  } = useDisclosure();
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [editingRecord, setEditingRecord] = useState(null);
 
-  const months = [
-    { value: "Jan", label: "January" },
-    { value: "Feb", label: "February" },
-    { value: "Mar", label: "March" },
-    { value: "Apr", label: "April" },
-    { value: "May", label: "May" },
-    { value: "Jun", label: "June" },
-    { value: "Jul", label: "July" },
-    { value: "Aug", label: "August" },
-    { value: "Sep", label: "September" },
-    { value: "Oct", label: "October" },
-    { value: "Nov", label: "November" },
-    { value: "Dec", label: "December" },
-  ];
+  const [selectedEmployee, setSelectedEmployee] = useState({
+    employee: {},
+    date: "",
+    status: "",
+    checkIn: null,
+    checkOut: null,
+  });
 
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 5 }, (_, i) => String(currentYear - i));
+  const toast = useToast();
+  const loggedInUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user")) || {};
+    } catch {
+      return {};
+    }
+  }, []);
 
-  // Filter attendance records based on search term, selected year, and month
+
+  // Fetch attendance records and employees
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+
+        // Fetch employee's own attendance records
+        const attendanceResponse = await axiosInstance.get(
+          "/employeeAttendance/my"
+        );
+        setAttendanceRecords(
+          Array.isArray(attendanceResponse.data) ? attendanceResponse.data : []
+        );
+
+        // Fetch employee's leave credits
+        const leaveCreditsResponse = await axiosInstance.get(
+          "/employeeAttendance/my-leave-credits"
+        );
+        setLeaveCredits(leaveCreditsResponse.data?.credits || {});
+
+        setError(null);
+      } catch (err) {
+        setError(err.message || "Failed to fetch data");
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [refreshKey, toast]);
+
+  const getStatusColorScheme = (status) => {
+    const normalizedStatus = status.toLowerCase();
+    switch (normalizedStatus) {
+      case "present":
+        return "green";
+      case "absent":
+        return "red";
+      case "late":
+        return "orange";
+      case "leave":
+      case "on_leave":
+        return "blue";
+      default:
+        return "gray";
+    }
+  };
+
+  const calculateHoursRendered = (checkIn, checkOut) => {
+    if (!checkIn || !checkOut) return "-";
+
+    const checkInTime = new Date(checkIn);
+    const checkOutTime = new Date(checkOut);
+
+    if (checkOutTime <= checkInTime) return "0h 0m";
+
+    const totalMinutes = Math.floor((checkOutTime - checkInTime) / (1000 * 60));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    return `${hours}h ${minutes}m`;
+  };
+  const formatTime = (dateTime) => {
+    if (!dateTime) return "-";
+    const date = dateTime instanceof Date ? dateTime : new Date(dateTime);
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  const getTardiness = (record) => {
+    if (record.tardinessMinutes && record.tardinessMinutes > 0) {
+      return `${record.tardinessMinutes} min late`;
+    }
+    return "-";
+  };
+
   const filteredAttendance = useMemo(() => {
     return attendanceRecords.filter((record) => {
-      const recordDate = new Date(record.date);
-      const recordMonth = months[recordDate.getMonth()].value;
-      const recordYear = String(recordDate.getFullYear());
+      if (!searchTerm) return true;
 
-      const matchesSearch = record.status
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+      const employeeName = `${record.employee?.firstname || ""} ${
+        record.employee?.lastname || ""
+      }`.toLowerCase();
+      const employeeId = record.employee?.employeeId?.toLowerCase() || "";
+      const status = record.status.toLowerCase();
+      const search = searchTerm.toLowerCase();
 
-      const matchesMonth =
-        selectedMonth === "" || recordMonth === selectedMonth;
-      const matchesYear = selectedYear === "" || recordYear === selectedYear;
-
-      return matchesSearch && matchesMonth && matchesYear;
+      return (
+        employeeName.includes(search) ||
+        employeeId.includes(search) ||
+        status.includes(search)
+      );
     });
-  }, [searchTerm, selectedMonth, selectedYear, attendanceRecords]);
+  }, [searchTerm, attendanceRecords]);
 
-  // Calculate summary statistics
-  const { totalMinLate, numLate, numAbsent, leaveCounts } = useMemo(() => {
+  const {
+    totalMinLate,
+    numLate,
+    numAbsent,
+    numPresent,
+    leaveCounts,
+    absentEmployees,
+  } = useMemo(() => {
     let totalMinLate = 0;
     let numLate = 0;
     let numAbsent = 0;
+    let numPresent = 0;
     const leaveCounts = { VL: 0, SL: 0, LWOP: 0, BL: 0, OS: 0, CL: 0 };
+    const absentEmployees = [];
 
     filteredAttendance.forEach((record) => {
-      if (
-        record.status === "Late" &&
-        record.checkIn &&
-        record.scheduledCheckIn
-      ) {
-        const checkInMinutes = parseTimeToMinutes(record.checkIn);
-        const scheduledCheckInMinutes = parseTimeToMinutes(
-          record.scheduledCheckIn
-        );
-        if (checkInMinutes !== null && scheduledCheckInMinutes !== null) {
-          const lateMinutes = checkInMinutes - scheduledCheckInMinutes;
-          if (lateMinutes > 0) {
-            totalMinLate += lateMinutes;
-            numLate++;
-          }
+      const normalizedStatus = record.status.toLowerCase();
+
+      if (normalizedStatus === "late") {
+        numLate++;
+        if (record.checkIn) {
+          totalMinLate += record.tardinessMinutes || 0;
         }
-      } else if (record.status === "Absent") {
+      } else if (normalizedStatus === "absent") {
         numAbsent++;
-      } else if (record.status === "Leave" && record.leaveType) {
+        absentEmployees.push(record);
+      } else if (normalizedStatus === "present") {
+        numPresent++;
+      } else if (
+        (normalizedStatus === "leave" || normalizedStatus === "on_leave") &&
+        record.leaveType
+      ) {
         if (leaveCounts.hasOwnProperty(record.leaveType)) {
           leaveCounts[record.leaveType]++;
         }
       }
     });
 
-    return { totalMinLate, numLate, numAbsent, leaveCounts };
+    return {
+      totalMinLate,
+      numLate,
+      numAbsent,
+      numPresent,
+      leaveCounts,
+      absentEmployees,
+    };
   }, [filteredAttendance]);
 
-  // Function to get status color scheme for Chakra Tag
-  const getStatusColorScheme = (status) => {
-    switch (status) {
-      case "Present":
-        return "green";
-      case "Absent":
-        return "red";
-      case "Late":
-        return "orange";
-      case "Leave":
-        return "blue"; // For general leave status
-      default:
-        return "gray";
-    }
+  const getAttendanceRate = () => {
+    const total = filteredAttendance.length;
+    if (total === 0) return 0;
+    return Math.round((numPresent / total) * 100);
   };
 
-  // Function to calculate hours rendered
-  const calculateHoursRendered = (checkIn, checkOut) => {
-    if (checkIn === "-" || checkOut === "-") return "-";
-
-    const checkInMinutes = parseTimeToMinutes(checkIn);
-    const checkOutMinutes = parseTimeToMinutes(checkOut);
-
-    if (
-      checkInMinutes === null ||
-      checkOutMinutes === null ||
-      checkOutMinutes < checkInMinutes
-    ) {
-      return "-"; // Invalid times
-    }
-
-    const totalMinutes = checkOutMinutes - checkInMinutes;
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-
-    return `${hours}h ${minutes}m`;
-  };
-
-  // Calculate tardiness for a specific record
-  const getTardiness = (record) => {
-    if (record.status === "Late" && record.checkIn && record.scheduledCheckIn) {
-      const checkInMinutes = parseTimeToMinutes(record.checkIn);
-      const scheduledCheckInMinutes = parseTimeToMinutes(
-        record.scheduledCheckIn
-      );
-      if (checkInMinutes !== null && scheduledCheckInMinutes !== null) {
-        const lateMinutes = checkInMinutes - scheduledCheckInMinutes;
-        if (lateMinutes > 0) {
-          return `${lateMinutes} min late`;
-        }
-      }
-    }
-    return "-";
-  };
-
-  // Handler for "View Details" button
-  const handleViewDetails = (employee) => {
-    setSelectedEmployee(employee);
-    onDrawerOpen(); // Open the drawer
-  };
-
-  // Handler for "Edit Record" button
-  const handleEditRecord = (record) => {
-    setEditingRecord({ ...record }); // Create a copy to edit
-    onModalOpen();
-  };
-
-  // Handler for saving edited record
-  const handleSaveRecord = () => {
-    setAttendanceRecords((prevRecords) =>
-      prevRecords.map((rec) =>
-        rec.id === editingRecord.id ? editingRecord : rec
-      )
-    );
-    onModalClose();
-    setEditingRecord(null);
-  };
-
-  // Handle changes in the edit modal form
-  const handleEditChange = (e) => {
+  const handleFormChange = (e) => {
     const { name, value } = e.target;
-    setEditingRecord((prev) => {
-      const updatedRecord = { ...prev, [name]: value };
-
-      // Logic for auto-setting check-in/out for Absent status
-      if (name === "status") {
-        if (value === "Absent" || value === "Leave") {
-          updatedRecord.checkIn = "-";
-          updatedRecord.checkOut = "-";
-        } else if (prev.status === "Absent" || prev.status === "Leave") {
-          // If changing from Absent/Leave to Present/Late, reset check-in/out to default/empty
-          updatedRecord.checkIn = ""; // Or a default time like '09:00 AM'
-          updatedRecord.checkOut = ""; // Or a default time like '05:00 PM'
-        }
-      }
-      // If status is not 'Leave', reset leaveType
-      if (name === "status" && value !== "Leave") {
-        updatedRecord.leaveType = null;
-      }
-
-      return updatedRecord;
-    });
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   return (
-    <Box minH="100vh" p={{ base: 4, sm: 6, lg: 6 }} fontFamily="sans-serif">
-      {/* Header Section */}
+    <Box minH="100vh" p={{ base: 4, sm: 6, lg: 8 }} fontFamily="sans-serif">
+      {isLoading && (
+        <Flex
+          justify="center"
+          align="center"
+          position="fixed"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          zIndex={9999}
+          bg="blackAlpha.300"
+        >
+          <Box bg="white" p={6} borderRadius="lg" shadow="lg">
+            <VStack spacing={4}>
+              <Spinner size="xl" color="blue.500" />
+              <Text fontSize="lg" color="gray.600">
+                Loading...
+              </Text>
+            </VStack>
+          </Box>
+        </Flex>
+      )}
+
+      {error && (
+        <Alert status="error" mb={4} borderRadius="lg">
+          <AlertIcon />
+          {error}
+        </Alert>
+      )}
+
       <Flex
         direction={{ base: "column", md: "row" }}
         justify="space-between"
         align={{ base: "flex-start", md: "center" }}
         mb={6}
       >
-        <Heading
-          as="h1"
-          fontSize={{ base: "2xl", sm: "3xl" }}
-          fontWeight="bold"
-          color="gray.800"
-          mb={{ base: 4, md: 0 }}
-        >
-          Attendance Tracking
-        </Heading>
+        <VStack align="flex-start" mb={{ base: 4, md: 0 }}>
+          <Heading
+            as="h1"
+            fontSize={{ base: "2xl", sm: "3xl" }}
+            fontWeight="bold"
+            color="gray.800"
+          >
+            Employee Attendance
+          </Heading>
+          <Text fontSize="sm" color="gray.600">
+            Manual Attendance Management
+          </Text>
+          <Text fontSize="xs" color="gray.500">
+            Last updated: {new Date().toLocaleString()}
+          </Text>
+        </VStack>
         <HStack
           spacing={4}
           direction={{ base: "column", sm: "row" }}
           w={{ base: "full", md: "auto" }}
         >
-          <InputGroup w={{ base: "full", sm: "auto" }}>
+          <InputGroup w={{ base: "full", sm: "300px" }}>
             <InputLeftElement pointerEvents="none">
               <SearchIcon color="gray.400" />
             </InputLeftElement>
             <Input
               type="text"
-              placeholder="Search status"
+              placeholder="Search employee or status"
               pl={10}
               pr={4}
               py={2}
@@ -598,336 +428,298 @@ const AttendancesTrackingEmployee = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </InputGroup>
-          <HStack spacing={2} w={{ base: "full", sm: "auto" }}>
-            <Select
-              placeholder="Select Month"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              borderWidth="1px"
-              borderColor="gray.300"
-              borderRadius="lg"
-              focusBorderColor="blue.500"
-              _focus={{ boxShadow: "outline" }}
-            >
-              {months.map((month) => (
-                <option key={month.value} value={month.value}>
-                  {month.label}
-                </option>
-              ))}
-            </Select>
-            <Select
-              placeholder="Select Year"
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              borderWidth="1px"
-              borderColor="gray.300"
-              borderRadius="lg"
-              focusBorderColor="blue.500"
-              _focus={{ boxShadow: "outline" }}
-            >
-              {years.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </Select>
-          </HStack>
         </HStack>
       </Flex>
 
-      {/* Summary Section: Tardiness and Leave */}
-      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={10} mb={6}>
-        {/* Tardiness Card */}
-        <Box bg="white" p={6} borderRadius="lg" shadow="md">
-          <Heading size="md" mb={4} color="gray.700">
-            Tardiness
-          </Heading>
-          <VStack
-            // Changed align="flex-start" to align="center"
-            align="flex-start"
-            flexDirection="row"
-            justifyContent="center"
-            alignItems={"center"}
-            spacing={3}
-          >
+      {/* Enhanced Statistics Section */}
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={6}>
+        <Card borderLeft="4px" borderColor="green.400">
+          <CardBody p={6}>
             <Stat>
-              <StatLabel color="gray.600">Min/Hrs Late</StatLabel>
-              <StatNumber fontSize="xl" fontWeight="bold">
+              <StatLabel color="gray.600" fontSize="sm">
+                Attendance Rate
+              </StatLabel>
+              <StatNumber fontSize="2xl" fontWeight="bold" color="green.600">
+                {getAttendanceRate()}%
+              </StatNumber>
+              <StatHelpText color="gray.500">
+                <StatArrow type="increase" />
+                {numPresent} present today
+              </StatHelpText>
+            </Stat>
+          </CardBody>
+        </Card>
+
+        <Card borderLeft="4px" borderColor="orange.400">
+          <CardBody p={6}>
+            <Stat>
+              <StatLabel color="gray.600" fontSize="sm">
+                Total Late Time
+              </StatLabel>
+              <StatNumber fontSize="2xl" fontWeight="bold" color="orange.600">
                 {Math.floor(totalMinLate / 60)}h {totalMinLate % 60}m
               </StatNumber>
+              <StatHelpText color="gray.500">
+                <StatArrow type={numLate > 0 ? "decrease" : "increase"} />
+                {numLate} late entries
+              </StatHelpText>
             </Stat>
+          </CardBody>
+        </Card>
+
+        <Card borderLeft="4px" borderColor="red.400">
+          <CardBody p={6}>
             <Stat>
-              <StatLabel color="gray.600"># Late</StatLabel>
-              <StatNumber fontSize="xl" fontWeight="bold">
-                {numLate}
-              </StatNumber>
-            </Stat>
-            <Stat>
-              <StatLabel color="gray.600"># Absences</StatLabel>
-              <StatNumber fontSize="xl" fontWeight="bold">
+              <StatLabel color="gray.600" fontSize="sm">
+                Absences
+              </StatLabel>
+              <StatNumber fontSize="2xl" fontWeight="bold" color="red.600">
                 {numAbsent}
               </StatNumber>
+              <StatHelpText color="gray.500">
+                <StatArrow type={numAbsent > 0 ? "decrease" : "increase"} />
+                employees absent
+              </StatHelpText>
             </Stat>
-          </VStack>
-        </Box>
-
-        {/* Leave Card */}
-        <Box bg="white" p={6} borderRadius="lg" shadow="md">
-          <Heading size="md" mb={4} color="gray.700">
-            Leave
-          </Heading>
-          <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} spacing={3}>
+          </CardBody>
+        </Card>
+        <Card borderLeft="4px" borderColor="blue.400">
+          <CardBody p={6}>
             <Stat>
-              <StatLabel color="gray.600">Vacation Leave (VL)</StatLabel>
-              <StatNumber fontSize="xl" fontWeight="bold">
-                {leaveCounts.VL}
+              <StatLabel color="gray.600" fontSize="sm">
+                On Leave
+              </StatLabel>
+              <StatNumber fontSize="2xl" fontWeight="bold" color="blue.600">
+                {Object.values(leaveCounts).reduce((a, b) => a + b, 0)}
               </StatNumber>
+              <StatHelpText color="gray.500">
+                Total leave applications
+              </StatHelpText>
             </Stat>
-            <Stat>
-              <StatLabel color="gray.600">Sick Leave (SL)</StatLabel>
-              <StatNumber fontSize="xl" fontWeight="bold">
-                {leaveCounts.SL}
-              </StatNumber>
-            </Stat>
-            <Stat>
-              <StatLabel color="gray.600">Leave Without Pay (LWOP)</StatLabel>
-              <StatNumber fontSize="xl" fontWeight="bold">
-                {leaveCounts.LWOP}
-              </StatNumber>
-            </Stat>
-            <Stat>
-              <StatLabel color="gray.600">Bereavement Leave (BL)</StatLabel>
-              <StatNumber fontSize="xl" fontWeight="bold">
-                {leaveCounts.BL}
-              </StatNumber>
-            </Stat>
-            <Stat>
-              <StatLabel color="gray.600">Offset (OS)</StatLabel>
-              <StatNumber fontSize="xl" fontWeight="bold">
-                {leaveCounts.OS}
-              </StatNumber>
-            </Stat>
-            <Stat>
-              <StatLabel color="gray.600">Calamity Leave (CL)</StatLabel>
-              <StatNumber fontSize="xl" fontWeight="bold">
-                {leaveCounts.CL}
-              </StatNumber>
-            </Stat>
-          </SimpleGrid>
-        </Box>
+          </CardBody>
+        </Card>
       </SimpleGrid>
 
+      {/* Leave Breakdown */}
+      <Card mb={6}>
+        <CardHeader>
+          <Heading size="md" color="gray.700">
+            Leave Credits
+          </Heading>
+        </CardHeader>
+        <CardBody pt={0}>
+          <SimpleGrid columns={{ base: 2, sm: 3, md: 6 }} spacing={4}>
+            {Object.entries(leaveCredits).map(([type, credit]) => (
+              <VStack key={type} bg="blue.50" p={3} borderRadius="md">
+                <Text fontSize="xs" color="blue.600" fontWeight="semibold">
+                  {type}
+                </Text>
+                <Text fontSize="sm" color="blue.700">
+                  {credit.remaining} / {credit.total}
+                </Text>
+              </VStack>
+            ))}
+          </SimpleGrid>
+        </CardBody>
+      </Card>
+
+      {/* Absent Employees Alert */}
+      {absentEmployees.length > 0 && (
+        <Alert status="warning" mb={6} borderRadius="lg">
+          <AlertIcon />
+          <VStack align="flex-start" spacing={2}>
+            <Text fontWeight="semibold">
+              {absentEmployees.length} employee(s) absent today:
+            </Text>
+            <HStack wrap="wrap" spacing={2}>
+              {absentEmployees.map((record) => (
+                <Tag key={record._id} colorScheme="red" size="sm">
+                  {record.employee?.firstname} {record.employee?.lastname}
+                </Tag>
+              ))}
+            </HStack>
+          </VStack>
+        </Alert>
+      )}
+
       {/* Attendance Table */}
-      <Box bg="white" borderRadius="lg" shadow="md" overflowX="auto">
-        <Table variant="simple" minW="full" borderCollapse="collapse">
+      <Card overflowX="auto">
+        <Table variant="simple" minW="full">
           <Thead bg="gray.50">
             <Tr>
-              <Th
-                py={3}
-                px={4}
-                textAlign="left"
-                fontSize="xs"
-                fontWeight="medium"
-                color="gray.500"
-                textTransform="uppercase"
-                letterSpacing="wider"
-                display={{
-                  base: "none",
-                  md: "none",
-                  lg: "none",
-                  xl: "table-cell",
-                }}
-              >
+              <Th py={3} px={4}>
+                Employee
+              </Th>
+              <Th py={3} px={4} display={{ base: "none", md: "table-cell" }}>
                 Date
               </Th>
-              <Th
-                py={3}
-                px={4}
-                textAlign="left"
-                fontSize="xs"
-                fontWeight="medium"
-                color="gray.500"
-                textTransform="uppercase"
-                letterSpacing="wider"
-              >
+              <Th py={3} px={4}>
                 Status
               </Th>
-              <Th
-                py={3}
-                px={4}
-                textAlign="left"
-                fontSize="xs"
-                fontWeight="medium"
-                color="gray.500"
-                textTransform="uppercase"
-                letterSpacing="wider"
-                display={{
-                  base: "none",
-                  md: "none",
-                  lg: "none",
-                  xl: "table-cell",
-                }}
-              >
+              <Th py={3} px={4} display={{ base: "none", lg: "table-cell" }}>
                 Check-in
               </Th>
-              <Th
-                py={3}
-                px={4}
-                textAlign="left"
-                fontSize="xs"
-                fontWeight="medium"
-                color="gray.500"
-                textTransform="uppercase"
-                letterSpacing="wider"
-                display={{
-                  base: "none",
-                  md: "none",
-                  lg: "none",
-                  xl: "table-cell",
-                }}
-              >
+              <Th py={3} px={4} display={{ base: "none", lg: "table-cell" }}>
                 Check-out
               </Th>
-              <Th
-                py={3}
-                px={4}
-                textAlign="left"
-                fontSize="xs"
-                fontWeight="medium"
-                color="gray.500"
-                textTransform="uppercase"
-                letterSpacing="wider"
-              >
-                {" "}
-                {/* Hidden on md, visible on lg */}
-                Hours Rendered
+              <Th py={3} px={4} display={{ base: "none", xl: "table-cell" }}>
+                Hours
               </Th>
-              <Th
-                py={3}
-                px={4}
-                textAlign="left"
-                fontSize="xs"
-                fontWeight="medium"
-                color="gray.500"
-                textTransform="uppercase"
-                letterSpacing="wider"
-                display={{ base: "none", lg: "table-cell" }}
-              >
-                Tardiness
-              </Th>
-              <Th
-                py={3}
-                px={4}
-                textAlign="left"
-                fontSize="xs"
-                fontWeight="medium"
-                color="gray.500"
-                textTransform="uppercase"
-                letterSpacing="wider"
-                display={{ base: "none", lg: "table-cell" }}
-              >
+              <Th py={3} px={4} display={{ base: "none", xl: "table-cell" }}>
                 Leave Type
+              </Th>
+              <Th py={3} px={4} display={{ base: "none", xl: "table-cell" }}>
+                Notes
               </Th>
             </Tr>
           </Thead>
-          <Tbody bg="white" borderBottomWidth="1px" borderColor="gray.200">
-            {filteredAttendance.map((record) => (
-              <Tr key={record.id}>
-                <Td
-                  px={4}
-                  py={4}
-                  whiteSpace="nowrap"
-                  display={{
-                    base: "none",
-                    md: "none",
-                    lg: "none",
-                    xl: "table-cell",
-                  }}
-                >
-                  <HStack spacing={1} display="inline-flex" alignItems="center">
-                    <CalendarIcon w={3} h={3} color="gray.500" />
-                    <Text fontSize="sm" color="gray.900">
-                      {record.date}
-                    </Text>
-                  </HStack>
-                </Td>
-                <Td px={4} py={4} whiteSpace="nowrap">
-                  <Tag
-                    size="md"
-                    variant="subtle"
-                    colorScheme={getStatusColorScheme(record.status)}
-                  >
-                    {record.status}
-                  </Tag>
-                </Td>
-                <Td
-                  px={4}
-                  py={4}
-                  whiteSpace="nowrap"
-                  display={{
-                    base: "none",
-                    md: "none",
-                    lg: "none",
-                    xl: "table-cell",
-                  }}
-                >
-                  <HStack spacing={1} display="inline-flex" alignItems="center">
-                    <TimeIcon w={3} h={3} color="gray.500" />
-                    <Text fontSize="sm" color="gray.900">
-                      {record.checkIn}
-                    </Text>
-                  </HStack>
-                </Td>
-                <Td
-                  px={4}
-                  py={4}
-                  whiteSpace="nowrap"
-                  display={{
-                    base: "none",
-                    md: "none",
-                    lg: "none",
-                    xl: "table-cell",
-                  }}
-                >
-                  <HStack spacing={1} display="inline-flex" alignItems="center">
-                    <TimeIcon w={3} h={3} color="gray.500" />
-                    <Text fontSize="sm" color="gray.900">
-                      {record.checkOut}
-                    </Text>
-                  </HStack>
-                </Td>
-                <Td px={4} py={4} whiteSpace="nowrap">
-                  <Text fontSize="sm" color="gray.900">
-                    {calculateHoursRendered(record.checkIn, record.checkOut)}
-                  </Text>
-                </Td>
-                <Td
-                  px={4}
-                  py={4}
-                  whiteSpace="nowrap"
-                  display={{ base: "none", lg: "table-cell" }}
-                >
-                  <Text fontSize="sm" color="gray.900">
-                    {getTardiness(record)}
-                  </Text>
-                </Td>
-                <Td
-                  px={4}
-                  py={4}
-                  whiteSpace="nowrap"
-                  display={{ base: "none", lg: "table-cell" }}
-                >
-                  <Text fontSize="sm" color="gray.900">
-                    {record.leaveType || "-"}
-                  </Text>
+          <Tbody>
+            {filteredAttendance.length === 0 ? (
+              <Tr>
+                <Td colSpan={8} textAlign="center" py={8}>
+                  <VStack spacing={3}>
+                    <Icon as={InfoIcon} w={8} h={8} color="gray.400" />
+                    <Text color="gray.500">No attendance records found</Text>
+                  </VStack>
                 </Td>
               </Tr>
-            ))}
+            ) : (
+              filteredAttendance.map((record) => (
+                <Tr key={record._id} _hover={{ bg: "gray.50" }}>
+                  <Td px={4} py={4}>
+                    <HStack spacing={3}>
+                      <Avatar
+                        size="sm"
+                        name={`${record.employee?.firstname || "N/A"} ${
+                          record.employee?.lastname || ""
+                        }`}
+                        bg="blue.500"
+                        color="white"
+                      />
+                      <VStack align="flex-start" spacing={1}>
+                        <Text
+                          fontSize="sm"
+                          fontWeight="medium"
+                          color="gray.900"
+                        >
+                          {record.employee?.firstname || "N/A"}{" "}
+                          {record.employee?.lastname || ""}
+                        </Text>
+                        <Text fontSize="xs" color="gray.500">
+                          {record.employee?.employeeId || "N/A"}
+                        </Text>
+                      </VStack>
+                    </HStack>
+                  </Td>
+                  <Td
+                    px={4}
+                    py={4}
+                    display={{ base: "none", md: "table-cell" }}
+                  >
+                    <HStack spacing={1}>
+                      <CalendarIcon w={3} h={3} color="gray.500" />
+                      <Text fontSize="sm" color="gray.900">
+                        {formatDate(record.date)}
+                      </Text>
+                    </HStack>
+                  </Td>
+                  <Td px={4} py={4}>
+                    <VStack align="flex-start" spacing={1}>
+                      <Tag
+                        size="sm"
+                        variant="subtle"
+                        colorScheme={getStatusColorScheme(record.status)}
+                      >
+                        {capitalizeStatus(record.status)}
+                      </Tag>
+                      {getTardiness(record) !== "-" && (
+                        <Text
+                          fontSize="xs"
+                          color="orange.600"
+                          fontWeight="medium"
+                        >
+                          {getTardiness(record)}
+                        </Text>
+                      )}
+                    </VStack>
+                  </Td>
+                  <Td
+                    px={4}
+                    py={4}
+                    display={{ base: "none", lg: "table-cell" }}
+                  >
+                    <HStack spacing={1}>
+                      <TimeIcon w={3} h={3} color="gray.500" />
+                      <Text fontSize="sm" color="gray.900">
+                        {record.checkIn ? formatTime(record.checkIn) : "-"}
+                      </Text>
+                    </HStack>
+                  </Td>
+                  <Td
+                    px={4}
+                    py={4}
+                    display={{ base: "none", lg: "table-cell" }}
+                  >
+                    <HStack spacing={1}>
+                      <TimeIcon w={3} h={3} color="gray.500" />
+                      <Text fontSize="sm" color="gray.900">
+                        {record.checkOut ? formatTime(record.checkOut) : "-"}
+                      </Text>
+                    </HStack>
+                  </Td>
+                  <Td
+                    px={4}
+                    py={4}
+                    display={{ base: "none", xl: "table-cell" }}
+                  >
+                    <Text fontSize="sm" color="gray.900" fontWeight="medium">
+                      {record.hoursRendered !== undefined &&
+                      record.hoursRendered !== null
+                        ? `${Math.floor(record.hoursRendered / 60)}h ${
+                            record.hoursRendered % 60
+                          }m`
+                        : "-"}
+                    </Text>
+                  </Td>
+                  <Td
+                    px={4}
+                    py={4}
+                    display={{ base: "none", xl: "table-cell" }}
+                  >
+                    {record.leaveType ? (
+                      <Tag size="sm" colorScheme="blue" variant="outline">
+                        {record.leaveType}
+                      </Tag>
+                    ) : (
+                      <Text fontSize="sm" color="gray.500">
+                        -
+                      </Text>
+                    )}
+                  </Td>
+                  <Td
+                    px={4}
+                    py={4}
+                    maxW="200px"
+                    display={{ base: "none", xl: "table-cell" }}
+                  >
+                    <Text isTruncated title={record.notes || ""}>
+                      {record.notes
+                        ? record.notes.length > 5
+                          ? `${record.notes.substring(0, 5)}...`
+                          : record.notes
+                        : "-"}
+                    </Text>
+                  </Td>
+                </Tr>
+              ))
+            )}
           </Tbody>
         </Table>
-      </Box>
+      </Card>
+
+      {/* Add Attendance Modal */}
     </Box>
   );
 };
 
-export default AttendancesTrackingEmployee;
+export default EmployeAttendanceTracking;
