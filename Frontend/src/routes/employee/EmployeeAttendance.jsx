@@ -163,6 +163,8 @@ const EmployeeAttendanceTracker = () => {
     checkOut: "",
     leaveType: "",
     notes: "",
+    dateFrom: "",
+    dateTo: "",
   });
 
   const {
@@ -358,6 +360,8 @@ const EmployeeAttendanceTracker = () => {
       checkOut: "",
       leaveType: "",
       notes: "",
+      dateFrom: "",
+      dateTo: "",
     });
     setIsAddModalOpen(true);
   };
@@ -372,6 +376,8 @@ const EmployeeAttendanceTracker = () => {
       checkOut: record.checkOut ? formatTime(record.checkOut) : "",
       leaveType: record.leaveType || "",
       notes: record.notes || "",
+      dateFrom: record.dateFrom ? record.dateFrom.slice(0, 10) : "",
+      dateTo: record.dateTo ? record.dateTo.slice(0, 10) : "",
     });
     setIsEditModalOpen(true);
   };
@@ -389,8 +395,16 @@ const EmployeeAttendanceTracker = () => {
     try {
       setIsLoading(true);
 
+      // Only send dateFrom/dateTo for leave
+      let payload = { ...formData };
+      if (formData.status !== "on_leave") {
+        payload.dateFrom = "";
+        payload.dateTo = "";
+        payload.leaveType = "";
+      }
+
       if (isAddModalOpen) {
-        await axiosInstance.post("/employeeAttendance/my", formData);
+        await axiosInstance.post("/employeeAttendance/my", payload);
         toast({
           title: "Success",
           description: "Attendance record added successfully",
@@ -401,7 +415,7 @@ const EmployeeAttendanceTracker = () => {
       } else if (isEditModalOpen) {
         await axiosInstance.put(
           `/api/attendance/${currentRecord._id}`,
-          formData
+          payload
         );
         toast({
           title: "Success",
@@ -930,22 +944,42 @@ const EmployeeAttendanceTracker = () => {
                 )}
 
                 {formData.status === "on_leave" && (
-                  <FormControl isRequired mb={0} gridColumn="span 2">
-                    <FormLabel>Leave Type</FormLabel>
-                    <Select
-                      name="leaveType"
-                      value={formData.leaveType}
-                      onChange={handleFormChange}
-                    >
-                      <option value="">Select leave type</option>
-                      <option value="VL">Vacation Leave</option>
-                      <option value="SL">Sick Leave</option>
-                      <option value="LWOP">Leave Without Pay</option>
-                      <option value="BL">Birthday Leave</option>
-                      <option value="OS">Official Business</option>
-                      <option value="CL">Compassionate Leave</option>
-                    </Select>
-                  </FormControl>
+                  <>
+                    <FormControl isRequired mb={0} gridColumn="span 2">
+                      <FormLabel>Leave Type</FormLabel>
+                      <Select
+                        name="leaveType"
+                        value={formData.leaveType}
+                        onChange={handleFormChange}
+                      >
+                        <option value="">Select leave type</option>
+                        <option value="VL">Vacation Leave</option>
+                        <option value="SL">Sick Leave</option>
+                        <option value="LWOP">Leave Without Pay</option>
+                        <option value="BL">Birthday Leave</option>
+                        <option value="OS">Official Business</option>
+                        <option value="CL">Compassionate Leave</option>
+                      </Select>
+                    </FormControl>
+                    <FormControl isRequired mb={0}>
+                      <FormLabel>Date From</FormLabel>
+                      <Input
+                        type="date"
+                        name="dateFrom"
+                        value={formData.dateFrom}
+                        onChange={handleFormChange}
+                      />
+                    </FormControl>
+                    <FormControl isRequired mb={0}>
+                      <FormLabel>Date To</FormLabel>
+                      <Input
+                        type="date"
+                        name="dateTo"
+                        value={formData.dateTo}
+                        onChange={handleFormChange}
+                      />
+                    </FormControl>
+                  </>
                 )}
 
                 <FormControl mb={0} gridColumn="span 2">
@@ -984,7 +1018,6 @@ const EmployeeAttendanceTracker = () => {
           <form onSubmit={handleSubmit}>
             <ModalBody pb={6}>
               <SimpleGrid columns={2} spacing={4}>
-                {" "}
                 <FormControl mb={4}>
                   <FormLabel>Employee</FormLabel>
                   <Text fontWeight="bold">
@@ -1025,7 +1058,6 @@ const EmployeeAttendanceTracker = () => {
                         onChange={handleFormChange}
                       />
                     </FormControl>
-
                     <FormControl mb={4}>
                       <FormLabel>Check-out Time</FormLabel>
                       <Input
@@ -1037,24 +1069,44 @@ const EmployeeAttendanceTracker = () => {
                     </FormControl>
                   </>
                 ) : formData.status === "on_leave" ? (
-                  <FormControl isRequired mb={4}>
-                    <FormLabel>Leave Type</FormLabel>
-                    <Select
-                      name="leaveType"
-                      value={formData.leaveType}
-                      onChange={handleFormChange}
-                    >
-                      <option value="">Select leave type</option>
-                      <option value="VL">Vacation Leave</option>
-                      <option value="SL">Sick Leave</option>
-                      <option value="LWOP">Leave Without Pay</option>
-                      <option value="BL">Birthday Leave</option>
-                      <option value="OS">Official Business</option>
-                      <option value="CL">Compassionate Leave</option>
-                    </Select>
-                  </FormControl>
+                  <>
+                    <FormControl isRequired mb={4}>
+                      <FormLabel>Leave Type</FormLabel>
+                      <Select
+                        name="leaveType"
+                        value={formData.leaveType}
+                        onChange={handleFormChange}
+                      >
+                        <option value="">Select leave type</option>
+                        <option value="VL">Vacation Leave</option>
+                        <option value="SL">Sick Leave</option>
+                        <option value="LWOP">Leave Without Pay</option>
+                        <option value="BL">Birthday Leave</option>
+                        <option value="OS">Official Business</option>
+                        <option value="CL">Compassionate Leave</option>
+                      </Select>
+                    </FormControl>
+                    <FormControl isRequired mb={4}>
+                      <FormLabel>Date From</FormLabel>
+                      <Input
+                        type="date"
+                        name="dateFrom"
+                        value={formData.dateFrom}
+                        onChange={handleFormChange}
+                      />
+                    </FormControl>
+                    <FormControl isRequired mb={4}>
+                      <FormLabel>Date To</FormLabel>
+                      <Input
+                        type="date"
+                        name="dateTo"
+                        value={formData.dateTo}
+                        onChange={handleFormChange}
+                      />
+                    </FormControl>
+                  </>
                 ) : null}
-              </SimpleGrid>{" "}
+              </SimpleGrid>
               <FormControl mb={4}>
                 <FormLabel>Notes</FormLabel>
                 <Textarea
@@ -1331,6 +1383,25 @@ const EmployeeAttendanceTracker = () => {
                             <Tag size="lg" colorScheme="blue" variant="subtle">
                               {selectedEmployee.leaveType}
                             </Tag>
+                            {(selectedEmployee.dateFrom ||
+                              selectedEmployee.dateTo) && (
+                              <Text fontSize="sm" color="blue.800" mt={2}>
+                                {selectedEmployee.dateFrom &&
+                                selectedEmployee.dateTo
+                                  ? `From: ${formatDate(
+                                      selectedEmployee.dateFrom
+                                    )} To: ${formatDate(
+                                      selectedEmployee.dateTo
+                                    )}`
+                                  : selectedEmployee.dateFrom
+                                  ? `From: ${formatDate(
+                                      selectedEmployee.dateFrom
+                                    )}`
+                                  : selectedEmployee.dateTo
+                                  ? `To: ${formatDate(selectedEmployee.dateTo)}`
+                                  : null}
+                              </Text>
+                            )}
                           </Box>
                         )}
 

@@ -84,7 +84,16 @@ const createMyAttendance = async (req, res) => {
   }
 
   try {
-    const { date, status, checkIn, checkOut, leaveType, notes } = req.body;
+    const {
+      date,
+      status,
+      checkIn,
+      checkOut,
+      leaveType,
+      notes,
+      dateFrom,
+      dateTo,
+    } = req.body;
 
     if (!date || !status) {
       return res.status(400).json({
@@ -134,6 +143,11 @@ const createMyAttendance = async (req, res) => {
       status,
       notes: notes || "",
     };
+    // Add leave date range if on_leave
+    if (status === "on_leave") {
+      if (dateFrom) attendanceData.dateFrom = new Date(dateFrom);
+      if (dateTo) attendanceData.dateTo = new Date(dateTo);
+    }
 
     if (status === "present" || status === "late") {
       if (checkIn) {
@@ -193,7 +207,7 @@ const createMyAttendance = async (req, res) => {
 const editMyLeave = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, leaveType, notes } = req.body;
+    const { status, leaveType, notes, dateFrom, dateTo } = req.body;
     const attendance = await Attendance.findOne({
       _id: id,
       employee: req.user._id,
@@ -205,6 +219,14 @@ const editMyLeave = async (req, res) => {
     if (leaveType) attendance.leaveType = leaveType;
     if (notes) attendance.notes = notes;
     if (status) attendance.status = status;
+    // Add/Update leave date range
+    if (attendance.status === "on_leave") {
+      if (dateFrom) attendance.dateFrom = new Date(dateFrom);
+      if (dateTo) attendance.dateTo = new Date(dateTo);
+    } else {
+      attendance.dateFrom = undefined;
+      attendance.dateTo = undefined;
+    }
     await attendance.save();
     res.json({ message: "Leave updated successfully", attendance });
   } catch (error) {

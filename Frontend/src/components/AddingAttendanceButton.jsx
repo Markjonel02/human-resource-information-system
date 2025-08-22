@@ -32,6 +32,8 @@ const AddingAttendanceButton = () => {
     checkOut: "",
     leaveType: "",
     notes: "",
+    dateFrom: "",
+    dateTo: "",
   });
 
   const handleChange = (e) => {
@@ -58,6 +60,9 @@ const AddingAttendanceButton = () => {
         checkOut: formData.checkOut,
         leaveType: formData.leaveType,
         notes: formData.notes,
+        dateFrom:
+          formData.status === "on_leave" ? formData.dateFrom : undefined,
+        dateTo: formData.status === "on_leave" ? formData.dateTo : undefined,
       };
 
       await axios.post("/create-attendance", payload);
@@ -72,6 +77,8 @@ const AddingAttendanceButton = () => {
         checkOut: "",
         leaveType: "",
         notes: "",
+        dateFrom: "",
+        dateTo: "",
       });
     } catch (err) {
       console.error(err);
@@ -177,22 +184,44 @@ const AddingAttendanceButton = () => {
                 />
               </FormControl>
 
-              <FormControl>
-                <FormLabel>Leave Type</FormLabel>
-                <Select
-                  name="leaveType"
-                  value={formData.leaveType}
-                  onChange={handleChange}
-                >
-                  <option value="">None</option>
-                  <option value="VL">VL</option>
-                  <option value="SL">SL</option>
-                  <option value="LWOP">LWOP</option>
-                  <option value="BL">BL</option>
-                  <option value="OS">OS</option>
-                  <option value="CL">CL</option>
-                </Select>
-              </FormControl>
+              {formData.status === "on_leave" && (
+                <>
+                  <FormControl>
+                    <FormLabel>Leave Type</FormLabel>
+                    <Select
+                      name="leaveType"
+                      value={formData.leaveType}
+                      onChange={handleChange}
+                    >
+                      <option value="">None</option>
+                      <option value="VL">VL</option>
+                      <option value="SL">SL</option>
+                      <option value="LWOP">LWOP</option>
+                      <option value="BL">BL</option>
+                      <option value="OS">OS</option>
+                      <option value="CL">CL</option>
+                    </Select>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Leave Date From</FormLabel>
+                    <Input
+                      type="date"
+                      name="dateFrom"
+                      value={formData.dateFrom}
+                      onChange={handleChange}
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Leave Date To</FormLabel>
+                    <Input
+                      type="date"
+                      name="dateTo"
+                      value={formData.dateTo}
+                      onChange={handleChange}
+                    />
+                  </FormControl>
+                </>
+              )}
             </SimpleGrid>
 
             <FormControl mt={4}>

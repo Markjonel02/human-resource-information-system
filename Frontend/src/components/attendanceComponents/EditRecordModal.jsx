@@ -125,21 +125,49 @@ const EditRecordModal = ({ isOpen, onClose, record, onSave, isLoading }) => {
             )}
 
             {editingRecord.status === "Leave" && (
-              <FormControl>
-                <FormLabel>Leave Type</FormLabel>
-                <Select
-                  name="leaveType"
-                  value={editingRecord.leaveType || ""}
-                  onChange={handleChange}
-                  placeholder="Select Leave Type"
-                >
-                  {LEAVE_TYPES.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </Select>
-              </FormControl>
+              <>
+                <FormControl>
+                  <FormLabel>Leave Type</FormLabel>
+                  <Select
+                    name="leaveType"
+                    value={editingRecord.leaveType || ""}
+                    onChange={handleChange}
+                    placeholder="Select Leave Type"
+                  >
+                    {LEAVE_TYPES.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Leave Date From</FormLabel>
+                  <Input
+                    type="date"
+                    name="dateFrom"
+                    value={
+                      editingRecord.dateFrom
+                        ? editingRecord.dateFrom.substring(0, 10)
+                        : ""
+                    }
+                    onChange={handleChange}
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Leave Date To</FormLabel>
+                  <Input
+                    type="date"
+                    name="dateTo"
+                    value={
+                      editingRecord.dateTo
+                        ? editingRecord.dateTo.substring(0, 10)
+                        : ""
+                    }
+                    onChange={handleChange}
+                  />
+                </FormControl>
+              </>
             )}
           </VStack>
         </ModalBody>

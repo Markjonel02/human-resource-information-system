@@ -65,6 +65,15 @@ const AttendanceSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
     },
+    // Leave date range fields
+    dateFrom: {
+      type: Date,
+      default: null,
+    },
+    dateTo: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
