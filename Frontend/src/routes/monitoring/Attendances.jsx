@@ -172,6 +172,8 @@ const Attendances = () => {
     checkOut: "05:00 PM",
     leaveType: "",
     notes: "",
+    dateFrom: "",
+    dateTo: "",
   });
   const toast = useToast();
 
@@ -294,6 +296,8 @@ const Attendances = () => {
         leaveType:
           newRecord.status === "Leave" ? newRecord.leaveType : undefined,
         notes: newRecord.notes,
+        dateFrom: newRecord.status === "Leave" ? newRecord.dateFrom : undefined,
+        dateTo: newRecord.status === "Leave" ? newRecord.dateTo : undefined,
       };
 
       const response = await axiosInstance.post(
@@ -324,6 +328,8 @@ const Attendances = () => {
         checkOut: companySettings.standardCheckOut,
         leaveType: "",
         notes: "",
+        dateFrom: "",
+        dateTo: "",
       });
 
       onAddModalClose();
@@ -372,6 +378,10 @@ const Attendances = () => {
             ? editingRecord.leaveType
             : undefined,
         notes: editingRecord.notes,
+        dateFrom:
+          editingRecord.status === "Leave" ? editingRecord.dateFrom : undefined,
+        dateTo:
+          editingRecord.status === "Leave" ? editingRecord.dateTo : undefined,
       };
 
       const response = await axiosInstance.put(
@@ -1198,22 +1208,42 @@ const Attendances = () => {
               </FormControl>
 
               {newRecord.status === "Leave" && (
-                <FormControl isRequired>
-                  <FormLabel>Leave Type</FormLabel>
-                  <Select
-                    name="leaveType"
-                    value={newRecord.leaveType}
-                    onChange={handleNewRecordChange}
-                    placeholder="Select Leave Type"
-                  >
-                    <option value="VL">Vacation Leave (VL)</option>
-                    <option value="SL">Sick Leave (SL)</option>
-                    <option value="LWOP">Leave Without Pay (LWOP)</option>
-                    <option value="BL">Bereavement Leave (BL)</option>
-                    <option value="OS">Offset (OS)</option>
-                    <option value="CL">Calamity Leave (CL)</option>
-                  </Select>
-                </FormControl>
+                <>
+                  <FormControl isRequired>
+                    <FormLabel>Leave Type</FormLabel>
+                    <Select
+                      name="leaveType"
+                      value={newRecord.leaveType}
+                      onChange={handleNewRecordChange}
+                      placeholder="Select Leave Type"
+                    >
+                      <option value="VL">Vacation Leave (VL)</option>
+                      <option value="SL">Sick Leave (SL)</option>
+                      <option value="LWOP">Leave Without Pay (LWOP)</option>
+                      <option value="BL">Bereavement Leave (BL)</option>
+                      <option value="OS">Offset (OS)</option>
+                      <option value="CL">Calamity Leave (CL)</option>
+                    </Select>
+                  </FormControl>
+                  <FormControl isRequired>
+                    <FormLabel>Leave Date From</FormLabel>
+                    <Input
+                      type="date"
+                      name="dateFrom"
+                      value={newRecord.dateFrom}
+                      onChange={handleNewRecordChange}
+                    />
+                  </FormControl>
+                  <FormControl isRequired>
+                    <FormLabel>Leave Date To</FormLabel>
+                    <Input
+                      type="date"
+                      name="dateTo"
+                      value={newRecord.dateTo}
+                      onChange={handleNewRecordChange}
+                    />
+                  </FormControl>
+                </>
               )}
 
               {(newRecord.status === "present" ||
@@ -1525,6 +1555,24 @@ const Attendances = () => {
                             <Tag size="lg" colorScheme="blue" variant="subtle">
                               {selectedEmployee.leaveType}
                             </Tag>
+                            {(selectedEmployee.dateFrom ||
+                              selectedEmployee.dateTo) && (
+                              <Text fontSize="sm" color="gray.700" mt={2}>
+                                {selectedEmployee.dateFrom && (
+                                  <>
+                                    <b>From:</b>{" "}
+                                    {formatDate(selectedEmployee.dateFrom)}
+                                  </>
+                                )}
+                                {selectedEmployee.dateTo && (
+                                  <>
+                                    {selectedEmployee.dateFrom && " | "}
+                                    <b>To:</b>{" "}
+                                    {formatDate(selectedEmployee.dateTo)}
+                                  </>
+                                )}
+                              </Text>
+                            )}
                           </Box>
                         )}
 
@@ -1734,22 +1782,50 @@ const Attendances = () => {
                   </FormControl>
 
                   {editingRecord.status === "Leave" && (
-                    <FormControl>
-                      <FormLabel>Leave Type</FormLabel>
-                      <Select
-                        name="leaveType"
-                        value={editingRecord.leaveType || ""}
-                        onChange={handleEditChange}
-                        placeholder="Select Leave Type"
-                      >
-                        <option value="VL">Vacation Leave (VL)</option>
-                        <option value="SL">Sick Leave (SL)</option>
-                        <option value="LWOP">Leave Without Pay (LWOP)</option>
-                        <option value="BL">Bereavement Leave (BL)</option>
-                        <option value="OS">Offset (OS)</option>
-                        <option value="CL">Calamity Leave (CL)</option>
-                      </Select>
-                    </FormControl>
+                    <>
+                      <FormControl>
+                        <FormLabel>Leave Type</FormLabel>
+                        <Select
+                          name="leaveType"
+                          value={editingRecord.leaveType || ""}
+                          onChange={handleEditChange}
+                          placeholder="Select Leave Type"
+                        >
+                          <option value="VL">Vacation Leave (VL)</option>
+                          <option value="SL">Sick Leave (SL)</option>
+                          <option value="LWOP">Leave Without Pay (LWOP)</option>
+                          <option value="BL">Bereavement Leave (BL)</option>
+                          <option value="OS">Offset (OS)</option>
+                          <option value="CL">Calamity Leave (CL)</option>
+                        </Select>
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel>Leave Date From</FormLabel>
+                        <Input
+                          type="date"
+                          name="dateFrom"
+                          value={
+                            editingRecord.dateFrom
+                              ? editingRecord.dateFrom.substring(0, 10)
+                              : ""
+                          }
+                          onChange={handleEditChange}
+                        />
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel>Leave Date To</FormLabel>
+                        <Input
+                          type="date"
+                          name="dateTo"
+                          value={
+                            editingRecord.dateTo
+                              ? editingRecord.dateTo.substring(0, 10)
+                              : ""
+                          }
+                          onChange={handleEditChange}
+                        />
+                      </FormControl>
+                    </>
                   )}
 
                   {(editingRecord.status === "Present" ||

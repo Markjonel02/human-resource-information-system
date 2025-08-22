@@ -104,8 +104,17 @@ const addAttendance = async (req, res) => {
   }
 
   try {
-    const { employeeId, date, status, checkIn, checkOut, leaveType, notes } =
-      req.body;
+    const {
+      employeeId,
+      date,
+      status,
+      checkIn,
+      checkOut,
+      leaveType,
+      notes,
+      dateFrom,
+      dateTo,
+    } = req.body;
     const performedBy = req.user ? req.user._id : null;
 
     if (!employeeId || !date || !status) {
@@ -167,6 +176,11 @@ const addAttendance = async (req, res) => {
       status: finalStatus,
       notes: notes || "",
     };
+    // Add leave date range if on_leave
+    if (finalStatus === "on_leave") {
+      if (dateFrom) attendanceData.dateFrom = new Date(dateFrom);
+      if (dateTo) attendanceData.dateTo = new Date(dateTo);
+    }
 
     if (finalStatus === "present" || finalStatus === "late") {
       if (checkIn) {
@@ -415,7 +429,8 @@ const updateAttendance = async (req, res) => {
 
   try {
     const { id } = req.params;
-    const { status, checkIn, checkOut, leaveType, notes } = req.body;
+    const { status, checkIn, checkOut, leaveType, notes, dateFrom, dateTo } =
+      req.body;
     const performedBy = req.user._id;
 
     const attendance = await Attendance.findById(id).populate("employee");
@@ -496,6 +511,8 @@ const updateAttendance = async (req, res) => {
       } // Clear leave type for non-leave status
 
       attendance.leaveType = null;
+      attendance.dateFrom = undefined;
+      attendance.dateTo = undefined;
     } else if (attendance.status === "on_leave") {
       if (leaveType) {
         const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "OS", "CL"];
@@ -506,13 +523,24 @@ const updateAttendance = async (req, res) => {
           });
         }
         attendance.leaveType = leaveType;
-      } // Clear time-related fields for leave
-
+      }
+      // Add/Update leave date range
+      if (dateFrom) attendance.dateFrom = new Date(dateFrom);
+      if (dateTo) attendance.dateTo = new Date(dateTo);
+      // Clear time-related fields for leave
       attendance.checkIn = null;
       attendance.checkOut = null;
       attendance.hoursRendered = 0;
       attendance.tardinessMinutes = 0;
     } else if (attendance.status === "absent") {
+      // Clear all time-related fields for absent
+      attendance.checkIn = null;
+      attendance.checkOut = null;
+      attendance.hoursRendered = 0;
+      attendance.tardinessMinutes = 0;
+      attendance.leaveType = null;
+      attendance.dateFrom = undefined;
+      attendance.dateTo = undefined;
       // Clear all time-related fields for absent
       attendance.checkIn = null;
       attendance.checkOut = null;
