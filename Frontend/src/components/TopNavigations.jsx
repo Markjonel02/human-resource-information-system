@@ -77,11 +77,11 @@ const TopNavigations = () => {
             <Input type="text" placeholder="Search..." borderRadius="md" />
           </InputGroup>
 
-          <Tooltip label="Attendance" openDelay={500}>
+          {/*    <Tooltip label="Attendance" openDelay={500}>
             <Box display="block">
               <AddingAttendanceButton />
             </Box>
-          </Tooltip>
+          </Tooltip> */}
           {/* Add Employee Button */}
           {(role === "admin" || role === "hr") && (
             <Tooltip label="Add Employee" openDelay={500}>
