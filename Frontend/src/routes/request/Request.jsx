@@ -20,12 +20,12 @@ import {
   FaBuilding,
   FaUmbrellaBeach,
 } from "react-icons/fa";
-
+import Leave from "../../routes/request/Leave";
 // Assuming Leave component is available at this path or mocked for standalone example
 // import Leave from "../../routes/request/Leave";
 
 // Mock Leave component for demonstration purposes if the original path is not accessible
-const Leave = () => (
+/* const Leave = () => (
   <Box p={6}>
     <Heading fontSize="2xl" mb={3}>
       Leave Request
@@ -34,7 +34,7 @@ const Leave = () => (
       Request time off for vacation, sick leave, or other personal reasons.
     </Text>
   </Box>
-);
+); */
 
 const Overtime = () => (
   <Box p={6}>

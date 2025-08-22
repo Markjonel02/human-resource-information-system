@@ -454,24 +454,38 @@ const Attendances = () => {
     }
   };
 
+  const [sortStatus, setSortStatus] = useState("");
   const filteredAttendance = useMemo(() => {
     return attendanceRecords.filter((record) => {
+      // Filter by status if selected
+      if (sortStatus) {
+        // Support both "Leave" and "on_leave" for legacy data
+        if (sortStatus === "on_leave") {
+          if (
+            record.status.toLowerCase() !== "on_leave" &&
+            record.status.toLowerCase() !== "leave"
+          ) {
+            return false;
+          }
+        } else if (record.status.toLowerCase() !== sortStatus) {
+          return false;
+        }
+      }
+      // Search filter
       if (!searchTerm) return true;
-
       const employeeName = `${record.employee?.firstname || ""} ${
         record.employee?.lastname || ""
       }`.toLowerCase();
       const employeeId = record.employee?.employeeId?.toLowerCase() || "";
       const status = record.status.toLowerCase();
       const search = searchTerm.toLowerCase();
-
       return (
         employeeName.includes(search) ||
         employeeId.includes(search) ||
         status.includes(search)
       );
     });
-  }, [searchTerm, attendanceRecords]);
+  }, [searchTerm, attendanceRecords, sortStatus]);
 
   const {
     totalMinLate,
@@ -732,6 +746,22 @@ const Attendances = () => {
           >
             Add Attendance
           </Button>
+          {/* Sorting Select */}
+          <Box w={{ base: "full", sm: "180px" }}>
+            <Select
+              placeholder="Sort by Status"
+              value={sortStatus || ""}
+              onChange={(e) => setSortStatus(e.target.value)}
+              size={{ base: "sm", md: "md" }}
+              ml={2}
+            >
+              <option value="">All</option>
+              <option value="present">Present</option>
+              <option value="on_leave">Leave</option>
+              <option value="absent">Absent</option>
+              <option value="late">Late</option>
+            </Select>
+          </Box>
           <InputGroup w={{ base: "full", sm: "300px" }}>
             <InputLeftElement pointerEvents="none">
               <SearchIcon color="gray.400" />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   ChakraProvider,
   Box,
@@ -40,7 +40,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "@chakra-ui/icons";
-
+import axiosInstance from "../../lib/axiosInstance";
 // Extend the default Chakra UI theme to include custom colors and components
 const theme = extendTheme({
   colors: {
@@ -205,6 +205,63 @@ const LeaveRequestCard = ({
   const displayReason =
     reason.length > 50 ? `${reason.substring(0, 50)}...` : reason;
 
+  // Approve single leave
+  const handleApprove = async (id) => {
+    try {
+      await axiosInstance.post(`/attendance/approve-leave/${id}`);
+      setLeaveRequests((prev) =>
+        prev.map((req) =>
+          req.id === id ? { ...req, status: "Approved" } : req
+        )
+      );
+      toast({
+        title: "Leave Approved",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err.response?.data?.message || "Failed to approve leave.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // Bulk approve selected leaves (call backend)
+  const handleApproveSelected = async () => {
+    try {
+      await axiosInstance.post(`/attendance/approve-leave-bulk`, {
+        ids: selectedRequestIds,
+      });
+      setLeaveRequests((prev) =>
+        prev.map((req) =>
+          selectedRequestIds.includes(req.id)
+            ? { ...req, status: "Approved" }
+            : req
+        )
+      );
+      setSelectedRequestIds([]);
+      setIsSelectAllChecked(false);
+      toast({
+        title: "Selected Leaves Approved",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err.response?.data?.message || "Failed to approve leaves.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
   return (
     <Box
       p={6}
@@ -356,152 +413,76 @@ const Leave = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(6);
 
-  const [leaveRequests, setLeaveRequests] = useState([
-    {
-      id: 1,
-      leaveType: "Sick leave request",
-      days: "2 Days",
-      startDate: "2018-03-27",
-      endDate: "2018-03-28",
-      reason:
-        "Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.",
-      approverName: "Aman Aggarwal",
-      approverAvatarUrl: "https://placehold.co/40x40/FF5733/FFFFFF?text=AA",
-      status: "Pending",
-    },
-    {
-      id: 2,
-      leaveType: "Excuse request",
-      days: "2.5 Hours",
-      startDate: "2018-03-27",
-      endDate: "2018-03-27",
-      reason:
-        "Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.",
-      approverName: "Aman Aggarwal Long Name Here",
-      approverAvatarUrl: "https://placehold.co/40x40/6633FF/FFFFFF?text=AA",
-      status: "Approved",
-    },
-    {
-      id: 3,
-      leaveType: "Business Trip Request",
-      days: "3 Days",
-      startDate: "2018-03-27",
-      endDate: "2018-03-29",
-      reason:
-        "Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.",
-      approverName: "Aman Aggarwal",
-      approverAvatarUrl: "https://placehold.co/40x40/33FF57/FFFFFF?text=AA",
-      status: "Rejected",
-    },
-    {
-      id: 4,
-      leaveType: "Loan request",
-      days: "5000.00",
-      startDate: "2018-03-31",
-      endDate: "2018-03-31",
-      reason:
-        "Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.",
-      approverName: "Aman Aggarwal",
-      approverAvatarUrl: "https://placehold.co/40x40/FF3366/FFFFFF?text=AA",
-      status: "Pending",
-    },
-    {
-      id: 5,
-      leaveType: "Ticket Request",
-      days: "2 Tickets",
-      startDate: "2018-03-27",
-      endDate: "2018-03-28",
-      reason:
-        "Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.",
-      approverName: "Aman Aggarwal",
-      approverAvatarUrl: "https://placehold.co/40x40/3366FF/FFFFFF?text=AA",
-      status: "Pending",
-    },
-    {
-      id: 6,
-      leaveType: "Vacation leave",
-      days: "7 Days",
-      startDate: "2025-04-10",
-      endDate: "2025-04-17",
-      reason:
-        "Planning a relaxing trip to the mountains to unwind and recharge. This is a longer reason to test the truncation functionality and ensure the modal displays the full text correctly.",
-      approverName: "Jane Doe",
-      approverAvatarUrl: "https://placehold.co/40x40/33FFCC/FFFFFF?text=JD",
-      status: "Pending",
-    },
-    {
-      id: 7,
-      leaveType: "Sick leave request",
-      days: "1 Day",
-      startDate: "2025-05-01",
-      endDate: "2025-05-01",
-      reason: "Feeling unwell, need a day to recover.",
-      approverName: "John Smith",
-      approverAvatarUrl: "https://placehold.co/40x40/FFCC33/FFFFFF?text=JS",
-      status: "Approved",
-    },
-    {
-      id: 8,
-      leaveType: "Business Trip Request",
-      days: "4 Days",
-      startDate: "2025-06-10",
-      endDate: "2025-06-13",
-      reason: "Attending annual industry conference in New York.",
-      approverName: "Emily White",
-      approverAvatarUrl: "https://placehold.co/40x40/CC33FF/FFFFFF?text=EW",
-      status: "Pending",
-    },
-    {
-      id: 9,
-      leaveType: "Excuse request",
-      days: "4 Hours",
-      startDate: "2025-07-05",
-      endDate: "2025-07-05",
-      reason: "Urgent personal appointment.",
-      approverName: "David Brown",
-      approverAvatarUrl: "https://placehold.co/40x40/3399FF/FFFFFF?text=DB",
-      status: "Rejected",
-    },
-    {
-      id: 10,
-      leaveType: "Vacation leave",
-      days: "5 Days",
-      startDate: "2025-08-01",
-      endDate: "2025-08-05",
-      reason: "Family vacation to the beach.",
-      approverName: "Sarah Green",
-      approverAvatarUrl: "https://placehold.co/40x40/FF6633/FFFFFF?text=SG",
-      status: "Pending",
-    },
-    {
-      id: 11,
-      leaveType: "Sick leave request",
-      days: "3 Days",
-      startDate: "2025-08-15",
-      endDate: "2025-08-17",
-      reason: "Recovering from minor surgery.",
-      approverName: "Michael Blue",
-      approverAvatarUrl: "https://placehold.co/40x40/8A2BE2/FFFFFF?text=MB",
-      status: "Pending",
-    },
-    {
-      id: 12,
-      leaveType: "Excuse request",
-      days: "8 Hours",
-      startDate: "2025-09-01",
-      endDate: "2025-09-01",
-      reason: "Attending a sibling's graduation.",
-      approverName: "Olivia Red",
-      approverAvatarUrl: "https://placehold.co/40x40/DC143C/FFFFFF?text=OR",
-      status: "Approved",
-    },
-  ]);
+  const [leaveRequests, setLeaveRequests] = useState([]);
 
   // Filter the requests based on the selected status
   const filteredRequests = leaveRequests.filter(
     (request) => filterStatus === "All" || request.status === filterStatus
   );
+  const fetchLeaveRequests = useCallback(async () => {
+    try {
+      // Only fetch leave requests (status: on_leave)
+      const res = await axiosInstance.get("/attendanceRoutes/get-attendance", {
+        params: { status: "on_leave" },
+      });
+      // Transform backend data to match frontend structure
+      const data = Array.isArray(res.data) ? res.data : [];
+      setLeaveRequests(
+        data.map((item) => ({
+          id: item._id,
+          leaveType: item.leaveType || "Leave",
+          days:
+            item.totalLeaveDays && item.totalLeaveDays > 1
+              ? `${item.totalLeaveDays} Days`
+              : item.totalLeaveDays === 1
+              ? "1 Day"
+              : "",
+          startDate: item.dateFrom
+            ? new Date(item.dateFrom).toLocaleDateString("en-US", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })
+            : "",
+          endDate: item.dateTo
+            ? new Date(item.dateTo).toLocaleDateString("en-US", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })
+            : "",
+          reason: item.notes || "",
+          approverName:
+            item.employee?.firstname && item.employee?.lastname
+              ? `${item.employee.firstname} ${item.employee.lastname}`
+              : "Unknown",
+          approverAvatarUrl: "https://placehold.co/40x40/000000/FFFFFF?text=NA",
+          status:
+            item.leaveStatus === "approved"
+              ? "Approved"
+              : item.leaveStatus === "pending"
+              ? "Pending"
+              : item.leaveStatus === "rejected"
+              ? "Rejected"
+              : "Pending",
+        }))
+      );
+    } catch (err) {
+      toast({
+        title: "Error",
+        description:
+          err.response?.data?.message ||
+          "Failed to fetch leave requests from server.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  }, [toast]);
 
+  useEffect(() => {
+    fetchLeaveRequests();
+  }, [fetchLeaveRequests]);
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -1055,7 +1036,7 @@ const Leave = () => {
                 </Select>
               </FormControl>
 
-              <FormControl isRequired>
+              {/*  <FormControl isRequired>
                 <FormLabel>Days/Hours</FormLabel>
                 <Input
                   name="days"
@@ -1065,7 +1046,7 @@ const Leave = () => {
                   onChange={handleNewLeaveChange}
                   borderRadius="md"
                 />
-              </FormControl>
+              </FormControl> */}
 
               <HStack width="100%" flexWrap="wrap">
                 <FormControl isRequired flex="1">

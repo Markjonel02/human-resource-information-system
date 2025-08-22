@@ -115,7 +115,8 @@ const approveLeave = async (req, res) => {
         .json({ message: "Only leave requests can be approved." });
     }
     // Mark as approved
-    attendance.status = "approved";
+    attendance.leaveStatus = "approved"; // <-- Only update leaveStatus
+    attendance.status = "on_leave"; // Keep status as on_leave
     await attendance.save();
 
     await createAttendanceLog({
@@ -124,7 +125,7 @@ const approveLeave = async (req, res) => {
       action: "LEAVE_APPROVED",
       description: `Leave approved by admin (${req.user.firstname} ${req.user.lastname})`,
       performedBy: req.user._id,
-      changes: { status: { from: "on_leave", to: "approved" } },
+      changes: { leaveStatus: { from: "pending", to: "approved" } },
       metadata: {
         approvedBy: req.user.firstname + " " + req.user.lastname,
         date: attendance.date,
@@ -140,6 +141,67 @@ const approveLeave = async (req, res) => {
     });
   } catch (error) {
     console.error("Error approving leave:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+const approveLeaveBulk = async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({
+      message: "Access denied. Only Admin users can approve leave requests.",
+    });
+  }
+
+  try {
+    const { ids } = req.body; // Expecting an array of attendance IDs
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "No attendance records provided." });
+    }
+
+    const updatedRecords = [];
+    for (const id of ids) {
+      const attendance = await Attendance.findById(id).populate("employee");
+      if (!attendance) {
+        continue; // Skip non-existent records
+      }
+      if (attendance.status !== "on_leave") {
+        continue; // Only approve leave requests
+      }
+      // Mark as approved
+      attendance.leaveStatus = "approved"; // <-- Only update leaveStatus
+      attendance.status = "on_leave"; // Keep status as on_leave
+      await attendance.save();
+
+      await createAttendanceLog({
+        employeeId: attendance.employee._id,
+        attendanceId: attendance._id,
+        action: "LEAVE_APPROVED",
+        description: `Leave approved by admin (${req.user.firstname} ${req.user.lastname})`,
+        performedBy: req.user._id,
+        changes: { leaveStatus: { from: "pending", to: "approved" } },
+        metadata: {
+          approvedBy: req.user.firstname + " " + req.user.lastname,
+          date: attendance.date,
+          leaveType: attendance.leaveType,
+          dateFrom: attendance.dateFrom,
+          dateTo: attendance.dateTo,
+        },
+      });
+
+      updatedRecords.push(attendance);
+    }
+
+    res.json({
+      message: `${updatedRecords.length} leave requests approved successfully`,
+      records: updatedRecords,
+    });
+  } catch (error) {
+    console.error("Error approving leave in bulk:", error);
     res.status(500).json({
       message: "Internal server error",
       error: error.message,
@@ -228,6 +290,24 @@ const addAttendance = async (req, res) => {
       status: finalStatus,
       notes: notes || "",
     };
+    // ...inside addAttendance...
+    if (finalStatus === "on_leave") {
+      const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "OS", "CL"];
+      if (!leaveType || !validLeaveTypes.includes(leaveType)) {
+        return res.status(400).json({
+          message: "Valid leave type is required for leave status",
+        });
+      }
+      attendanceData.leaveType = leaveType;
+      attendanceData.leaveStatus = "pending"; // Always pending on creation
+      // Calculate totalLeaveDays
+      if (dateFrom && dateTo) {
+        const from = new Date(dateFrom);
+        const to = new Date(dateTo);
+        attendanceData.totalLeaveDays =
+          Math.ceil((to - from) / (1000 * 60 * 60 * 24)) + 1;
+      }
+    }
     // Add leave date range if on_leave
     if (finalStatus === "on_leave") {
       if (dateFrom) attendanceData.dateFrom = new Date(dateFrom);
@@ -951,4 +1031,5 @@ module.exports = {
   getEmployeeAttendanceLogs,
   getRecentAttendanceLogs,
   approveLeave,
+  approveLeaveBulk,
 };

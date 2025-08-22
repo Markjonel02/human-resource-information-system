@@ -74,6 +74,16 @@ const AttendanceSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    leaveStatus: {
+      type: String,
+      enum: ["pending", "ongoing", "approved", "rejected", null],
+      default: null,
+    },
+    totalLeaveDays: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
