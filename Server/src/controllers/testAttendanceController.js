@@ -1,3 +1,5 @@
+// Approve leave (Admin only)
+
 const Attendance = require("../models/Attendance");
 const User = require("../models/user"); // Assuming you have a User model
 const AttendanceLog = require("../models/attendanceLogSchema"); // New model for logs
@@ -94,6 +96,56 @@ const getRecordChanges = (oldRecord, newRecord) => {
   return changes;
 };
 
+const approveLeave = async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({
+      message: "Access denied. Only Admin users can approve leave requests.",
+    });
+  }
+
+  try {
+    const { id } = req.params;
+    const attendance = await Attendance.findById(id).populate("employee");
+    if (!attendance) {
+      return res.status(404).json({ message: "Attendance record not found" });
+    }
+    if (attendance.status !== "on_leave") {
+      return res
+        .status(400)
+        .json({ message: "Only leave requests can be approved." });
+    }
+    // Mark as approved
+    attendance.status = "approved";
+    await attendance.save();
+
+    await createAttendanceLog({
+      employeeId: attendance.employee._id,
+      attendanceId: attendance._id,
+      action: "LEAVE_APPROVED",
+      description: `Leave approved by admin (${req.user.firstname} ${req.user.lastname})`,
+      performedBy: req.user._id,
+      changes: { status: { from: "on_leave", to: "approved" } },
+      metadata: {
+        approvedBy: req.user.firstname + " " + req.user.lastname,
+        date: attendance.date,
+        leaveType: attendance.leaveType,
+        dateFrom: attendance.dateFrom,
+        dateTo: attendance.dateTo,
+      },
+    });
+
+    res.json({
+      message: "Leave approved successfully",
+      attendance,
+    });
+  } catch (error) {
+    console.error("Error approving leave:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
 // Add new attendance record (Admin/HR only)
 const addAttendance = async (req, res) => {
   if (req.user.role !== "admin" && req.user.role !== "hr") {
@@ -898,4 +950,5 @@ module.exports = {
   getAttendanceLogs,
   getEmployeeAttendanceLogs,
   getRecentAttendanceLogs,
+  approveLeave,
 };
