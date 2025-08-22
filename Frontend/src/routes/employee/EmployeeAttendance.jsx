@@ -895,15 +895,18 @@ const EmployeeAttendanceTracker = () => {
                   />
                 </FormControl>
 
-                <FormControl isRequired mb={0}>
-                  <FormLabel>Date</FormLabel>
-                  <Input
-                    type="date"
-                    name="date"
-                    value={formData.date}
-                    onChange={handleFormChange}
-                  />
-                </FormControl>
+                {/* Show Date only for non-leave statuses (add modal) */}
+                {formData.status !== "on_leave" && (
+                  <FormControl isRequired mb={0}>
+                    <FormLabel>Date</FormLabel>
+                    <Input
+                      type="date"
+                      name="date"
+                      value={formData.date}
+                      onChange={handleFormChange}
+                    />
+                  </FormControl>
+                )}
 
                 <FormControl isRequired mb={0}>
                   <FormLabel>Status</FormLabel>
@@ -1025,15 +1028,19 @@ const EmployeeAttendanceTracker = () => {
                     {currentRecord?.employee?.lastname}
                   </Text>
                 </FormControl>
-                <FormControl isRequired mb={4}>
-                  <FormLabel>Date</FormLabel>
-                  <Input
-                    type="date"
-                    name="date"
-                    value={formData.date}
-                    onChange={handleFormChange}
-                  />
-                </FormControl>
+
+                {/* Show Date only for non-leave statuses (edit modal) */}
+                {formData.status !== "on_leave" && (
+                  <FormControl isRequired mb={4}>
+                    <FormLabel>Date</FormLabel>
+                    <Input
+                      type="date"
+                      name="date"
+                      value={formData.date}
+                      onChange={handleFormChange}
+                    />
+                  </FormControl>
+                )}
                 <FormControl isRequired mb={4}>
                   <FormLabel>Status</FormLabel>
                   <Select

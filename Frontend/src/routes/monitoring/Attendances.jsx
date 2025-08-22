@@ -1183,15 +1183,18 @@ const Attendances = () => {
                 </Select>
               </FormControl>
 
-              <FormControl isRequired>
-                <FormLabel>Date</FormLabel>
-                <Input
-                  type="date"
-                  name="date"
-                  value={newRecord.date}
-                  onChange={handleNewRecordChange}
-                />
-              </FormControl>
+              {/* Show Date only for non-leave statuses */}
+              {newRecord.status !== "Leave" && (
+                <FormControl isRequired>
+                  <FormLabel>Date</FormLabel>
+                  <Input
+                    type="date"
+                    name="date"
+                    value={newRecord.date}
+                    onChange={handleNewRecordChange}
+                  />
+                </FormControl>
+              )}
 
               <FormControl isRequired>
                 <FormLabel>Status</FormLabel>
@@ -1758,14 +1761,17 @@ const Attendances = () => {
                     />
                   </FormControl>
 
-                  <FormControl>
-                    <FormLabel>Date</FormLabel>
-                    <Input
-                      value={formatDate(editingRecord.date)}
-                      isReadOnly
-                      bg="gray.50"
-                    />
-                  </FormControl>
+                  {/* Show Date only for non-leave statuses (edit modal) */}
+                  {editingRecord.status !== "Leave" && (
+                    <FormControl>
+                      <FormLabel>Date</FormLabel>
+                      <Input
+                        value={formatDate(editingRecord.date)}
+                        isReadOnly
+                        bg="gray.50"
+                      />
+                    </FormControl>
+                  )}
 
                   <FormControl>
                     <FormLabel>Status</FormLabel>
