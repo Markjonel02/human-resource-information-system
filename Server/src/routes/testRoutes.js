@@ -109,6 +109,18 @@ router.get(
   testAttendance.getRecentAttendanceLogs
 );
 
+// ============ LEAVES ============
+router.post(
+  "/approve-leave/:id",
+  authorizeRoles("admin"),
+  testAttendance.approveLeave
+);
 
+// Approve multiple leaves in bulk (Admin only)
+router.post(
+  "/approve-leave-bulk",
+  authorizeRoles("admin"),
+  testAttendance.approveLeaveBulk
+);
 
 module.exports = router;
