@@ -259,14 +259,12 @@ const LeaveRequestCard = ({
           {status}
         </Badge>
       </Flex>
-
       <HStack spacing={2} align="center" mb={4} pl={2}>
         <Avatar size="xs" name={approverName} src={approverAvatarUrl} />
         <Text fontSize="xs" fontWeight="medium" color="gray.700">
           {truncatedApproverName}
         </Text>
       </HStack>
-
       <Box bg={daysBoxBg} p={4} borderRadius="lg" mb={4}>
         <Text
           fontSize="3xl"
@@ -297,7 +295,6 @@ const LeaveRequestCard = ({
           </Text>
         </Flex>
       </Box>
-
       <Box mb={4}>
         <Text fontSize="sm" fontWeight="semibold" mb={1} color="gray.700">
           Reason
@@ -307,12 +304,7 @@ const LeaveRequestCard = ({
         </Text>
       </Box>
 
-      <Flex
-        justifyContent="space-between"
-        alignItems="flex-end"
-        pt={2}
-        gap={500}
-      >
+      <Flex justifyContent="space-between" alignItems="flex-end" pt={2}>
         <Text fontSize="sm" fontWeight="semibold" color="gray.700">
           Actions
         </Text>
@@ -394,7 +386,6 @@ const Leave = () => {
       const res = await axiosInstance.get("/attendanceRoutes/get-attendance", {
         params: { status: "on_leave" },
       });
-
       // Transform backend data to match frontend structure
       const data = Array.isArray(res.data) ? res.data : [];
       setLeaveRequests(

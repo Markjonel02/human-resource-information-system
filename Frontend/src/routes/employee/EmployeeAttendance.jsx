@@ -1005,9 +1005,9 @@ const EmployeeAttendanceTracker = () => {
                         <option value="VL">Vacation Leave</option>
                         <option value="SL">Sick Leave</option>
                         <option value="LWOP">Leave Without Pay</option>
-                        <option value="BL">Birthday Leave</option>
+                        <option value="BL">Bereavement Leave</option>
                         <option value="OS">Official Business</option>
-                        <option value="CL">Compassionate Leave</option>
+                        <option value="CL">Calamity Leave</option>
                       </Select>
                     </FormControl>
                     <FormControl isRequired mb={0}>
