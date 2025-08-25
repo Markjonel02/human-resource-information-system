@@ -130,8 +130,8 @@ const approveLeave = async (req, res) => {
         approvedBy: req.user.firstname + " " + req.user.lastname,
         date: attendance.date,
         leaveType: attendance.leaveType,
-        dateFrom: attendance.dateFrom,
-        dateTo: attendance.dateTo,
+        startDate: item.dateFrom || "",
+        endDate: item.dateTo || "",
       },
     });
 

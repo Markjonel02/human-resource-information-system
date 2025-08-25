@@ -1006,7 +1006,19 @@ const Attendances = () => {
               >
                 Leave Type
               </Th>
-
+              <Th
+                py={3}
+                px={4}
+                textAlign="left"
+                fontSize="xs"
+                fontWeight="medium"
+                color="gray.500"
+                textTransform="uppercase"
+                letterSpacing="wider"
+                display={{ base: "none", xl: "table-cell" }}
+              >
+                Leave Status
+              </Th>
               <Th
                 py={3}
                 px={4}
@@ -1135,6 +1147,36 @@ const Attendances = () => {
                       </Tag>
                     ) : (
                       <Text fontSize="sm" color="gray.500">
+                        -
+                      </Text>
+                    )}
+                  </Td>
+                  <Td
+                    px={4}
+                    py={4}
+                    display={{ base: "none", xl: "table-cell" }}
+                  >
+                    {record.status.toLowerCase() === "on_leave" ? (
+                      <Tag
+                        size="sm"
+                        colorScheme={
+                          record.leaveStatus === "approved"
+                            ? "green"
+                            : record.leaveStatus === "pending"
+                            ? "orange"
+                            : record.leaveStatus === "rejected"
+                            ? "red"
+                            : "gray"
+                        }
+                        variant="subtle"
+                      >
+                        {record.leaveStatus
+                          ? record.leaveStatus.charAt(0).toUpperCase() +
+                            record.leaveStatus.slice(1)
+                          : "Pending"}
+                      </Tag>
+                    ) : (
+                      <Text fontSize="sm" color="gray.400">
                         -
                       </Text>
                     )}
