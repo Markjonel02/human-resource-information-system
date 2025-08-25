@@ -204,35 +204,135 @@ const createMyAttendance = async (req, res) => {
 };
 
 // Employee: Edit/cancel own leave (optional)
-const editMyLeave = async (req, res) => {
+// Add new leave request for employee
+const addLeave = async (req, res) => {
+  if (req.user.role !== "employee") {
+    return res.status(403).json({
+      message: "Access denied. Only employees can file leave requests.",
+    });
+  }
+
+  try {
+    const { leaveType, dateFrom, dateTo, notes } = req.body;
+
+    if (!leaveType || !dateFrom || !dateTo) {
+      return res.status(400).json({
+        message: "Leave type, start date, and end date are required.",
+      });
+    }
+
+    // Validate leave type
+    const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "OS", "CL"];
+    if (!validLeaveTypes.includes(leaveType)) {
+      return res.status(400).json({
+        message: "Invalid leave type.",
+      });
+    }
+
+    // Prevent overlapping leave for the same dates
+    const overlap = await Attendance.findOne({
+      employee: req.user._id,
+      status: "on_leave",
+      $or: [
+        {
+          dateFrom: { $lte: new Date(dateTo) },
+          dateTo: { $gte: new Date(dateFrom) },
+        },
+      ],
+    });
+    if (overlap) {
+      return res.status(400).json({
+        message: "You already have a leave filed for these dates.",
+      });
+    }
+
+    const totalLeaveDays =
+      Math.ceil(
+        (new Date(dateTo) - new Date(dateFrom)) / (1000 * 60 * 60 * 24)
+      ) + 1;
+
+    const attendance = new Attendance({
+      employee: req.user._id,
+      status: "on_leave",
+      leaveType,
+      dateFrom: new Date(dateFrom),
+      dateTo: new Date(dateTo),
+      totalLeaveDays,
+      notes: notes || "",
+      leaveStatus: "pending",
+      date: new Date(dateFrom), // For compatibility
+    });
+
+    await attendance.save();
+    res.status(201).json({
+      message: "Leave request filed successfully.",
+      attendance,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+// Edit existing leave request for employee
+const editLeave = async (req, res) => {
+  if (req.user.role !== "employee") {
+    return res.status(403).json({
+      message: "Access denied. Only employees can edit their leave requests.",
+    });
+  }
+
   try {
     const { id } = req.params;
-    const { status, leaveType, notes, dateFrom, dateTo } = req.body;
+    const { leaveType, dateFrom, dateTo, notes } = req.body;
+
     const attendance = await Attendance.findOne({
       _id: id,
       employee: req.user._id,
       status: "on_leave",
+      leaveStatus: "pending", // Only allow editing if still pending
     });
+
     if (!attendance) {
-      return res.status(404).json({ message: "Leave record not found." });
+      return res.status(404).json({
+        message: "Leave record not found or cannot be edited.",
+      });
     }
+
+    // Validate leave type
+    const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "OS", "CL"];
+    if (leaveType && !validLeaveTypes.includes(leaveType)) {
+      return res.status(400).json({
+        message: "Invalid leave type.",
+      });
+    }
+
     if (leaveType) attendance.leaveType = leaveType;
-    if (notes) attendance.notes = notes;
-    if (status) attendance.status = status;
-    // Add/Update leave date range
-    if (attendance.status === "on_leave") {
-      if (dateFrom) attendance.dateFrom = new Date(dateFrom);
-      if (dateTo) attendance.dateTo = new Date(dateTo);
-    } else {
-      attendance.dateFrom = undefined;
-      attendance.dateTo = undefined;
+    if (dateFrom) attendance.dateFrom = new Date(dateFrom);
+    if (dateTo) attendance.dateTo = new Date(dateTo);
+    if (notes !== undefined) attendance.notes = notes;
+
+    // Update totalLeaveDays if dates changed
+    if (attendance.dateFrom && attendance.dateTo) {
+      attendance.totalLeaveDays =
+        Math.ceil(
+          (new Date(attendance.dateTo) - new Date(attendance.dateFrom)) /
+            (1000 * 60 * 60 * 24)
+        ) + 1;
     }
+
     await attendance.save();
-    res.json({ message: "Leave updated successfully", attendance });
+    res.json({
+      message: "Leave request updated successfully.",
+      attendance,
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Internal server error", error: error.message });
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 };
 
@@ -240,5 +340,6 @@ module.exports = {
   getMyAttendance,
   getMyLeaveCredits,
   createMyAttendance,
-  editMyLeave,
+  addLeave,
+  editLeave,
 };

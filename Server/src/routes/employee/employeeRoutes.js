@@ -9,6 +9,6 @@ router.use(verifyJWT);
 router.get("/my", employeeAttendance.getMyAttendance);
 router.get("/my-leave-credits", employeeAttendance.getMyLeaveCredits);
 router.post("/my", employeeAttendance.createMyAttendance);
-router.put("/my-leave/:id", employeeAttendance.editMyLeave);
-
+router.post("/add-leave", employeeAttendance.addLeave);
+router.put("/edit-leave/:id", employeeAttendance.editLeave);
 module.exports = router;

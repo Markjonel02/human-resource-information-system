@@ -96,6 +96,8 @@ const SideNavigation = () => {
     loggedInUser?.role === "employee"
       ? "/employees-attendance"
       : "/attendances";
+  const leavePath =
+    loggedInUser?.role === "employee" ? "/employee-requests" : "/request";
   const menuItems = [
     // Dynamically set the Dashboard path
     { icon: Home, label: "Dashboard", path: dashboardPath },
