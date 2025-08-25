@@ -41,6 +41,7 @@ import {
   ChevronRightIcon,
 } from "@chakra-ui/icons";
 import axiosInstance from "../../lib/axiosInstance";
+
 // Extend the default Chakra UI theme to include custom colors and components
 const theme = extendTheme({
   colors: {
@@ -205,63 +206,6 @@ const LeaveRequestCard = ({
   const displayReason =
     reason.length > 50 ? `${reason.substring(0, 50)}...` : reason;
 
-  // Approve single leave
-  const handleApprove = async (id) => {
-    try {
-      await axiosInstance.post(`/attendance/approve-leave/${id}`);
-      setLeaveRequests((prev) =>
-        prev.map((req) =>
-          req.id === id ? { ...req, status: "Approved" } : req
-        )
-      );
-      toast({
-        title: "Leave Approved",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: err.response?.data?.message || "Failed to approve leave.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  // Bulk approve selected leaves (call backend)
-  const handleApproveSelected = async () => {
-    try {
-      await axiosInstance.post(`/attendance/approve-leave-bulk`, {
-        ids: selectedRequestIds,
-      });
-      setLeaveRequests((prev) =>
-        prev.map((req) =>
-          selectedRequestIds.includes(req.id)
-            ? { ...req, status: "Approved" }
-            : req
-        )
-      );
-      setSelectedRequestIds([]);
-      setIsSelectAllChecked(false);
-      toast({
-        title: "Selected Leaves Approved",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: err.response?.data?.message || "Failed to approve leaves.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
   return (
     <Box
       p={6}
@@ -315,14 +259,12 @@ const LeaveRequestCard = ({
           {status}
         </Badge>
       </Flex>
-
       <HStack spacing={2} align="center" mb={4} pl={2}>
         <Avatar size="xs" name={approverName} src={approverAvatarUrl} />
         <Text fontSize="xs" fontWeight="medium" color="gray.700">
           {truncatedApproverName}
         </Text>
       </HStack>
-
       <Box bg={daysBoxBg} p={4} borderRadius="lg" mb={4}>
         <Text
           fontSize="3xl"
@@ -335,11 +277,24 @@ const LeaveRequestCard = ({
         <Flex align="center">
           <CalendarIcon color={calendarIconColor} mr={2} />
           <Text fontSize="sm" color={dateTextColor} fontWeight="medium">
-            {startDate} - {endDate}
+            {startDate
+              ? new Date(startDate).toLocaleDateString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : ""}
+            {" - "}
+            {endDate
+              ? new Date(endDate).toLocaleDateString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : ""}
           </Text>
         </Flex>
       </Box>
-
       <Box mb={4}>
         <Text fontSize="sm" fontWeight="semibold" mb={1} color="gray.700">
           Reason
@@ -349,12 +304,7 @@ const LeaveRequestCard = ({
         </Text>
       </Box>
 
-      <Flex
-        justifyContent="space-between"
-        alignItems="flex-end"
-        pt={2}
-        gap={500}
-      >
+      <Flex justifyContent="space-between" alignItems="flex-end" pt={2}>
         <Text fontSize="sm" fontWeight="semibold" color="gray.700">
           Actions
         </Text>
@@ -403,10 +353,10 @@ const Leave = () => {
   const toast = useToast();
   const [newLeaveData, setNewLeaveData] = useState({
     leaveType: "",
-    days: "",
-    startDate: "",
-    endDate: "",
-    reason: "",
+    dateFrom: "",
+    dateTo: "",
+    notes: "",
+    employeeId: "", // Add this for backend compatibility
   });
 
   // Pagination states
@@ -419,9 +369,20 @@ const Leave = () => {
   const filteredRequests = leaveRequests.filter(
     (request) => filterStatus === "All" || request.status === filterStatus
   );
+
+  // Calculate days between two dates
+  const calculateDays = (startDate, endDate) => {
+    if (!startDate || !endDate) return 0;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
+    return diffDays;
+  };
+
   const fetchLeaveRequests = useCallback(async () => {
     try {
-      // Only fetch leave requests (status: on_leave)
+      // Fetch all attendance records with leave status
       const res = await axiosInstance.get("/attendanceRoutes/get-attendance", {
         params: { status: "on_leave" },
       });
@@ -430,32 +391,22 @@ const Leave = () => {
       setLeaveRequests(
         data.map((item) => ({
           id: item._id,
-          leaveType: item.leaveType || "Leave",
+          leaveType: item.leaveType || "Leave Request",
           days:
             item.totalLeaveDays && item.totalLeaveDays > 1
               ? `${item.totalLeaveDays} Days`
               : item.totalLeaveDays === 1
               ? "1 Day"
-              : "",
-          startDate: item.dateFrom
-            ? new Date(item.dateFrom).toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })
-            : "",
-          endDate: item.dateTo
-            ? new Date(item.dateTo).toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })
-            : "",
+              : calculateDays(item.dateFrom, item.dateTo) > 1
+              ? `${calculateDays(item.dateFrom, item.dateTo)} Days`
+              : "1 Day",
+          startDate: item.dateFrom || "",
+          endDate: item.dateTo || "",
           reason: item.notes || "",
           approverName:
             item.employee?.firstname && item.employee?.lastname
               ? `${item.employee.firstname} ${item.employee.lastname}`
-              : "Unknown",
+              : item.employee?.name || "Unknown Employee",
           approverAvatarUrl: "https://placehold.co/40x40/000000/FFFFFF?text=NA",
           status:
             item.leaveStatus === "approved"
@@ -468,6 +419,7 @@ const Leave = () => {
         }))
       );
     } catch (err) {
+      console.error("Error fetching leave requests:", err);
       toast({
         title: "Error",
         description:
@@ -483,6 +435,7 @@ const Leave = () => {
   useEffect(() => {
     fetchLeaveRequests();
   }, [fetchLeaveRequests]);
+
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -518,40 +471,57 @@ const Leave = () => {
     setIsSelectAllChecked(false);
   };
 
-  const handleApprove = (id) => {
-    setLeaveRequests((prevRequests) =>
-      prevRequests.map((req) =>
-        req.id === id ? { ...req, status: "Approved" } : req
-      )
-    );
-    setSelectedRequestIds((prev) =>
-      prev.filter((selectedId) => selectedId !== id)
-    );
-    toast({
-      title: "Request Approved",
-      description: "The leave request has been approved.",
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
+  const handleApprove = async (id) => {
+    try {
+      await axiosInstance.post(`/attendanceRoutes/approve-leave/${id}`);
+      toast({
+        title: "Leave Approved",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      fetchLeaveRequests(); // Refresh the list after approval
+    } catch (err) {
+      console.error("Error approving leave:", err);
+      toast({
+        title: "Error",
+        description: err.response?.data?.message || "Failed to approve leave.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
   };
 
-  const handleReject = (id) => {
-    setLeaveRequests((prevRequests) =>
-      prevRequests.map((req) =>
-        req.id === id ? { ...req, status: "Rejected" } : req
-      )
-    );
-    setSelectedRequestIds((prev) =>
-      prev.filter((selectedId) => selectedId !== id)
-    );
-    toast({
-      title: "Request Rejected",
-      description: "The leave request has been rejected.",
-      status: "error",
-      duration: 3000,
-      isClosable: true,
-    });
+  const handleReject = async (id) => {
+    try {
+      await axiosInstance.post(`/attendance/reject-leave/${id}`);
+      toast({
+        title: "Leave Rejected",
+        status: "info",
+        duration: 3000,
+        isClosable: true,
+      });
+      fetchLeaveRequests(); // Refresh the list after rejection
+    } catch (err) {
+      console.error("Error rejecting leave:", err);
+      // If no reject endpoint exists, update locally
+      setLeaveRequests((prevRequests) =>
+        prevRequests.map((req) =>
+          req.id === id ? { ...req, status: "Rejected" } : req
+        )
+      );
+      setSelectedRequestIds((prev) =>
+        prev.filter((selectedId) => selectedId !== id)
+      );
+      toast({
+        title: "Request Rejected",
+        description: "The leave request has been rejected.",
+        status: "info",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
   };
 
   const handleNewLeaveChange = (e) => {
@@ -562,17 +532,19 @@ const Leave = () => {
     }));
   };
 
-  const handleAddLeaveSubmit = () => {
+  const handleAddLeaveSubmit = async () => {
+    // Validation
     if (
       !newLeaveData.leaveType ||
-      !newLeaveData.days ||
-      !newLeaveData.startDate ||
-      !newLeaveData.endDate ||
-      !newLeaveData.reason
+      !newLeaveData.dateFrom ||
+      !newLeaveData.dateTo ||
+      !newLeaveData.notes ||
+      !newLeaveData.employeeId
     ) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields.",
+        description:
+          "Please fill in all required fields including Employee ID.",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -580,74 +552,61 @@ const Leave = () => {
       return;
     }
 
-    const newId =
-      leaveRequests.length > 0
-        ? Math.max(...leaveRequests.map((req) => req.id)) + 1
-        : 1;
+    try {
+      // Calculate total leave days
+      const totalLeaveDays = calculateDays(
+        newLeaveData.dateFrom,
+        newLeaveData.dateTo
+      );
 
-    let formattedDays = newLeaveData.days;
-    // Format dates to a more readable string like "Month Day Year" if they are valid date inputs
-    const formatDate = (dateString) => {
-      try {
-        const date = new Date(dateString);
-        // Example: "March 27, 2018"
-        return date.toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        });
-      } catch (e) {
-        return dateString; // Return as is if invalid date
-      }
-    };
+      // Prepare data for backend
+      const leaveData = {
+        employeeId: newLeaveData.employeeId,
+        leaveType: newLeaveData.leaveType,
+        dateFrom: newLeaveData.dateFrom,
+        dateTo: newLeaveData.dateTo,
+        totalLeaveDays: totalLeaveDays,
+        notes: newLeaveData.notes,
+        status: "on_leave",
+        leaveStatus: "pending",
+      };
 
-    const formattedStartDate = formatDate(newLeaveData.startDate);
-    const formattedEndDate = formatDate(newLeaveData.endDate);
+      // Submit to backend
+      await axiosInstance.post("/attendance/create-attendance", leaveData);
 
-    if (newLeaveData.leaveType.includes("Hours")) {
-      formattedDays = `${newLeaveData.days} Hours`;
-    } else if (
-      newLeaveData.leaveType.includes("request") ||
-      newLeaveData.leaveType.includes("leave")
-    ) {
-      if (
-        newLeaveData.leaveType !== "Loan request" &&
-        newLeaveData.leaveType !== "Ticket Request"
-      ) {
-        formattedDays = `${newLeaveData.days} Days`;
-      } else if (newLeaveData.leaveType === "Ticket Request") {
-        formattedDays = `${newLeaveData.days} Tickets`;
-      }
+      // Reset form
+      setNewLeaveData({
+        leaveType: "",
+        dateFrom: "",
+        dateTo: "",
+        notes: "",
+        employeeId: "",
+      });
+
+      onAddModalClose();
+
+      toast({
+        title: "Leave Request Added",
+        description: "Your new leave request has been submitted successfully.",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      // Refresh the list
+      fetchLeaveRequests();
+      setCurrentPage(1); // Go to the first page to see the new request
+    } catch (err) {
+      console.error("Error creating leave request:", err);
+      toast({
+        title: "Error",
+        description:
+          err.response?.data?.message || "Failed to create leave request.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     }
-
-    const newRequest = {
-      id: newId,
-      leaveType: newLeaveData.leaveType,
-      days: formattedDays,
-      startDate: formattedStartDate, // Use formatted date
-      endDate: formattedEndDate, // Use formatted date
-      reason: newLeaveData.reason,
-      approverName: "New Applicant",
-      approverAvatarUrl: "https://placehold.co/40x40/000000/FFFFFF?text=NA",
-      status: "Pending",
-    };
-    setLeaveRequests((prevRequests) => [...prevRequests, newRequest]);
-    setNewLeaveData({
-      leaveType: "",
-      days: "",
-      startDate: "",
-      endDate: "",
-      reason: "",
-    });
-    onAddModalClose();
-    toast({
-      title: "Leave Request Added",
-      description: "Your new leave request has been submitted.",
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
-    setCurrentPage(1); // Go to the first page to see the new request
   };
 
   const handleToggleSelect = (id) => {
@@ -689,42 +648,68 @@ const Leave = () => {
     }
   };
 
-  const handleApproveSelected = () => {
-    setLeaveRequests((prevRequests) =>
-      prevRequests.map((req) =>
-        selectedRequestIds.includes(req.id)
-          ? { ...req, status: "Approved" }
-          : req
-      )
-    );
-    setSelectedRequestIds([]);
-    setIsSelectAllChecked(false);
-    toast({
-      title: "Requests Approved",
-      description: "Selected leave requests have been approved.",
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
+  // Bulk approve selected leaves (calls backend)
+  const handleApproveSelected = async () => {
+    try {
+      await axiosInstance.post(`/attendanceRoutes/approve-leave-bulk`, {
+        ids: selectedRequestIds,
+      });
+      toast({
+        title: "Selected Leaves Approved",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      setSelectedRequestIds([]);
+      setIsSelectAllChecked(false);
+      fetchLeaveRequests(); // Refresh the list after approval
+    } catch (err) {
+      console.error("Error bulk approving leaves:", err);
+      toast({
+        title: "Error",
+        description: err.response?.data?.message || "Failed to approve leaves.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
   };
 
-  const handleRejectSelected = () => {
-    setLeaveRequests((prevRequests) =>
-      prevRequests.map((req) =>
-        selectedRequestIds.includes(req.id)
-          ? { ...req, status: "Rejected" }
-          : req
-      )
-    );
-    setSelectedRequestIds([]);
-    setIsSelectAllChecked(false);
-    toast({
-      title: "Requests Rejected",
-      description: "Selected leave requests have been rejected.",
-      status: "error",
-      duration: 3000,
-      isClosable: true,
-    });
+  const handleRejectSelected = async () => {
+    try {
+      // If bulk reject endpoint exists
+      await axiosInstance.post(`/attendance/reject-leave-bulk`, {
+        ids: selectedRequestIds,
+      });
+      toast({
+        title: "Selected Leaves Rejected",
+        status: "info",
+        duration: 3000,
+        isClosable: true,
+      });
+      setSelectedRequestIds([]);
+      setIsSelectAllChecked(false);
+      fetchLeaveRequests(); // Refresh the list after rejection
+    } catch (err) {
+      console.error("Error bulk rejecting leaves:", err);
+      // If no bulk reject endpoint exists, update locally
+      setLeaveRequests((prevRequests) =>
+        prevRequests.map((req) =>
+          selectedRequestIds.includes(req.id)
+            ? { ...req, status: "Rejected" }
+            : req
+        )
+      );
+      setSelectedRequestIds([]);
+      setIsSelectAllChecked(false);
+      toast({
+        title: "Requests Rejected",
+        description: "Selected leave requests have been rejected.",
+        status: "info",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
   };
 
   return (
@@ -818,7 +803,8 @@ const Leave = () => {
             </Select>
           </HStack>
         </Flex>
-        --- ## Leave Request Cards
+
+        {/* Leave Request Cards */}
         <SimpleGrid
           columns={{ base: 1, md: 2, lg: 3 }}
           spacing={{ base: 5, md: 8 }}
@@ -853,7 +839,8 @@ const Leave = () => {
             </Text>
           )}
         </SimpleGrid>
-        --- ## Pagination Controls
+
+        {/* Pagination Controls */}
         <Flex
           width="100%"
           maxW="1200px"
@@ -861,11 +848,10 @@ const Leave = () => {
           alignItems="center"
           mt={8}
           p={4}
-          // Removed bg, borderRadius, and boxShadow for a flat look
           direction={{ base: "column", md: "row" }}
           gap={3}
-          borderTop="1px solid" // Added a subtle top border for definition
-          borderColor="gray.200" // Light gray border
+          borderTop="1px solid"
+          borderColor="gray.200"
         >
           {/* Items per page selector */}
           <HStack spacing={2}>
@@ -874,8 +860,6 @@ const Leave = () => {
               color="gray.600"
               whiteSpace="nowrap"
             >
-              {" "}
-              {/* Changed text color to darker gray */}
               Items per page:
             </Text>
             <Select
@@ -885,9 +869,9 @@ const Leave = () => {
               borderRadius="md"
               size="sm"
               fontWeight="semibold"
-              bg="white" // White background for flat look
-              color="gray.700" // Darker text color
-              borderColor="gray.300" // Light gray border
+              bg="white"
+              color="gray.700"
+              borderColor="gray.300"
               _hover={{ borderColor: "gray.400" }}
               _focus={{ borderColor: "lightBlue.500", boxShadow: "outline" }}
             >
@@ -908,9 +892,9 @@ const Leave = () => {
                 aria-label="First Page"
                 size="sm"
                 borderRadius="full"
-                color="lightBlue.700" // Light blue icon color
+                color="lightBlue.700"
                 variant="ghost"
-                _hover={{ bg: "lightBlue.100" }} // Light blue hover
+                _hover={{ bg: "lightBlue.100" }}
                 _active={{ bg: "lightBlue.200" }}
               />
             </Tooltip>
@@ -941,17 +925,16 @@ const Leave = () => {
                 minW="32px"
                 px={0}
                 fontWeight="bold"
-                // Adjusted colors for flat look
-                color={currentPage === page ? "white" : "lightBlue.700"} // White text for active, lightBlue for others
-                bg={currentPage === page ? "lightBlue.500" : "transparent"} // lightBlue bg for active, transparent for others
+                color={currentPage === page ? "white" : "lightBlue.700"}
+                bg={currentPage === page ? "lightBlue.500" : "transparent"}
                 _hover={{
-                  bg: currentPage === page ? "lightBlue.600" : "lightBlue.100", // Darker lightBlue for active hover, light fill for others
+                  bg: currentPage === page ? "lightBlue.600" : "lightBlue.100",
                   color: currentPage === page ? "white" : "lightBlue.700",
                 }}
                 _active={{
                   bg: currentPage === page ? "lightBlue.700" : "lightBlue.200",
                 }}
-                boxShadow="none" // Removed box shadow for flat look
+                boxShadow="none"
               >
                 {page}
               </Button>
@@ -989,15 +972,15 @@ const Leave = () => {
 
           <Text
             fontSize={{ base: "xs", md: "sm" }}
-            color="gray.600" // Changed text color to darker gray
+            color="gray.600"
             whiteSpace="nowrap"
             textAlign="center"
-            px={2} // Add some horizontal padding
-            py={1} // Add some vertical padding
-            bg="white" // White background for the text
-            borderRadius="md" // Slightly rounded corners
-            border="1px solid" // Subtle border
-            borderColor="gray.200" // Light gray border color
+            px={2}
+            py={1}
+            bg="white"
+            borderRadius="md"
+            border="1px solid"
+            borderColor="gray.200"
           >
             Showing {filteredRequests.length > 0 ? indexOfFirstItem + 1 : 0} -{" "}
             {Math.min(indexOfLastItem, filteredRequests.length)} of{" "}
@@ -1017,6 +1000,18 @@ const Leave = () => {
           <ModalBody pb={6}>
             <VStack spacing={4}>
               <FormControl isRequired>
+                <FormLabel>Employee ID</FormLabel>
+                <Input
+                  name="employeeId"
+                  type="text"
+                  placeholder="Enter employee ID"
+                  value={newLeaveData.employeeId}
+                  onChange={handleNewLeaveChange}
+                  borderRadius="md"
+                />
+              </FormControl>
+
+              <FormControl isRequired>
                 <FormLabel>Leave Type</FormLabel>
                 <Select
                   name="leaveType"
@@ -1025,36 +1020,24 @@ const Leave = () => {
                   onChange={handleNewLeaveChange}
                   borderRadius="md"
                 >
-                  <option value="Sick leave request">Sick leave </option>
-                  <option value="Excuse Request">Excuse </option>
+                  <option value="Sick leave request">Sick Leave</option>
+                  <option value="Excuse Request">Excuse</option>
                   <option value="Business Trip Request">Business Trip</option>
-                  <option value="M/P Leave  Request">M/P Leave </option>
+                  <option value="M/P Leave Request">M/P Leave</option>
                   <option value="Bereavement leave Request">
-                    Bereavement leave
+                    Bereavement Leave
                   </option>
-                  <option value="Vacation leave Request">Vacation leave</option>
+                  <option value="Vacation leave Request">Vacation Leave</option>
                 </Select>
               </FormControl>
-
-              {/*  <FormControl isRequired>
-                <FormLabel>Days/Hours</FormLabel>
-                <Input
-                  name="days"
-                  type="text"
-                  placeholder="e.g., 2, 2.5 hours, 5000.00"
-                  value={newLeaveData.days}
-                  onChange={handleNewLeaveChange}
-                  borderRadius="md"
-                />
-              </FormControl> */}
 
               <HStack width="100%" flexWrap="wrap">
                 <FormControl isRequired flex="1">
                   <FormLabel>Start Date</FormLabel>
                   <Input
-                    name="startDate"
+                    name="dateFrom"
                     type="date"
-                    value={newLeaveData.startDate}
+                    value={newLeaveData.dateFrom}
                     onChange={handleNewLeaveChange}
                     borderRadius="md"
                   />
@@ -1062,9 +1045,9 @@ const Leave = () => {
                 <FormControl isRequired flex="1">
                   <FormLabel>End Date</FormLabel>
                   <Input
-                    name="endDate"
+                    name="dateTo"
                     type="date"
-                    value={newLeaveData.endDate}
+                    value={newLeaveData.dateTo}
                     onChange={handleNewLeaveChange}
                     borderRadius="md"
                   />
@@ -1074,9 +1057,9 @@ const Leave = () => {
               <FormControl isRequired>
                 <FormLabel>Reason</FormLabel>
                 <Textarea
-                  name="reason"
+                  name="notes"
                   placeholder="Enter reason for leave"
-                  value={newLeaveData.reason}
+                  value={newLeaveData.notes}
                   onChange={handleNewLeaveChange}
                   borderRadius="md"
                 />

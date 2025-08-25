@@ -130,8 +130,8 @@ const approveLeave = async (req, res) => {
         approvedBy: req.user.firstname + " " + req.user.lastname,
         date: attendance.date,
         leaveType: attendance.leaveType,
-        dateFrom: attendance.dateFrom,
-        dateTo: attendance.dateTo,
+        dateFrom: attendance.dateFrom || "",
+        dateTo: attendance.dateTo || "",
       },
     });
 
@@ -514,6 +514,7 @@ const getAttendance = async (req, res) => {
       hoursRendered: record.hoursRendered || 0,
       tardinessMinutes: record.tardinessMinutes || 0,
       leaveType: record.leaveType,
+      leaveStatus: record.leaveStatus,
       notes: record.notes,
     })); // Log access (only if user exists)
 

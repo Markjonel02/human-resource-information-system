@@ -155,17 +155,6 @@ const EmployeeAttendanceTracker = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [currentRecord, setCurrentRecord] = useState(null);
   const [leaveCredits, setLeaveCredits] = useState({});
-  const [formData, setFormData] = useState({
-    employeeId: "",
-    date: "",
-    status: "present",
-    checkIn: "",
-    checkOut: "",
-    leaveType: "",
-    notes: "",
-    dateFrom: "",
-    dateTo: "",
-  });
 
   const {
     isOpen: isDrawerOpen,
@@ -198,6 +187,17 @@ const EmployeeAttendanceTracker = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const [formData, setFormData] = useState({
+    employeeId: loggedInUser._id || loggedInUser.id || "",
+    date: "",
+    status: "present",
+    checkIn: "",
+    checkOut: "",
+    leaveType: "",
+    notes: "",
+    dateFrom: "",
+    dateTo: "",
+  });
   // Fetch attendance records and employees
   useEffect(() => {
     const fetchData = async () => {
@@ -395,12 +395,42 @@ const EmployeeAttendanceTracker = () => {
     try {
       setIsLoading(true);
 
-      // Only send dateFrom/dateTo for leave
       let payload = { ...formData };
+
+      // For leave, set date = dateFrom (so backend always gets a date)
+      if (formData.status === "on_leave") {
+        if (!formData.dateFrom) {
+          toast({
+            title: "Error",
+            description: "Start date (Date From) is required for leave.",
+            status: "error",
+            duration: 3000,
+            isClosable: true,
+          });
+          setIsLoading(false);
+          return;
+        }
+        payload.date = formData.dateFrom;
+      }
+
+      // For non-leave, clear leave fields
       if (formData.status !== "on_leave") {
         payload.dateFrom = "";
         payload.dateTo = "";
         payload.leaveType = "";
+      }
+
+      // Validate date and status before sending
+      if (!payload.date || !payload.status) {
+        toast({
+          title: "Error",
+          description: "Date and status are required.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+        setIsLoading(false);
+        return;
       }
 
       if (isAddModalOpen) {
@@ -902,8 +932,24 @@ const EmployeeAttendanceTracker = () => {
                     <Input
                       type="date"
                       name="date"
-                      value={formData.date}
-                      onChange={handleFormChange}
+                      value={
+                        formData.status === "on_leave"
+                          ? formData.dateFrom
+                          : formData.date
+                      }
+                      onChange={(e) => {
+                        if (formData.status === "on_leave") {
+                          setFormData((prev) => ({
+                            ...prev,
+                            dateFrom: e.target.value,
+                          }));
+                        } else {
+                          setFormData((prev) => ({
+                            ...prev,
+                            date: e.target.value,
+                          }));
+                        }
+                      }}
                     />
                   </FormControl>
                 )}
@@ -959,9 +1005,9 @@ const EmployeeAttendanceTracker = () => {
                         <option value="VL">Vacation Leave</option>
                         <option value="SL">Sick Leave</option>
                         <option value="LWOP">Leave Without Pay</option>
-                        <option value="BL">Birthday Leave</option>
+                        <option value="BL">Bereavement Leave</option>
                         <option value="OS">Official Business</option>
-                        <option value="CL">Compassionate Leave</option>
+                        <option value="CL">Calamity Leave</option>
                       </Select>
                     </FormControl>
                     <FormControl isRequired mb={0}>
