@@ -383,9 +383,9 @@ const Leave = () => {
   const fetchLeaveRequests = useCallback(async () => {
     try {
       // Fetch all attendance records with leave status
-      const res = await axiosInstance.get("/attendanceRoutes/get-attendance", {
-        params: { status: "on_leave" },
-      });
+      const res = await axiosInstance.get(
+        "/employeeAttendance/get-leave-requests"
+      );
       // Transform backend data to match frontend structure
       const data = Array.isArray(res.data) ? res.data : [];
       setLeaveRequests(

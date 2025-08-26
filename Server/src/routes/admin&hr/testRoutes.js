@@ -2,11 +2,11 @@ const express = require("express");
 const router = express.Router();
 
 // Middlewares
-const verifyJWT = require("../middlewares/verifyJWT");
-const authorizeRoles = require("../middlewares/authorizeRole");
-const testAttendance = require("../controllers/testAttendanceController");
+const verifyJWT = require("../../middlewares/verifyJWT");
+const authorizeRoles = require("../../middlewares/authorizeRole");
+const testAttendance = require("../../controllers/testAttendanceController");
 // Note: AttendanceLog model is not directly used in routes, but good to keep for context
-const AttendanceLog = require("../models/attendanceLogSchema");
+const AttendanceLog = require("../../models/attendanceLogSchema");
 
 // All routes in this file are protected by JWT verification
 router.use(verifyJWT);
@@ -121,6 +121,12 @@ router.post(
   "/approve-leave-bulk",
   authorizeRoles("admin"),
   testAttendance.approveLeaveBulk
+);
+
+router.get(
+  "/get-leave-requests",
+  authorizeRoles("admin",),
+  testAttendance.getAllLeaveRequests
 );
 
 module.exports = router;
