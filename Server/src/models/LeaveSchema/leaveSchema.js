@@ -58,5 +58,4 @@ const LeaveSchema = new Schema(
 
 // This prevents an employee from submitting the exact same leave request twice
 LeaveSchema.index({ employee: 1, dateFrom: 1, dateTo: 1 }, { unique: true });
-
 module.exports = mongoose.model("Leave", LeaveSchema);
