@@ -90,7 +90,9 @@ const addLeave = async (req, res) => {
 
 const getEmployeeLeave = async (req, res) => {
   try {
-    const empLeaves = await Leave.find({ employee: req.user._id });
+    const empLeaves = await Leave.find({ employee: req.user._id }).sort({
+      createdAt: -1,
+    });
     if (!empLeaves || empLeaves.length === 0) {
       return res.status(404).json({ message: "No leave records found." });
     }
@@ -115,45 +117,46 @@ const editLeave = async (req, res) => {
     const { id } = req.params;
     const { leaveType, dateFrom, dateTo, notes } = req.body;
 
-    const attendance = await Attendance.findOne({
+    const leaveRequest = await Leave.findOne({
       _id: id,
       employee: req.user._id,
-      status: "on_leave",
-      leaveStatus: "pending", // Only allow editing if still pending
+      // Only allow editing if the leave status is 'pending'
+      leaveStatus: "pending",
     });
 
-    if (!attendance) {
+    if (!leaveRequest) {
       return res.status(404).json({
-        message: "Leave record not found or cannot be edited.",
+        message:
+          "Leave record not found or cannot be edited. It may have already been processed.",
       });
     }
 
     // Validate leave type
-    const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "OS", "CL"];
+    const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "CL"];
     if (leaveType && !validLeaveTypes.includes(leaveType)) {
       return res.status(400).json({
         message: "Invalid leave type.",
       });
     }
 
-    if (leaveType) attendance.leaveType = leaveType;
-    if (dateFrom) attendance.dateFrom = new Date(dateFrom);
-    if (dateTo) attendance.dateTo = new Date(dateTo);
-    if (notes !== undefined) attendance.notes = notes;
+    if (leaveType) leaveRequest.leaveType = leaveType;
+    if (dateFrom) leaveRequest.dateFrom = new Date(dateFrom);
+    if (dateTo) leaveRequest.dateTo = new Date(dateTo);
+    if (notes !== undefined) leaveRequest.notes = notes;
 
     // Update totalLeaveDays if dates changed
-    if (attendance.dateFrom && attendance.dateTo) {
-      attendance.totalLeaveDays =
+    if (leaveRequest.dateFrom && leaveRequest.dateTo) {
+      leaveRequest.totalLeaveDays =
         Math.ceil(
-          (new Date(attendance.dateTo) - new Date(attendance.dateFrom)) /
+          (new Date(leaveRequest.dateTo) - new Date(leaveRequest.dateFrom)) /
             (1000 * 60 * 60 * 24)
         ) + 1;
     }
 
-    await attendance.save();
+    await leaveRequest.save();
     res.json({
       message: "Leave request updated successfully.",
-      attendance,
+      leaveRequest,
     });
   } catch (error) {
     res.status(500).json({
@@ -162,6 +165,7 @@ const editLeave = async (req, res) => {
     });
   }
 };
+
 const getMyLeaveCredits = async (req, res) => {
   try {
     let credits = await LeaveCredits.findOne({ employee: req.user._id });

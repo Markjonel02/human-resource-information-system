@@ -31,7 +31,9 @@ import {
   CardBody,
   CardHeader,
   TableContainer,
+  IconButton,
 } from "@chakra-ui/react";
+import { FiEdit, FiPlusCircle } from "react-icons/fi"; // Chakra's recommended icon library
 import axiosInstance from "../../../lib/axiosInstance";
 
 const LEAVE_TYPE_LABELS = {
@@ -53,6 +55,8 @@ const EmployeeLeave = () => {
   const [leaveHistory, setLeaveHistory] = useState([]);
   const [filterStatus, setFilterStatus] = useState("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingLeave, setEditingLeave] = useState(null);
   const [newLeave, setNewLeave] = useState({
     leaveType: "",
     dateFrom: "",
@@ -94,6 +98,7 @@ const EmployeeLeave = () => {
         description: "Please fill in all required fields.",
         status: "error",
         duration: 3000,
+        position: "top",
         isClosable: true,
       });
       return;
@@ -105,6 +110,7 @@ const EmployeeLeave = () => {
         status: "success",
         duration: 3000,
         isClosable: true,
+        position: "top",
       });
       setIsAddModalOpen(false);
       setNewLeave({ leaveType: "", dateFrom: "", dateTo: "", notes: "" });
@@ -118,6 +124,59 @@ const EmployeeLeave = () => {
         status: "error",
         duration: 3000,
         isClosable: true,
+        position: "top",
+      });
+    }
+  };
+
+  const openEditModal = (leave) => {
+    setEditingLeave({ ...leave });
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateLeave = async () => {
+    if (
+      !editingLeave.leaveType ||
+      !editingLeave.dateFrom ||
+      !editingLeave.dateTo ||
+      !editingLeave.notes
+    ) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        status: "error",
+        duration: 3000,
+        position: "top",
+        isClosable: true,
+      });
+      return;
+    }
+
+    try {
+      await axiosInstance.put(
+        `/employeeLeave/edit-leave/${editingLeave._id}`,
+        editingLeave
+      );
+      toast({
+        title: "Leave Request Updated",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+        position: "top",
+      });
+      setIsEditModalOpen(false);
+      setEditingLeave(null);
+      fetchLeaveHistory();
+      fetchLeaveCredits();
+    } catch (err) {
+      toast({
+        title: "Error",
+        description:
+          err.response?.data?.message || "Failed to update leave request.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+        position: "top",
       });
     }
   };
@@ -139,7 +198,7 @@ const EmployeeLeave = () => {
           </Text>
         </CardHeader>
         <CardBody>
-          <SimpleGrid columns={{ base: 2, sm: 2,md:3, lg: 6 }} spacing={4}>
+          <SimpleGrid columns={{ base: 2, sm: 2, md: 3, lg: 6 }} spacing={4}>
             {Object.entries(leaveCredits).map(([type, credit]) => (
               <VStack
                 key={type}
@@ -168,7 +227,12 @@ const EmployeeLeave = () => {
         flexWrap="wrap"
         gap={4}
       >
-        <Button colorScheme="blue" onClick={() => setIsAddModalOpen(true)}>
+        <Button
+          colorScheme="blue"
+          fontWeight={"md"}
+          onClick={() => setIsAddModalOpen(true)}
+          leftIcon={<FiPlusCircle />}
+        >
           Add Leave
         </Button>
         <Select
@@ -195,6 +259,7 @@ const EmployeeLeave = () => {
                 <Th isNumeric>Days</Th>
                 <Th>Reason</Th>
                 <Th>Status</Th>
+                <Th>Actions</Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -231,11 +296,11 @@ const EmployeeLeave = () => {
                     </Td>
                     <Td>
                       <Tag
-                        size="md"
+                        size="sm"
                         colorScheme={
                           STATUS_COLOR[item.leaveStatus || "pending"]
                         }
-                        borderRadius="full"
+                        borderRadius="md"
                         px={3}
                         py={1}
                         fontWeight="bold"
@@ -244,11 +309,19 @@ const EmployeeLeave = () => {
                         {item.leaveStatus || "Pending"}
                       </Tag>
                     </Td>
+                    <Td>
+                      <IconButton
+                        icon={<FiEdit />}
+                        size="sm"
+                        aria-label="Edit leave"
+                        onClick={() => openEditModal(item)}
+                      />
+                    </Td>
                   </Tr>
                 ))
               ) : (
                 <Tr>
-                  <Td colSpan={6} textAlign="center" py={8}>
+                  <Td colSpan={7} textAlign="center" py={8}>
                     <Text color="gray.500" fontSize="lg" fontWeight="semibold">
                       No leave records found.
                     </Text>
@@ -342,6 +415,111 @@ const EmployeeLeave = () => {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      {/* Edit Leave Modal */}
+      {editingLeave && (
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+        >
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>Edit Leave Request</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <VStack spacing={4}>
+                <FormControl isRequired>
+                  <FormLabel>Leave Type</FormLabel>
+                  <Select
+                    name="leaveType"
+                    placeholder="Select leave type"
+                    value={editingLeave.leaveType}
+                    onChange={(e) =>
+                      setEditingLeave((prev) => ({
+                        ...prev,
+                        leaveType: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="VL">Vacation Leave</option>
+                    <option value="SL">Sick Leave</option>
+                    <option value="LWOP">Leave Without Pay</option>
+                    <option value="BL">Bereavement Leave</option>
+                    <option value="CL">Calamity Leave</option>
+                  </Select>
+                </FormControl>
+                <HStack w="100%">
+                  <FormControl isRequired>
+                    <FormLabel>Start Date</FormLabel>
+                    <Input
+                      type="date"
+                      name="dateFrom"
+                      value={
+                        editingLeave.dateFrom
+                          ? new Date(editingLeave.dateFrom)
+                              .toISOString()
+                              .split("T")[0]
+                          : ""
+                      }
+                      onChange={(e) =>
+                        setEditingLeave((prev) => ({
+                          ...prev,
+                          dateFrom: e.target.value,
+                        }))
+                      }
+                    />
+                  </FormControl>
+                  <FormControl isRequired>
+                    <FormLabel>End Date</FormLabel>
+                    <Input
+                      type="date"
+                      name="dateTo"
+                      value={
+                        editingLeave.dateTo
+                          ? new Date(editingLeave.dateTo)
+                              .toISOString()
+                              .split("T")[0]
+                          : ""
+                      }
+                      onChange={(e) =>
+                        setEditingLeave((prev) => ({
+                          ...prev,
+                          dateTo: e.target.value,
+                        }))
+                      }
+                    />
+                  </FormControl>
+                </HStack>
+                <FormControl isRequired>
+                  <FormLabel>Reason</FormLabel>
+                  <Textarea
+                    name="notes"
+                    value={editingLeave.notes}
+                    onChange={(e) =>
+                      setEditingLeave((prev) => ({
+                        ...prev,
+                        notes: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter reason for leave"
+                  />
+                </FormControl>
+              </VStack>
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                colorScheme="blue"
+                variant="outline"
+                mr={3}
+                onClick={handleUpdateLeave}
+              >
+                Update
+              </Button>
+              <Button onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+      )}
     </Box>
   );
 };

@@ -138,7 +138,6 @@ const formatDate = (dateString) => {
 };
 
 const capitalizeStatus = (status) => {
-  if (status.toLowerCase() === "on_leave") return "Leave";
   return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
 };
 
@@ -149,12 +148,11 @@ const EmployeeAttendanceTracker = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [employees, setEmployees] = useState([]); // Initialize as empty array
+  const [employees, setEmployees] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [currentRecord, setCurrentRecord] = useState(null);
-  const [leaveCredits, setLeaveCredits] = useState({});
 
   const {
     isOpen: isDrawerOpen,
@@ -193,12 +191,10 @@ const EmployeeAttendanceTracker = () => {
     status: "present",
     checkIn: "",
     checkOut: "",
-    leaveType: "",
     notes: "",
-    dateFrom: "",
-    dateTo: "",
   });
-  // Fetch attendance records and employees
+
+  // Fetch attendance records
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -211,12 +207,6 @@ const EmployeeAttendanceTracker = () => {
         setAttendanceRecords(
           Array.isArray(attendanceResponse.data) ? attendanceResponse.data : []
         );
-
-        // Fetch employee's leave credits
-        const leaveCreditsResponse = await axiosInstance.get(
-          "/employeeLeave/my-leave-credits"
-        );
-        setLeaveCredits(leaveCreditsResponse.data?.credits || {});
 
         setError(null);
       } catch (err) {
@@ -239,9 +229,6 @@ const EmployeeAttendanceTracker = () => {
         return "red";
       case "late":
         return "orange";
-      case "leave":
-      case "on_leave":
-        return "blue";
       default:
         return "gray";
     }
@@ -261,6 +248,7 @@ const EmployeeAttendanceTracker = () => {
 
     return `${hours}h ${minutes}m`;
   };
+
   const formatTime = (dateTime) => {
     if (!dateTime) return "-";
     const date = dateTime instanceof Date ? dateTime : new Date(dateTime);
@@ -297,53 +285,38 @@ const EmployeeAttendanceTracker = () => {
     });
   }, [searchTerm, attendanceRecords]);
 
-  const {
-    totalMinLate,
-    numLate,
-    numAbsent,
-    numPresent,
-    leaveCounts,
-    absentEmployees,
-  } = useMemo(() => {
-    let totalMinLate = 0;
-    let numLate = 0;
-    let numAbsent = 0;
-    let numPresent = 0;
-    const leaveCounts = { VL: 0, SL: 0, LWOP: 0, BL: 0, OS: 0, CL: 0 };
-    const absentEmployees = [];
+  const { totalMinLate, numLate, numAbsent, numPresent, absentEmployees } =
+    useMemo(() => {
+      let totalMinLate = 0;
+      let numLate = 0;
+      let numAbsent = 0;
+      let numPresent = 0;
+      const absentEmployees = [];
 
-    filteredAttendance.forEach((record) => {
-      const normalizedStatus = record.status.toLowerCase();
+      filteredAttendance.forEach((record) => {
+        const normalizedStatus = record.status.toLowerCase();
 
-      if (normalizedStatus === "late") {
-        numLate++;
-        if (record.checkIn) {
-          totalMinLate += record.tardinessMinutes || 0;
+        if (normalizedStatus === "late") {
+          numLate++;
+          if (record.checkIn) {
+            totalMinLate += record.tardinessMinutes || 0;
+          }
+        } else if (normalizedStatus === "absent") {
+          numAbsent++;
+          absentEmployees.push(record);
+        } else if (normalizedStatus === "present") {
+          numPresent++;
         }
-      } else if (normalizedStatus === "absent") {
-        numAbsent++;
-        absentEmployees.push(record);
-      } else if (normalizedStatus === "present") {
-        numPresent++;
-      } else if (
-        (normalizedStatus === "leave" || normalizedStatus === "on_leave") &&
-        record.leaveType
-      ) {
-        if (leaveCounts.hasOwnProperty(record.leaveType)) {
-          leaveCounts[record.leaveType]++;
-        }
-      }
-    });
+      });
 
-    return {
-      totalMinLate,
-      numLate,
-      numAbsent,
-      numPresent,
-      leaveCounts,
-      absentEmployees,
-    };
-  }, [filteredAttendance]);
+      return {
+        totalMinLate,
+        numLate,
+        numAbsent,
+        numPresent,
+        absentEmployees,
+      };
+    }, [filteredAttendance]);
 
   const getAttendanceRate = () => {
     const total = filteredAttendance.length;
@@ -358,10 +331,7 @@ const EmployeeAttendanceTracker = () => {
       status: "present",
       checkIn: "",
       checkOut: "",
-      leaveType: "",
       notes: "",
-      dateFrom: "",
-      dateTo: "",
     });
     setIsAddModalOpen(true);
   };
@@ -370,14 +340,11 @@ const EmployeeAttendanceTracker = () => {
     setCurrentRecord(record);
     setFormData({
       employeeId: record.employee._id,
-      date: formatDate(record.date),
+      date: record.date ? record.date.slice(0, 10) : "",
       status: record.status,
       checkIn: record.checkIn ? formatTime(record.checkIn) : "",
       checkOut: record.checkOut ? formatTime(record.checkOut) : "",
-      leaveType: record.leaveType || "",
       notes: record.notes || "",
-      dateFrom: record.dateFrom ? record.dateFrom.slice(0, 10) : "",
-      dateTo: record.dateTo ? record.dateTo.slice(0, 10) : "",
     });
     setIsEditModalOpen(true);
   };
@@ -397,29 +364,6 @@ const EmployeeAttendanceTracker = () => {
 
       let payload = { ...formData };
 
-      // For leave, set date = dateFrom (so backend always gets a date)
-      if (formData.status === "on_leave") {
-        if (!formData.dateFrom) {
-          toast({
-            title: "Error",
-            description: "Start date (Date From) is required for leave.",
-            status: "error",
-            duration: 3000,
-            isClosable: true,
-          });
-          setIsLoading(false);
-          return;
-        }
-        payload.date = formData.dateFrom;
-      }
-
-      // For non-leave, clear leave fields
-      if (formData.status !== "on_leave") {
-        payload.dateFrom = "";
-        payload.dateTo = "";
-        payload.leaveType = "";
-      }
-
       // Validate date and status before sending
       if (!payload.date || !payload.status) {
         toast({
@@ -427,6 +371,7 @@ const EmployeeAttendanceTracker = () => {
           description: "Date and status are required.",
           status: "error",
           duration: 3000,
+          position: "top",
           isClosable: true,
         });
         setIsLoading(false);
@@ -440,6 +385,7 @@ const EmployeeAttendanceTracker = () => {
           description: "Attendance record added successfully",
           status: "success",
           duration: 3000,
+          position: "top",
           isClosable: true,
         });
       } else if (isEditModalOpen) {
@@ -452,6 +398,7 @@ const EmployeeAttendanceTracker = () => {
           description: "Attendance record updated successfully",
           status: "success",
           duration: 3000,
+          position: "top",
           isClosable: true,
         });
       }
@@ -466,37 +413,12 @@ const EmployeeAttendanceTracker = () => {
         status: "error",
         duration: 3000,
         isClosable: true,
+        position: "top",
       });
     } finally {
       setIsLoading(false);
     }
   };
-
-  /*   const handleDelete = async () => {
-    try {
-      setIsLoading(true);
-      await axios.delete(`/api/attendance/${currentRecord._id}`);
-      toast({
-        title: "Success",
-        description: "Attendance record deleted successfully",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-      setRefreshKey((prev) => prev + 1);
-      setIsDeleteModalOpen(false);
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: err.response?.data?.message || "Failed to delete record",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }; */
 
   return (
     <Box
@@ -644,45 +566,21 @@ const EmployeeAttendanceTracker = () => {
             </Stat>
           </CardBody>
         </Card>
+
         <Card borderLeft="4px" borderColor="blue.400">
           <CardBody p={6}>
             <Stat>
               <StatLabel color="gray.600" fontSize="sm">
-                On Leave
+                Total Records
               </StatLabel>
               <StatNumber fontSize="2xl" fontWeight="bold" color="blue.600">
-                {Object.values(leaveCounts).reduce((a, b) => a + b, 0)}
+                {filteredAttendance.length}
               </StatNumber>
-              <StatHelpText color="gray.500">
-                Total leave applications
-              </StatHelpText>
+              <StatHelpText color="gray.500">Attendance entries</StatHelpText>
             </Stat>
           </CardBody>
         </Card>
       </SimpleGrid>
-
-      {/* Leave Breakdown */}
-      <Card mb={6}>
-        <CardHeader>
-          <Heading size="md" color="gray.700">
-            Leave Credits
-          </Heading>
-        </CardHeader>
-        <CardBody pt={0}>
-          <SimpleGrid columns={{ base: 2, sm: 3, md: 6 }} spacing={4}>
-            {Object.entries(leaveCredits).map(([type, credit]) => (
-              <VStack key={type} bg="blue.50" p={3} borderRadius="md">
-                <Text fontSize="xs" color="blue.600" fontWeight="semibold">
-                  {type}
-                </Text>
-                <Text fontSize="sm" color="blue.700">
-                  {credit.remaining} / {credit.total}
-                </Text>
-              </VStack>
-            ))}
-          </SimpleGrid>
-        </CardBody>
-      </Card>
 
       {/* Absent Employees Alert */}
       {absentEmployees.length > 0 && (
@@ -727,13 +625,7 @@ const EmployeeAttendanceTracker = () => {
                 Hours
               </Th>
               <Th py={3} px={4} display={{ base: "none", xl: "table-cell" }}>
-                Leave Type
-              </Th>
-              <Th py={3} px={4} display={{ base: "none", xl: "table-cell" }}>
                 Notes
-              </Th>
-              <Th py={3} px={4} textAlign="right">
-                Actions
               </Th>
             </Tr>
           </Thead>
@@ -848,50 +740,16 @@ const EmployeeAttendanceTracker = () => {
                   <Td
                     px={4}
                     py={4}
-                    display={{ base: "none", xl: "table-cell" }}
-                  >
-                    {record.leaveType ? (
-                      <Tag size="sm" colorScheme="blue" variant="outline">
-                        {record.leaveType}
-                      </Tag>
-                    ) : (
-                      <Text fontSize="sm" color="gray.500">
-                        -
-                      </Text>
-                    )}
-                  </Td>
-                  <Td
-                    px={4}
-                    py={4}
                     maxW="200px"
                     display={{ base: "none", xl: "table-cell" }}
                   >
                     <Text isTruncated title={record.notes || ""}>
                       {record.notes
-                        ? record.notes.length > 5
-                          ? `${record.notes.substring(0, 5)}...`
+                        ? record.notes.length > 20
+                          ? `${record.notes.substring(0, 20)}...`
                           : record.notes
                         : "-"}
                     </Text>
-                  </Td>
-                  <Td px={4} py={4} textAlign="right">
-                    <Menu placement="bottom-end" portal>
-                      <MenuButton
-                        as={IconButton}
-                        aria-label="Options"
-                        icon={<ChevronDownIcon />}
-                        variant="ghost"
-                        size="sm"
-                      />
-                      <MenuList zIndex={1500}>
-                        <MenuItem
-                          icon={<EditIcon />}
-                          onClick={() => handleEditAttendance(record)}
-                        >
-                          Edit
-                        </MenuItem>
-                      </MenuList>
-                    </Menu>
                   </Td>
                 </Tr>
               ))
@@ -901,7 +759,6 @@ const EmployeeAttendanceTracker = () => {
       </Card>
 
       {/* Add Attendance Modal */}
-
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)}>
         <ModalOverlay />
         <ModalContent>
@@ -925,34 +782,15 @@ const EmployeeAttendanceTracker = () => {
                   />
                 </FormControl>
 
-                {/* Show Date only for non-leave statuses (add modal) */}
-                {formData.status !== "on_leave" && (
-                  <FormControl isRequired mb={0}>
-                    <FormLabel>Date</FormLabel>
-                    <Input
-                      type="date"
-                      name="date"
-                      value={
-                        formData.status === "on_leave"
-                          ? formData.dateFrom
-                          : formData.date
-                      }
-                      onChange={(e) => {
-                        if (formData.status === "on_leave") {
-                          setFormData((prev) => ({
-                            ...prev,
-                            dateFrom: e.target.value,
-                          }));
-                        } else {
-                          setFormData((prev) => ({
-                            ...prev,
-                            date: e.target.value,
-                          }));
-                        }
-                      }}
-                    />
-                  </FormControl>
-                )}
+                <FormControl isRequired mb={0}>
+                  <FormLabel>Date</FormLabel>
+                  <Input
+                    type="date"
+                    name="date"
+                    value={formData.date}
+                    onChange={handleFormChange}
+                  />
+                </FormControl>
 
                 <FormControl isRequired mb={0}>
                   <FormLabel>Status</FormLabel>
@@ -964,7 +802,6 @@ const EmployeeAttendanceTracker = () => {
                     <option value="present">Present</option>
                     <option value="absent">Absent</option>
                     <option value="late">Late</option>
-                    <option value="on_leave">On Leave</option>
                   </Select>
                 </FormControl>
 
@@ -986,45 +823,6 @@ const EmployeeAttendanceTracker = () => {
                         type="time"
                         name="checkOut"
                         value={formData.checkOut}
-                        onChange={handleFormChange}
-                      />
-                    </FormControl>
-                  </>
-                )}
-
-                {formData.status === "on_leave" && (
-                  <>
-                    <FormControl isRequired mb={0} gridColumn="span 2">
-                      <FormLabel>Leave Type</FormLabel>
-                      <Select
-                        name="leaveType"
-                        value={formData.leaveType}
-                        onChange={handleFormChange}
-                      >
-                        <option value="">Select leave type</option>
-                        <option value="VL">Vacation Leave</option>
-                        <option value="SL">Sick Leave</option>
-                        <option value="LWOP">Leave Without Pay</option>
-                        <option value="BL">Bereavement Leave</option>
-                        <option value="OS">Official Business</option>
-                        <option value="CL">Calamity Leave</option>
-                      </Select>
-                    </FormControl>
-                    <FormControl isRequired mb={0}>
-                      <FormLabel>Date From</FormLabel>
-                      <Input
-                        type="date"
-                        name="dateFrom"
-                        value={formData.dateFrom}
-                        onChange={handleFormChange}
-                      />
-                    </FormControl>
-                    <FormControl isRequired mb={0}>
-                      <FormLabel>Date To</FormLabel>
-                      <Input
-                        type="date"
-                        name="dateTo"
-                        value={formData.dateTo}
                         onChange={handleFormChange}
                       />
                     </FormControl>
@@ -1075,18 +873,16 @@ const EmployeeAttendanceTracker = () => {
                   </Text>
                 </FormControl>
 
-                {/* Show Date only for non-leave statuses (edit modal) */}
-                {formData.status !== "on_leave" && (
-                  <FormControl isRequired mb={4}>
-                    <FormLabel>Date</FormLabel>
-                    <Input
-                      type="date"
-                      name="date"
-                      value={formData.date}
-                      onChange={handleFormChange}
-                    />
-                  </FormControl>
-                )}
+                <FormControl isRequired mb={4}>
+                  <FormLabel>Date</FormLabel>
+                  <Input
+                    type="date"
+                    name="date"
+                    value={formData.date}
+                    onChange={handleFormChange}
+                  />
+                </FormControl>
+
                 <FormControl isRequired mb={4}>
                   <FormLabel>Status</FormLabel>
                   <Select
@@ -1097,10 +893,11 @@ const EmployeeAttendanceTracker = () => {
                     <option value="present">Present</option>
                     <option value="absent">Absent</option>
                     <option value="late">Late</option>
-                    <option value="on_leave">On Leave</option>
                   </Select>
                 </FormControl>
-                {formData.status === "present" || formData.status === "late" ? (
+
+                {(formData.status === "present" ||
+                  formData.status === "late") && (
                   <>
                     <FormControl mb={4}>
                       <FormLabel>Check-in Time</FormLabel>
@@ -1121,44 +918,7 @@ const EmployeeAttendanceTracker = () => {
                       />
                     </FormControl>
                   </>
-                ) : formData.status === "on_leave" ? (
-                  <>
-                    <FormControl isRequired mb={4}>
-                      <FormLabel>Leave Type</FormLabel>
-                      <Select
-                        name="leaveType"
-                        value={formData.leaveType}
-                        onChange={handleFormChange}
-                      >
-                        <option value="">Select leave type</option>
-                        <option value="VL">Vacation Leave</option>
-                        <option value="SL">Sick Leave</option>
-                        <option value="LWOP">Leave Without Pay</option>
-                        <option value="BL">Birthday Leave</option>
-                        <option value="OS">Official Business</option>
-                        <option value="CL">Compassionate Leave</option>
-                      </Select>
-                    </FormControl>
-                    <FormControl isRequired mb={4}>
-                      <FormLabel>Date From</FormLabel>
-                      <Input
-                        type="date"
-                        name="dateFrom"
-                        value={formData.dateFrom}
-                        onChange={handleFormChange}
-                      />
-                    </FormControl>
-                    <FormControl isRequired mb={4}>
-                      <FormLabel>Date To</FormLabel>
-                      <Input
-                        type="date"
-                        name="dateTo"
-                        value={formData.dateTo}
-                        onChange={handleFormChange}
-                      />
-                    </FormControl>
-                  </>
-                ) : null}
+                )}
               </SimpleGrid>
               <FormControl mb={4}>
                 <FormLabel>Notes</FormLabel>
@@ -1392,16 +1152,10 @@ const EmployeeAttendanceTracker = () => {
                                   fontWeight="bold"
                                   color="blue.700"
                                 >
-                                  <Text
-                                    fontSize="sm"
-                                    color="gray.900"
-                                    fontWeight="medium"
-                                  >
-                                    {calculateHoursRendered(
-                                      record.checkIn,
-                                      record.checkOut
-                                    )}
-                                  </Text>
+                                  {calculateHoursRendered(
+                                    selectedEmployee.checkIn,
+                                    selectedEmployee.checkOut
+                                  )}
                                 </Text>
                               </HStack>
                               {getTardiness(selectedEmployee) !== "-" && (
@@ -1419,42 +1173,6 @@ const EmployeeAttendanceTracker = () => {
                                 </HStack>
                               )}
                             </SimpleGrid>
-                          </Box>
-                        )}
-
-                        {selectedEmployee.leaveType && (
-                          <Box
-                            bg="blue.50"
-                            p={4}
-                            borderRadius="lg"
-                            border="1px"
-                            borderColor="blue.200"
-                          >
-                            <Heading size="sm" mb={2} color="blue.700">
-                              Leave Information
-                            </Heading>
-                            <Tag size="lg" colorScheme="blue" variant="subtle">
-                              {selectedEmployee.leaveType}
-                            </Tag>
-                            {(selectedEmployee.dateFrom ||
-                              selectedEmployee.dateTo) && (
-                              <Text fontSize="sm" color="blue.800" mt={2}>
-                                {selectedEmployee.dateFrom &&
-                                selectedEmployee.dateTo
-                                  ? `From: ${formatDate(
-                                      selectedEmployee.dateFrom
-                                    )} To: ${formatDate(
-                                      selectedEmployee.dateTo
-                                    )}`
-                                  : selectedEmployee.dateFrom
-                                  ? `From: ${formatDate(
-                                      selectedEmployee.dateFrom
-                                    )}`
-                                  : selectedEmployee.dateTo
-                                  ? `To: ${formatDate(selectedEmployee.dateTo)}`
-                                  : null}
-                              </Text>
-                            )}
                           </Box>
                         )}
 
