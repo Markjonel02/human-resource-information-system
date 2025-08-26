@@ -63,6 +63,8 @@ import {
   CardBody,
   CardHeader,
   Select,
+  Tooltip,
+  useBreakpointValue,
 } from "@chakra-ui/react";
 import {
   SearchIcon,
@@ -188,7 +190,6 @@ const EmployeAttendanceTracking = () => {
     }
   }, []);
 
-
   // Fetch attendance records and employees
   useEffect(() => {
     const fetchData = async () => {
@@ -205,7 +206,7 @@ const EmployeAttendanceTracking = () => {
 
         // Fetch employee's leave credits
         const leaveCreditsResponse = await axiosInstance.get(
-          "/employeeAttendance/my-leave-credits"
+          "/employeeLeave/my-leave-credits"
         );
         setLeaveCredits(leaveCreditsResponse.data?.credits || {});
 
@@ -350,8 +351,16 @@ const EmployeAttendanceTracking = () => {
     }));
   };
 
+  const truncateText = useBreakpointValue({
+    base: false,
+    sm: false,
+    md: true,
+    lg: false,
+    xl: true,
+  });
+
   return (
-    <Box minH="100vh" p={{ base: 4, sm: 6, lg: 8 }} fontFamily="sans-serif">
+    <Box minH="100vh" p={{ base: 4, sm: 6, lg: 5 }} fontFamily="sans-serif">
       {isLoading && (
         <Flex
           justify="center"
@@ -432,7 +441,7 @@ const EmployeAttendanceTracking = () => {
       </Flex>
 
       {/* Enhanced Statistics Section */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={6}>
+      <SimpleGrid columns={{ base: 2, md: 2, lg: 4 }} spacing={6} mb={6}>
         <Card borderLeft="4px" borderColor="green.400">
           <CardBody p={6}>
             <Stat>
@@ -550,25 +559,25 @@ const EmployeAttendanceTracking = () => {
               <Th py={3} px={4}>
                 Employee
               </Th>
-              <Th py={3} px={4} display={{ base: "none", md: "table-cell" }}>
+              <Th py={3} px={3} display={{ base: "none", md: "table-cell" }}>
                 Date
               </Th>
-              <Th py={3} px={4}>
+              <Th py={3} px={3}>
                 Status
               </Th>
-              <Th py={3} px={4} display={{ base: "none", lg: "table-cell" }}>
+              <Th py={3} px={3} display={{ base: "none", lg: "table-cell" }}>
                 Check-in
               </Th>
-              <Th py={3} px={4} display={{ base: "none", lg: "table-cell" }}>
+              <Th py={3} px={3} display={{ base: "none", lg: "table-cell" }}>
                 Check-out
               </Th>
-              <Th py={3} px={4} display={{ base: "none", xl: "table-cell" }}>
+              <Th py={3} px={3} display={{ base: "none", xl: "table-cell" }}>
                 Hours
               </Th>
-              <Th py={3} px={4} display={{ base: "none", xl: "table-cell" }}>
+              <Th py={3} px={3} display={{ base: "none", xl: "table-cell" }}>
                 Leave Type
               </Th>
-              <Th py={3} px={4} display={{ base: "none", xl: "table-cell" }}>
+              <Th py={3} px={3} display={{ base: "none", xl: "table-cell" }}>
                 Notes
               </Th>
             </Tr>
@@ -596,15 +605,21 @@ const EmployeAttendanceTracking = () => {
                         bg="blue.500"
                         color="white"
                       />
-                      <VStack align="flex-start" spacing={1}>
+                      <VStack align="flex-start" spacing={2}>
                         <Text
                           fontSize="sm"
                           fontWeight="medium"
                           color="gray.900"
+                          isTruncated={truncateText}
+                          maxW={truncateText ? "70px" : "none"}
+                          title={`${record.employee?.firstname || "N/A"} ${
+                            record.employee?.lastname || ""
+                          }`}
                         >
                           {record.employee?.firstname || "N/A"}{" "}
                           {record.employee?.lastname || ""}
                         </Text>
+
                         <Text fontSize="xs" color="gray.500">
                           {record.employee?.employeeId || "N/A"}
                         </Text>
@@ -618,9 +633,16 @@ const EmployeAttendanceTracking = () => {
                   >
                     <HStack spacing={1}>
                       <CalendarIcon w={3} h={3} color="gray.500" />
-                      <Text fontSize="sm" color="gray.900">
-                        {formatDate(record.date)}
-                      </Text>
+                      <Tooltip>
+                        <Text
+                          fontSize="sm"
+                          color="gray.900"
+                          isTruncated={truncateText}
+                          maxW={truncateText ? "80px" : "none"}
+                        >
+                          {formatDate(record.date)}
+                        </Text>
+                      </Tooltip>
                     </HStack>
                   </Td>
                   <Td px={4} py={4}>
@@ -636,7 +658,9 @@ const EmployeAttendanceTracking = () => {
                         <Text
                           fontSize="xs"
                           color="orange.600"
-                          fontWeight="medium"
+                          fontWeight="sm"
+                          isTruncated={truncateText}
+                          maxW={truncateText ? "100px" : "none"}
                         >
                           {getTardiness(record)}
                         </Text>
@@ -650,7 +674,15 @@ const EmployeAttendanceTracking = () => {
                   >
                     <HStack spacing={1}>
                       <TimeIcon w={3} h={3} color="gray.500" />
-                      <Text fontSize="sm" color="gray.900">
+                      <Text
+                        fontSize="sm"
+                        color="gray.900"
+                        isTruncated={truncateText}
+                        maxW={truncateText ? "50px" : "none"}
+                        title={
+                          record.checkIn ? formatTime(record.checkIn) : "-"
+                        }
+                      >
                         {record.checkIn ? formatTime(record.checkIn) : "-"}
                       </Text>
                     </HStack>
@@ -662,7 +694,15 @@ const EmployeAttendanceTracking = () => {
                   >
                     <HStack spacing={1}>
                       <TimeIcon w={3} h={3} color="gray.500" />
-                      <Text fontSize="sm" color="gray.900">
+                      <Text
+                        fontSize="sm"
+                        color="gray.900"
+                        isTruncated={truncateText}
+                        maxW={truncateText ? "50px" : "none"}
+                        title={
+                          record.checkOut ? formatTime(record.checkOut) : "-"
+                        }
+                      >
                         {record.checkOut ? formatTime(record.checkOut) : "-"}
                       </Text>
                     </HStack>

@@ -1,5 +1,5 @@
 const Attendance = require("../../models/Attendance");
-const LeaveCredits = require("../../models/attendanceSchema/leaveCreditsSchema");
+const LeaveCredits = require("../../models/LeaveSchema/leaveCreditsSchema");
 const calculateHoursInMinutes = (checkIn, checkOut) => {
   if (!checkIn || !checkOut) return 0;
   const diffMs = new Date(checkOut) - new Date(checkIn);
@@ -53,27 +53,7 @@ const getMyAttendance = async (req, res) => {
 };
 
 // Employee: Get own leave credits
-const getMyLeaveCredits = async (req, res) => {
-  try {
-    let credits = await LeaveCredits.findOne({ employee: req.user._id });
-    const currentYear = new Date().getFullYear();
-    if (!credits) {
-      credits = await LeaveCredits.create({
-        employee: req.user._id,
-        year: currentYear,
-      });
-    } else if (credits.year !== currentYear) {
-      credits.resetCredits();
-      credits.year = currentYear;
-      await credits.save();
-    }
-    res.json(credits);
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Internal server error", error: error.message });
-  }
-};
+
 const createMyAttendance = async (req, res) => {
   // Only allow employees to add their own attendance
   if (req.user.role !== "employee") {
@@ -203,42 +183,7 @@ const createMyAttendance = async (req, res) => {
   }
 };
 
-// Employee: Edit/cancel own leave (optional)
-const editMyLeave = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status, leaveType, notes, dateFrom, dateTo } = req.body;
-    const attendance = await Attendance.findOne({
-      _id: id,
-      employee: req.user._id,
-      status: "on_leave",
-    });
-    if (!attendance) {
-      return res.status(404).json({ message: "Leave record not found." });
-    }
-    if (leaveType) attendance.leaveType = leaveType;
-    if (notes) attendance.notes = notes;
-    if (status) attendance.status = status;
-    // Add/Update leave date range
-    if (attendance.status === "on_leave") {
-      if (dateFrom) attendance.dateFrom = new Date(dateFrom);
-      if (dateTo) attendance.dateTo = new Date(dateTo);
-    } else {
-      attendance.dateFrom = undefined;
-      attendance.dateTo = undefined;
-    }
-    await attendance.save();
-    res.json({ message: "Leave updated successfully", attendance });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Internal server error", error: error.message });
-  }
-};
-
 module.exports = {
   getMyAttendance,
-  getMyLeaveCredits,
   createMyAttendance,
-  editMyLeave,
 };

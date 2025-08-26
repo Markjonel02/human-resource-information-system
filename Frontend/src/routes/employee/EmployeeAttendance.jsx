@@ -214,7 +214,7 @@ const EmployeeAttendanceTracker = () => {
 
         // Fetch employee's leave credits
         const leaveCreditsResponse = await axiosInstance.get(
-          "/employeeAttendance/my-leave-credits"
+          "/employeeLeave/my-leave-credits"
         );
         setLeaveCredits(leaveCreditsResponse.data?.credits || {});
 
@@ -444,7 +444,7 @@ const EmployeeAttendanceTracker = () => {
         });
       } else if (isEditModalOpen) {
         await axiosInstance.put(
-          `/api/attendance/${currentRecord._id}`,
+          `/employeeAttendance/attendance/${currentRecord._id}`,
           payload
         );
         toast({

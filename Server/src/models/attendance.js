@@ -1,16 +1,16 @@
 const mongoose = require("mongoose");
+const { Schema } = mongoose;
 
-const AttendanceSchema = new mongoose.Schema(
+const AttendanceSchema = new Schema(
   {
     employee: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "user", // Link to employee
       required: true,
     },
     date: {
       type: Date,
       required: true,
-      index: true,
     },
     status: {
       type: String,
@@ -33,56 +33,11 @@ const AttendanceSchema = new mongoose.Schema(
       type: Number, // total minutes late
       default: 0,
     },
-    leaveType: {
-      type: String,
-      enum: ["VL", "SL", "LWOP", "BL", "OS", "CL", null],
+    // Optional: A reference to the leave request that resulted in this 'on_leave' status
+    leaveRequest: {
+      type: Schema.Types.ObjectId,
+      ref: "Leave",
       default: null,
-    },
-    notes: {
-      type: String,
-      trim: true,
-    },
-    // New fields for leave management
-    isApproved: {
-      type: Boolean,
-      default: null, // null for non-leave records, true/false for leaves
-    },
-    approvedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "user",
-      default: null,
-    },
-    approvedAt: {
-      type: Date,
-      default: null,
-    },
-    rejectionReason: {
-      type: String,
-      trim: true,
-      default: null,
-    },
-    createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "user",
-    },
-    // Leave date range fields
-    dateFrom: {
-      type: Date,
-      default: null,
-    },
-    dateTo: {
-      type: Date,
-      default: null,
-    },
-
-    leaveStatus: {
-      type: String,
-      enum: ["pending", "approved", "rejected", null],
-      default: null,
-    },
-    totalLeaveDays: {
-      type: Number,
-      default: 0,
     },
   },
   {
@@ -90,7 +45,7 @@ const AttendanceSchema = new mongoose.Schema(
   }
 );
 
-// Ensure only one attendance per employee per date
+// This crucial index ensures one attendance record per employee per day.
 AttendanceSchema.index({ employee: 1, date: 1 }, { unique: true });
 
 module.exports = mongoose.model("Attendance", AttendanceSchema);

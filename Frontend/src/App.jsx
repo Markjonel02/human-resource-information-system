@@ -23,11 +23,13 @@ const TimeIn = lazy(() => import("./routes/user/TimeIn"));
 const Settings = lazy(() => import("./routes/user/Settings"));
 const LoginPage = lazy(() => import("./pages/auth/Login"));
 const EmployeeDashboard = lazy(() =>
-  import("./pages/employee/EmployeeDashboard")
+  import("./routes/employee/employeeDashboard")
 );
-
 const EmployeeRoutes = lazy(() =>
   import("./routes/employee/EmployeeAttendance")
+);
+const EmployeeRequests = lazy(() =>
+  import("./routes/employee/RequestTab/EmployeeRequestLayout")
 );
 /**
  * Loader Component
@@ -114,11 +116,15 @@ const App = () => {
                               element={<EmployeeDashboard />} // Use the employee dashboard component
                             />
                             <Route path="/employees" element={<Employees />} />
-
                             <Route
                               path="/employees-attendance"
                               element={<EmployeeRoutes />}
                             />
+                            <Route
+                              path="/employees-requests"
+                              element={<EmployeeRequests />}
+                            />
+
                             <Route
                               path="/attendances"
                               element={<Attendances />}

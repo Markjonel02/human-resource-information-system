@@ -6,6 +6,7 @@ const cookieParser = require("cookie-parser");
 const connectDB = require("./config/connection.js");
 const userRoutes = require("./routes/userRoutes.js");
 const testRoutes = require("./routes/testRoutes.js");
+const employeeLeave = require("./routes/employee/employeeLeaveRoutes.js");
 const employeeAttendance = require("./routes/employee/employeeRoutes.js");
 // ...existing code...
 
@@ -29,14 +30,11 @@ app.use(
 app.use("/api", userRoutes);
 app.use("/api/attendanceRoutes", testRoutes);
 app.use("/api/employeeAttendance", employeeAttendance);
+app.use("/api/employeeLeave", employeeLeave);
 // Basic root route (can be removed if all routes are in routes.js)
 app.get("/", (req, res) => {
   res.send("API is running!");
 });
-
-/* app.get("/api", (req, res) => {
-  res.send("API is Connected!");
-}); */
 
 //
 // Error handling middleware (optional, but good practice)

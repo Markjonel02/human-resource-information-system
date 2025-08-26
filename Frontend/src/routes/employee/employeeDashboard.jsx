@@ -3,7 +3,7 @@ import { Flex, Box, Text } from "@chakra-ui/react";
 import { lazy } from "react";
 
 const AttendanceTrackingEmployee = lazy(() =>
-  import("../../pages/employee/AttendanceTrackingEmployee")
+  import("../../routes/employee/AttendanceTrackingEmployee")
 );
 const UpcomingSchcedule = lazy(() =>
   import("../../components/UpcomingSchcedule")

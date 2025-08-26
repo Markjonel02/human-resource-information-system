@@ -7,8 +7,6 @@ router.use(verifyJWT);
 
 // Employee self-service routes
 router.get("/my", employeeAttendance.getMyAttendance);
-router.get("/my-leave-credits", employeeAttendance.getMyLeaveCredits);
 router.post("/my", employeeAttendance.createMyAttendance);
-router.put("/my-leave/:id", employeeAttendance.editMyLeave);
 
 module.exports = router;
