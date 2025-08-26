@@ -5,10 +5,9 @@ const dotenv = require("dotenv");
 const cookieParser = require("cookie-parser");
 const connectDB = require("./config/connection.js");
 const userRoutes = require("./routes/userRoutes.js");
-const testRoutes = require("./routes/testRoutes.js");
+const testRoutes = require("./routes/admin&hr/testRoutes.js");
 const employeeLeave = require("./routes/employee/employeeLeaveRoutes.js");
 const employeeAttendance = require("./routes/employee/employeeRoutes.js");
-// ...existing code...
 
 dotenv.config();
 const app = express();
@@ -21,7 +20,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: process.env.CLIENT_ORIGIN || "http://localhost:5173", // Adjust this to your client's origin
+    origin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
     credentials: true, // Allow cookies to be sent
   })
 );

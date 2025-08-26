@@ -4,7 +4,7 @@ const Attendance = require("../models/Attendance");
 const User = require("../models/user"); // Assuming you have a User model
 const AttendanceLog = require("../models/attendanceLogSchema"); // New model for logs
 const LeaveCredits = require("../models/LeaveSchema/leaveCreditsSchema");
-
+const Leave = require("../models/LeaveSchema/leaveSchema");
 // Helper function to calculate hours in minutes
 const calculateHoursInMinutes = (checkIn, checkOut) => {
   if (!checkIn || !checkOut) return 0;
@@ -1021,6 +1021,23 @@ const getRecentAttendanceLogs = async (req, res) => {
     });
   }
 };
+// A new controller function to get all leave requests
+const getAllLeaveRequests = async (req, res) => {
+  try {
+    const allLeaves = await Leave.find().populate("employee").sort({
+      createdAt: -1,
+    });
+    if (!allLeaves || allLeaves.length === 0) {
+      return res.status(404).json({ message: "No leave records found." });
+    }
+    res.json(allLeaves);
+  } catch (error) {
+    console.error("Error in getAllLeaveRequests:", error);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
+  }
+};
 
 // --- MODIFIED: `getMyAttendance` was removed from the exports ---
 module.exports = {
@@ -1033,4 +1050,5 @@ module.exports = {
   getRecentAttendanceLogs,
   approveLeave,
   approveLeaveBulk,
+  getAllLeaveRequests,
 };
