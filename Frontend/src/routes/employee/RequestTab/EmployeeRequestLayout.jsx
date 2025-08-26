@@ -56,7 +56,7 @@ const DayOff = () => (
   </Box>
 );
 
-const Request = () => {
+const EmployeeRequestLayout = () => {
   const tabBg = useColorModeValue("gray.100", "gray.700");
   const activeTabBg = useColorModeValue("teal.50", "teal.900");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -158,4 +158,4 @@ const Request = () => {
   );
 };
 
-export default Request;
+export default EmployeeRequestLayout;

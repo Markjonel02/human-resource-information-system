@@ -1,19 +1,13 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  ChakraProvider,
   Box,
   Text,
   Flex,
-  Badge,
   Button,
-  Avatar,
   VStack,
   HStack,
-  Spacer,
-  extendTheme,
   SimpleGrid,
   Select,
-  Checkbox,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -25,519 +19,75 @@ import {
   FormLabel,
   Input,
   Textarea,
-  useDisclosure,
   useToast,
-  IconButton,
-  Tooltip,
   Table,
   Thead,
   Tbody,
   Tr,
   Th,
   Td,
-  TableContainer,
   Tag,
+  Card,
+  CardBody,
+  CardHeader,
+  TableContainer,
 } from "@chakra-ui/react";
-import {
-  CalendarIcon,
-  CheckIcon,
-  CloseIcon,
-  AddIcon,
-  ArrowBackIcon,
-  ArrowForwardIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from "@chakra-ui/icons";
-import axiosInstance from "../../lib/axiosInstance";
+import axiosInstance from "../../../lib/axiosInstance";
 
-// Extend the default Chakra UI theme to include custom colors and components
-const theme = extendTheme({
-  colors: {
-    brand: {
-      50: "#E6FFFA",
-      100: "#B2F5EA",
-      200: "#81E6D9",
-      300: "#4FD1C5",
-      400: "#38B2AC",
-      500: "#319795", // Teal shade
-      600: "#2C7A7B",
-      700: "#285E61",
-      800: "#234E52",
-      900: "#1D4044",
-    },
-    // Adding more vibrant colors for different card types
-    sickLeave: {
-      50: "#EBF8FF",
-      500: "#3182CE", // Blue
-    },
-    excuse: {
-      50: "#FFFBEB",
-      500: "#DD6B20", // Orange
-    },
-    businessTrip: {
-      50: "#F0FFF4",
-      500: "#38A169", // Green
-    },
-    loan: {
-      50: "#FEF2F2",
-      500: "#E53E3E", // Red
-    },
-    ticket: {
-      50: "#F0F8FF",
-      500: "#00B5D8", // Cyan
-    },
-    other: {
-      50: "#F7FAFC",
-      500: "#718096", // Gray
-    },
-    // Custom light blue for titles and now pagination
-    lightBlue: {
-      50: "#E0F7FA", // Very light blue for background
-      100: "#B2EBF2", // Lighter blue for background
-      200: "#81D4FA", // Even lighter blue
-      300: "#4FC3F7", // Light blue
-      400: "#29B6F6", // Slightly darker light blue
-      500: "#03A9F4", // Medium light blue (Material Design Light Blue 500)
-      600: "#039BE5", // A bit darker
-      700: "#0288D1", // Darker blue for background (Material Design Light Blue 700)
-      800: "#0277BD", // Even darker
-      900: "#01579B", // Darkest
-    },
-  },
-  components: {
-    Button: {
-      baseStyle: {
-        borderRadius: "full", // Apply rounded corners to all buttons
-        transition: "all 0.2s cubic-bezier(.08,.52,.52,1)",
-        _hover: {
-          transform: "translateY(-2px)",
-          boxShadow: "lg",
-        },
-      },
-      variants: {
-        solid: (props) => ({
-          bg: props.colorScheme === "green" ? "green.500" : "red.500",
-          color: "white",
-          _hover: {
-            bg: props.colorScheme === "green" ? "green.600" : "red.600",
-          },
-        }),
-      },
-    },
-    Badge: {
-      baseStyle: {
-        fontWeight: "bold",
-        letterSpacing: "wide",
-      },
-    },
-  },
-});
-
-const LeaveRequestCard = ({
-  id,
-  leaveType,
-  days,
-  startDate,
-  endDate,
-  reason,
-  approverName,
-  approverAvatarUrl,
-  status,
-  onApprove,
-  onReject,
-  isSelected,
-  onToggleSelect,
-}) => {
-  const statusColor = {
-    Approved: "green",
-    Pending: "orange",
-    Rejected: "red",
-  };
-
-  let cardColorScheme = "other";
-  let headerBgColor = "gray.50";
-  let daysBoxBg = "blue.50";
-  let daysTextColor = "blue.700";
-  let calendarIconColor = "blue.600";
-  let dateTextColor = "blue.600";
-
-  switch (leaveType) {
-    case "Sick leave request":
-      cardColorScheme = "sickLeave";
-      headerBgColor = "sickLeave.50";
-      daysBoxBg = "sickLeave.100";
-      daysTextColor = "sickLeave.700";
-      calendarIconColor = "sickLeave.600";
-      dateTextColor = "sickLeave.600";
-      break;
-    case "Excuse request":
-      cardColorScheme = "excuse";
-      headerBgColor = "excuse.50";
-      daysBoxBg = "excuse.100";
-      daysTextColor = "excuse.700";
-      calendarIconColor = "excuse.600";
-      dateTextColor = "excuse.600";
-      break;
-    case "Business Trip Request":
-      cardColorScheme = "businessTrip";
-      headerBgColor = "businessTrip.50";
-      daysBoxBg = "businessTrip.100";
-      daysTextColor = "businessTrip.700";
-      calendarIconColor = "businessTrip.600";
-      dateTextColor = "businessTrip.600";
-      break;
-    case "Loan request":
-      cardColorScheme = "loan";
-      headerBgColor = "loan.50";
-      daysBoxBg = "loan.100";
-      daysTextColor = "loan.700";
-      calendarIconColor = "loan.600";
-      dateTextColor = "loan.600";
-      break;
-    case "Ticket Request":
-      cardColorScheme = "ticket";
-      headerBgColor = "ticket.50";
-      daysBoxBg = "ticket.100";
-      daysTextColor = "ticket.700";
-      calendarIconColor = "ticket.600";
-      dateTextColor = "ticket.600";
-      break;
-    default:
-      break;
-  }
-
-  const truncatedApproverName =
-    approverName.length > 15
-      ? `${approverName.substring(0, 15)}...`
-      : approverName;
-
-  const displayReason =
-    reason.length > 50 ? `${reason.substring(0, 50)}...` : reason;
-
-  return (
-    <Box
-      p={6}
-      borderWidth="1px"
-      borderRadius="xl"
-      overflow="hidden"
-      boxShadow="xl"
-      bg="white"
-      maxW={{ base: "90%", sm: "350px", md: "380px" }}
-      mx="auto"
-      my={4}
-      _hover={{ transform: "translateY(-5px)", boxShadow: "2xl" }}
-      transition="all 0.3s ease-in-out"
-      position="relative"
-    >
-      <Flex
-        align="center"
-        mb={2}
-        p={2}
-        borderRadius="md"
-        justifyContent="space-between"
-        bg="lightBlue.50"
-      >
-        <HStack spacing={2} align="center">
-          {status === "Pending" && (
-            <Checkbox
-              isChecked={isSelected}
-              onChange={() => onToggleSelect(id)}
-              colorScheme="blue"
-              borderColor="blue.500"
-              size="md"
-            />
-          )}
-          <Box
-            p={2}
-            borderRadius="md" // Added borderRadius for the light blue background box
-          >
-            <Text fontSize="md" fontWeight="semibold" color="black">
-              {leaveType}
-            </Text>
-          </Box>
-        </HStack>
-        <Badge
-          px={3}
-          py={1}
-          borderRadius="full"
-          colorScheme={statusColor[status]}
-          textTransform="capitalize"
-          variant="solid"
-        >
-          {status}
-        </Badge>
-      </Flex>
-      <HStack spacing={2} align="center" mb={4} pl={2}>
-        <Avatar size="xs" name={approverName} src={approverAvatarUrl} />
-        <Text fontSize="xs" fontWeight="medium" color="gray.700">
-          {truncatedApproverName}
-        </Text>
-      </HStack>
-      <Box bg={daysBoxBg} p={4} borderRadius="lg" mb={4}>
-        <Text
-          fontSize="3xl"
-          fontWeight="extrabold"
-          color={daysTextColor}
-          mb={1}
-        >
-          {days}
-        </Text>
-        <Flex align="center">
-          <CalendarIcon color={calendarIconColor} mr={2} />
-          <Text fontSize="sm" color={dateTextColor} fontWeight="medium">
-            {startDate
-              ? new Date(startDate).toLocaleDateString("en-US", {
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })
-              : ""}
-            {" - "}
-            {endDate
-              ? new Date(endDate).toLocaleDateString("en-US", {
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })
-              : ""}
-          </Text>
-        </Flex>
-      </Box>
-      <Box mb={4}>
-        <Text fontSize="sm" fontWeight="semibold" mb={1} color="gray.700">
-          Reason
-        </Text>
-        <Text fontSize="sm" color="gray.600" noOfLines={3}>
-          {displayReason}
-        </Text>
-      </Box>
-
-      <Flex justifyContent="space-between" alignItems="flex-end" pt={2}>
-        <Text fontSize="sm" fontWeight="semibold" color="gray.700">
-          Actions
-        </Text>
-        <HStack spacing={2}>
-          <Button
-            colorScheme="green"
-            size="sm"
-            onClick={onApprove}
-            leftIcon={<CheckIcon />}
-            isDisabled={status !== "Pending"}
-            boxShadow="md"
-            _hover={{ bg: "green.600", transform: "scale(1.05)" }}
-            _active={{ bg: "green.700", transform: "scale(0.95)" }}
-          >
-            Approve
-          </Button>
-          <Button
-            colorScheme="red"
-            size="sm"
-            onClick={onReject}
-            leftIcon={<CloseIcon />}
-            isDisabled={status !== "Pending"}
-            boxShadow="md"
-            _hover={{ bg: "red.600", transform: "scale(1.05)" }}
-            _active={{ bg: "red.700", transform: "scale(0.95)" }}
-          >
-            Reject
-          </Button>
-        </HStack>
-      </Flex>
-    </Box>
-  );
+const LEAVE_TYPE_LABELS = {
+  VL: "Vacation Leave",
+  SL: "Sick Leave",
+  LWOP: "Leave Without Pay",
+  BL: "Bereavement Leave",
+  CL: "Calamity Leave",
 };
 
-const Leave = () => {
-  const [filterStatus, setFilterStatus] = useState("All");
-  const [selectedRequestIds, setSelectedRequestIds] = useState([]);
-  const [isSelectAllChecked, setIsSelectAllChecked] = useState(false);
+const STATUS_COLOR = {
+  approved: "green",
+  pending: "orange",
+  rejected: "red",
+};
 
-  const {
-    isOpen: isAddModalOpen,
-    onOpen: onAddModalOpen,
-    onClose: onAddModalClose,
-  } = useDisclosure();
-
-  const toast = useToast();
-  const [newLeaveData, setNewLeaveData] = useState({
+const EmployeeLeave = () => {
+  const [leaveCredits, setLeaveCredits] = useState({});
+  const [leaveHistory, setLeaveHistory] = useState([]);
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newLeave, setNewLeave] = useState({
     leaveType: "",
     dateFrom: "",
     dateTo: "",
     notes: "",
-    employeeId: "", // Add this for backend compatibility
   });
+  const toast = useToast();
 
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(6);
-
-  const [leaveRequests, setLeaveRequests] = useState([]);
-
-  // Filter the requests based on the selected status
-  const filteredRequests = leaveRequests.filter(
-    (request) => filterStatus === "All" || request.status === filterStatus
-  );
-
-  // Calculate days between two dates
-  const calculateDays = (startDate, endDate) => {
-    if (!startDate || !endDate) return 0;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const diffTime = Math.abs(end - start);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
-    return diffDays;
+  const fetchLeaveCredits = () => {
+    axiosInstance
+      .get("/employeeLeave/my-leave-credits")
+      .then((res) => setLeaveCredits(res.data.credits || res.data))
+      .catch(() => setLeaveCredits({}));
   };
 
-  // Fetch employee's own leave requests
-  const fetchLeaveRequests = useCallback(async () => {
-    try {
-      const res = await axiosInstance.get("/employee/my");
-      const data = Array.isArray(res.data) ? res.data : [];
-      setLeaveRequests(
-        data
-          .filter((item) => item.status === "on_leave")
-          .map((item) => ({
-            id: item._id,
-            leaveType: item.leaveType || "Leave",
-            days:
-              item.totalLeaveDays && item.totalLeaveDays > 1
-                ? `${item.totalLeaveDays} Days`
-                : item.totalLeaveDays === 1
-                ? "1 Day"
-                : calculateDays(item.dateFrom, item.dateTo) > 1
-                ? `${calculateDays(item.dateFrom, item.dateTo)} Days`
-                : "1 Day",
-            startDate: item.dateFrom || "",
-            endDate: item.dateTo || "",
-            reason: item.notes || "",
-            status:
-              item.leaveStatus === "approved"
-                ? "Approved"
-                : item.leaveStatus === "pending"
-                ? "Pending"
-                : item.leaveStatus === "rejected"
-                ? "Rejected"
-                : "Pending",
-          }))
-      );
-    } catch (err) {
-      toast({
-        title: "Error",
-        description:
-          err.response?.data?.message || "Failed to fetch leave requests.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  }, [toast]);
+  const fetchLeaveHistory = () => {
+    axiosInstance
+      .get("/employeeLeave/getemp-leaves")
+      .then((res) => {
+        setLeaveHistory(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch(() => setLeaveHistory([]));
+  };
 
   useEffect(() => {
-    fetchLeaveRequests();
-  }, [fetchLeaveRequests]);
+    fetchLeaveCredits();
+    fetchLeaveHistory();
+  }, []);
 
-  // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredRequests.slice(
-    indexOfFirstItem,
-    indexOfLastItem
-  );
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredRequests.length / itemsPerPage)
-  ); // Ensure at least 1 page
-
-  // Adjust current page if it's out of bounds after filtering or item count change
-  useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
-    } else if (currentPage === 0 && totalPages > 0) {
-      setCurrentPage(1);
-    }
-  }, [currentPage, totalPages]);
-
-  const paginate = (pageNumber) => {
-    setCurrentPage(pageNumber);
-    setSelectedRequestIds([]);
-    setIsSelectAllChecked(false);
-  };
-
-  const handleItemsPerPageChange = (e) => {
-    setItemsPerPage(Number(e.target.value));
-    setCurrentPage(1); // Reset to first page
-    setSelectedRequestIds([]);
-    setIsSelectAllChecked(false);
-  };
-
-  const handleApprove = async (id) => {
-    try {
-      await axiosInstance.post(`/attendanceRoutes/approve-leave/${id}`);
-      toast({
-        title: "Leave Approved",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-      fetchLeaveRequests(); // Refresh the list after approval
-    } catch (err) {
-      console.error("Error approving leave:", err);
-      toast({
-        title: "Error",
-        description: err.response?.data?.message || "Failed to approve leave.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleReject = async (id) => {
-    try {
-      await axiosInstance.post(`/attendance/reject-leave/${id}`);
-      toast({
-        title: "Leave Rejected",
-        status: "info",
-        duration: 3000,
-        isClosable: true,
-      });
-      fetchLeaveRequests(); // Refresh the list after rejection
-    } catch (err) {
-      console.error("Error rejecting leave:", err);
-      // If no reject endpoint exists, update locally
-      setLeaveRequests((prevRequests) =>
-        prevRequests.map((req) =>
-          req.id === id ? { ...req, status: "Rejected" } : req
-        )
-      );
-      setSelectedRequestIds((prev) =>
-        prev.filter((selectedId) => selectedId !== id)
-      );
-      toast({
-        title: "Request Rejected",
-        description: "The leave request has been rejected.",
-        status: "info",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleNewLeaveChange = (e) => {
-    const { name, value } = e.target;
-    setNewLeaveData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
-  };
-
-  const handleAddLeaveSubmit = async () => {
+  const handleAddLeave = async () => {
     if (
-      !newLeaveData.leaveType ||
-      !newLeaveData.dateFrom ||
-      !newLeaveData.dateTo ||
-      !newLeaveData.notes
+      !newLeave.leaveType ||
+      !newLeave.dateFrom ||
+      !newLeave.dateTo ||
+      !newLeave.notes
     ) {
       toast({
         title: "Missing Information",
@@ -548,56 +98,23 @@ const Leave = () => {
       });
       return;
     }
-
     try {
-      await axiosInstance.post("/employee/add-leave", {
-        leaveType: newLeaveData.leaveType,
-        dateFrom: newLeaveData.dateFrom,
-        dateTo: newLeaveData.dateTo,
-        notes: newLeaveData.notes,
-      });
-      setNewLeaveData({
-        leaveType: "",
-        dateFrom: "",
-        dateTo: "",
-        notes: "",
-      });
-      onAddModalClose();
+      await axiosInstance.post("/employeeLeave/add-leave", newLeave);
       toast({
-        title: "Leave Request Added",
-        description: "Your new leave request has been submitted successfully.",
+        title: "Leave Request Submitted",
         status: "success",
         duration: 3000,
         isClosable: true,
       });
-      fetchLeaveRequests();
-      setCurrentPage(1);
+      setIsAddModalOpen(false);
+      setNewLeave({ leaveType: "", dateFrom: "", dateTo: "", notes: "" });
+      fetchLeaveHistory();
+      fetchLeaveCredits();
     } catch (err) {
       toast({
         title: "Error",
         description:
-          err.response?.data?.message || "Failed to create leave request.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-  const handleEditLeave = async (id, updatedData) => {
-    try {
-      await axiosInstance.put(`/employee/edit-leave/${id}`, updatedData);
-      toast({
-        title: "Leave Request Updated",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-      fetchLeaveRequests();
-    } catch (err) {
-      toast({
-        title: "Error",
-        description:
-          err.response?.data?.message || "Failed to update leave request.",
+          err.response?.data?.message || "Failed to submit leave request.",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -605,528 +122,228 @@ const Leave = () => {
     }
   };
 
-  const handleToggleSelect = (id) => {
-    setSelectedRequestIds((prevSelected) => {
-      const newSelected = prevSelected.includes(id)
-        ? prevSelected.filter((selectedId) => selectedId !== id)
-        : [...prevSelected, id];
-
-      const pendingRequestIdsOnPage = currentItems
-        .filter((req) => req.status === "Pending")
-        .map((req) => req.id);
-
-      const allPendingSelectedOnPage =
-        pendingRequestIdsOnPage.length > 0 &&
-        pendingRequestIdsOnPage.every((pendingId) =>
-          newSelected.includes(pendingId)
+  const filteredHistory =
+    filterStatus === "all"
+      ? leaveHistory
+      : leaveHistory.filter(
+          (item) => (item.leaveStatus || "pending") === filterStatus
         );
 
-      setIsSelectAllChecked(allPendingSelectedOnPage);
-      return newSelected;
-    });
-  };
-
-  const handleSelectAll = () => {
-    const pendingRequestIdsOnPage = currentItems
-      .filter((req) => req.status === "Pending")
-      .map((req) => req.id);
-
-    if (
-      selectedRequestIds.length === pendingRequestIdsOnPage.length &&
-      pendingRequestIdsOnPage.length > 0 &&
-      isSelectAllChecked
-    ) {
-      setSelectedRequestIds([]);
-      setIsSelectAllChecked(false);
-    } else {
-      setSelectedRequestIds(pendingRequestIdsOnPage);
-      setIsSelectAllChecked(true);
-    }
-  };
-
-  // Bulk approve selected leaves (calls backend)
-  const handleApproveSelected = async () => {
-    try {
-      await axiosInstance.post(`/attendanceRoutes/approve-leave-bulk`, {
-        ids: selectedRequestIds,
-      });
-      toast({
-        title: "Selected Leaves Approved",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-      setSelectedRequestIds([]);
-      setIsSelectAllChecked(false);
-      fetchLeaveRequests(); // Refresh the list after approval
-    } catch (err) {
-      console.error("Error bulk approving leaves:", err);
-      toast({
-        title: "Error",
-        description: err.response?.data?.message || "Failed to approve leaves.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleRejectSelected = async () => {
-    try {
-      // If bulk reject endpoint exists
-      await axiosInstance.post(`/attendance/reject-leave-bulk`, {
-        ids: selectedRequestIds,
-      });
-      toast({
-        title: "Selected Leaves Rejected",
-        status: "info",
-        duration: 3000,
-        isClosable: true,
-      });
-      setSelectedRequestIds([]);
-      setIsSelectAllChecked(false);
-      fetchLeaveRequests(); // Refresh the list after rejection
-    } catch (err) {
-      console.error("Error bulk rejecting leaves:", err);
-      // If no bulk reject endpoint exists, update locally
-      setLeaveRequests((prevRequests) =>
-        prevRequests.map((req) =>
-          selectedRequestIds.includes(req.id)
-            ? { ...req, status: "Rejected" }
-            : req
-        )
-      );
-      setSelectedRequestIds([]);
-      setIsSelectAllChecked(false);
-      toast({
-        title: "Requests Rejected",
-        description: "Selected leave requests have been rejected.",
-        status: "info",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
   return (
-    <ChakraProvider theme={theme}>
-      <VStack
-        minH="100vh"
+    <Box w="full" p={4} mx="auto">
+      {/* Leave Credits */}
+      <Card mb={6}>
+        <CardHeader>
+          <Text fontWeight="bold" fontSize="lg">
+            Remaining Leave Credits
+          </Text>
+        </CardHeader>
+        <CardBody>
+          <SimpleGrid columns={{ base: 2, sm: 2,md:3, lg: 6 }} spacing={4}>
+            {Object.entries(leaveCredits).map(([type, credit]) => (
+              <VStack
+                key={type}
+                bg="#EBF8FF" // Light blue color
+                p={3}
+                borderRadius="md"
+                align="flex-start"
+              >
+                <Text fontSize="sm" color="blue.600" fontWeight="semibold">
+                  {LEAVE_TYPE_LABELS[type] || type}
+                </Text>
+                <Text fontSize="md" color="blue.700" fontWeight="bold">
+                  {credit.remaining} / {credit.total}
+                </Text>
+              </VStack>
+            ))}
+          </SimpleGrid>
+        </CardBody>
+      </Card>
+
+      {/* Controls */}
+      <Flex
+        mb={4}
+        justify="space-between"
         align="center"
-        justify="flex-start"
-        p={8}
-        width="100%"
-        spacing={6}
-        bg="gray.50"
+        flexWrap="wrap"
+        gap={4}
       >
-        {/* Top Controls: Add Leave, Bulk Actions, Filter */}
-        <Flex
-          width="100%"
-          maxW="1200px"
-          justifyContent="space-between"
-          alignItems="center"
-          mb={4}
-          direction={{ base: "column", md: "row" }}
-          gap={4}
+        <Button colorScheme="blue" onClick={() => setIsAddModalOpen(true)}>
+          Add Leave
+        </Button>
+        <Select
+          w={{ base: "100%", sm: "200px" }}
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
         >
-          <HStack spacing={4} wrap="wrap" justify="center">
-            <Button
-              colorScheme="blue"
-              leftIcon={<AddIcon />}
-              onClick={onAddModalOpen}
-              borderRadius="md"
-              boxShadow="md"
-              _hover={{ transform: "translateY(-2px)", boxShadow: "lg" }}
-            >
-              Add Leave
-            </Button>
-            <Checkbox
-              isChecked={isSelectAllChecked}
-              onChange={handleSelectAll}
-              colorScheme="blue"
-              size="lg"
-              isDisabled={
-                currentItems.filter((req) => req.status === "Pending")
-                  .length === 0
-              }
-            >
-              Select All Pending (Current Page)
-            </Checkbox>
-          </HStack>
-          <HStack spacing={4} wrap="wrap" justify="center">
-            {selectedRequestIds.length > 0 && (
-              <>
-                <Button
-                  colorScheme="green"
-                  size="sm"
-                  onClick={handleApproveSelected}
-                  isDisabled={selectedRequestIds.length === 0}
-                  boxShadow="md"
-                  _hover={{ bg: "green.600", transform: "scale(1.05)" }}
-                  _active={{ bg: "green.700", transform: "scale(0.95)" }}
-                >
-                  Approve Selected ({selectedRequestIds.length})
-                </Button>
-                <Button
-                  colorScheme="red"
-                  size="sm"
-                  onClick={handleRejectSelected}
-                  isDisabled={selectedRequestIds.length === 0}
-                  boxShadow="md"
-                  _hover={{ bg: "red.600", transform: "scale(1.05)" }}
-                  _active={{ bg: "red.900", transform: "scale(0.95)" }}
-                >
-                  Reject Selected ({selectedRequestIds.length})
-                </Button>
-              </>
-            )}
-            <Select
-              width={{ base: "100%", sm: "200px" }}
-              value={filterStatus}
-              onChange={(e) => {
-                setFilterStatus(e.target.value);
-                setCurrentPage(1);
-                setSelectedRequestIds([]);
-                setIsSelectAllChecked(false);
-              }}
-              borderRadius="md"
-              boxShadow="sm"
-            >
-              <option value="All">All</option>
-              <option value="Pending">Pending</option>
-              <option value="Approved">Approved</option>
-              <option value="Rejected">Rejected</option>
-            </Select>
-          </HStack>
-        </Flex>
+          <option value="all">All</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </Select>
+      </Flex>
 
-        {/* Leave Request Cards */}
-
-        <TableContainer bg="white" borderRadius="lg" boxShadow="md" mt={4}>
+      {/* Leave History Table */}
+      <Card bg="white" borderRadius="lg" boxShadow="md" p={0}>
+        <TableContainer>
           <Table variant="striped" colorScheme="blue" size="md">
             <Thead>
-              <Tr>
+              <Tr bg="blue.50">
                 <Th>Type</Th>
                 <Th>Start Date</Th>
                 <Th>End Date</Th>
-                <Th>Days</Th>
+                <Th isNumeric>Days</Th>
                 <Th>Reason</Th>
                 <Th>Status</Th>
-                <Th>Actions</Th>
               </Tr>
             </Thead>
             <Tbody>
-              {currentItems.length > 0 ? (
-                currentItems.map((request) => (
-                  <Tr key={request.id}>
-                    <Td>{request.leaveType}</Td>
+              {filteredHistory.length > 0 ? (
+                filteredHistory.map((item) => (
+                  <Tr key={item._id} _hover={{ bg: "blue.50" }}>
                     <Td>
-                      {request.startDate
-                        ? new Date(request.startDate).toLocaleDateString()
-                        : ""}
+                      {LEAVE_TYPE_LABELS[item.leaveType] || item.leaveType}
                     </Td>
                     <Td>
-                      {request.endDate
-                        ? new Date(request.endDate).toLocaleDateString()
-                        : ""}
+                      {item.dateFrom
+                        ? new Date(item.dateFrom).toLocaleDateString()
+                        : "-"}
                     </Td>
-                    <Td>{request.days}</Td>
-                    <Td>{request.reason}</Td>
+                    <Td>
+                      {item.dateTo
+                        ? new Date(item.dateTo).toLocaleDateString()
+                        : "-"}
+                    </Td>
+                    <Td isNumeric>
+                      {item.totalLeaveDays ||
+                        (item.dateFrom && item.dateTo
+                          ? Math.ceil(
+                              (new Date(item.dateTo) -
+                                new Date(item.dateFrom)) /
+                                (1000 * 60 * 60 * 24)
+                            ) + 1
+                          : "-")}
+                    </Td>
+                    <Td>
+                      <Text isTruncated maxW="200px" title={item.notes}>
+                        {item.notes}
+                      </Text>
+                    </Td>
                     <Td>
                       <Tag
+                        size="md"
                         colorScheme={
-                          request.status === "Approved"
-                            ? "green"
-                            : request.status === "Rejected"
-                            ? "red"
-                            : "orange"
+                          STATUS_COLOR[item.leaveStatus || "pending"]
                         }
                         borderRadius="full"
-                        px={4}
+                        px={3}
                         py={1}
                         fontWeight="bold"
+                        textTransform="capitalize"
                       >
-                        {request.status}
+                        {item.leaveStatus || "Pending"}
                       </Tag>
-                    </Td>
-                    <Td>
-                      {request.status === "Pending" && (
-                        <Button
-                          size="sm"
-                          colorScheme="blue"
-                          variant="outline"
-                          onClick={() => {
-                            // Open edit modal and set current editing leave
-                            // You can implement an edit modal for this
-                          }}
-                          mr={2}
-                        >
-                          Edit
-                        </Button>
-                      )}
                     </Td>
                   </Tr>
                 ))
               ) : (
                 <Tr>
-                  <Td colSpan={7} textAlign="center" color="gray.500">
-                    No leave requests found for the current filter or page. 😔
+                  <Td colSpan={6} textAlign="center" py={8}>
+                    <Text color="gray.500" fontSize="lg" fontWeight="semibold">
+                      No leave records found.
+                    </Text>
                   </Td>
                 </Tr>
               )}
             </Tbody>
           </Table>
         </TableContainer>
+      </Card>
 
-        {/* Pagination Controls */}
-        <Flex
-          width="100%"
-          maxW="1200px"
-          justifyContent="space-between"
-          alignItems="center"
-          mt={8}
-          p={4}
-          direction={{ base: "column", md: "row" }}
-          gap={3}
-          borderTop="1px solid"
-          borderColor="gray.200"
-        >
-          {/* Items per page selector */}
-          <HStack spacing={2}>
-            <Text
-              fontSize={{ base: "xs", md: "sm" }}
-              color="gray.600"
-              whiteSpace="nowrap"
-            >
-              Items per page:
-            </Text>
-            <Select
-              value={itemsPerPage}
-              onChange={handleItemsPerPageChange}
-              width={{ base: "70px", md: "90px" }}
-              borderRadius="md"
-              size="sm"
-              fontWeight="semibold"
-              bg="white"
-              color="gray.700"
-              borderColor="gray.300"
-              _hover={{ borderColor: "gray.400" }}
-              _focus={{ borderColor: "lightBlue.500", boxShadow: "outline" }}
-            >
-              <option value={3}>3</option>
-              <option value={6}>6</option>
-              <option value={9}>9</option>
-              <option value={12}>12</option>
-            </Select>
-          </HStack>
-
-          {/* Page navigation buttons */}
-          <HStack spacing={1} flexWrap="wrap" justifyContent="center">
-            <Tooltip label="First Page" hasArrow>
-              <IconButton
-                icon={<ChevronLeftIcon />}
-                onClick={() => paginate(1)}
-                isDisabled={currentPage === 1 || totalPages === 0}
-                aria-label="First Page"
-                size="sm"
-                borderRadius="full"
-                color="lightBlue.700"
-                variant="ghost"
-                _hover={{ bg: "lightBlue.100" }}
-                _active={{ bg: "lightBlue.200" }}
-              />
-            </Tooltip>
-            <Tooltip label="Previous Page" hasArrow>
-              <IconButton
-                icon={<ArrowBackIcon />}
-                onClick={() => paginate(currentPage - 1)}
-                isDisabled={currentPage === 1 || totalPages === 0}
-                aria-label="Previous Page"
-                size="sm"
-                borderRadius="full"
-                color="lightBlue.700"
-                variant="ghost"
-                _hover={{ bg: "lightBlue.100" }}
-                _active={{ bg: "lightBlue.200" }}
-              />
-            </Tooltip>
-
-            {/* Render page numbers dynamically */}
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <Button
-                key={page}
-                onClick={() => paginate(page)}
-                colorScheme="lightBlue"
-                variant={currentPage === page ? "solid" : "ghost"}
-                size="sm"
-                borderRadius="full"
-                minW="32px"
-                px={0}
-                fontWeight="bold"
-                color={currentPage === page ? "white" : "lightBlue.700"}
-                bg={currentPage === page ? "lightBlue.500" : "transparent"}
-                _hover={{
-                  bg: currentPage === page ? "lightBlue.600" : "lightBlue.100",
-                  color: currentPage === page ? "white" : "lightBlue.700",
-                }}
-                _active={{
-                  bg: currentPage === page ? "lightBlue.700" : "lightBlue.200",
-                }}
-                boxShadow="none"
-              >
-                {page}
-              </Button>
-            ))}
-
-            <Tooltip label="Next Page" hasArrow>
-              <IconButton
-                icon={<ArrowForwardIcon />}
-                onClick={() => paginate(currentPage + 1)}
-                isDisabled={currentPage === totalPages || totalPages === 0}
-                aria-label="Next Page"
-                size="sm"
-                borderRadius="full"
-                color="lightBlue.700"
-                variant="ghost"
-                _hover={{ bg: "lightBlue.100" }}
-                _active={{ bg: "lightBlue.200" }}
-              />
-            </Tooltip>
-            <Tooltip label="Last Page" hasArrow>
-              <IconButton
-                icon={<ChevronRightIcon />}
-                onClick={() => paginate(totalPages)}
-                isDisabled={currentPage === totalPages || totalPages === 0}
-                aria-label="Last Page"
-                size="sm"
-                borderRadius="full"
-                color="lightBlue.700"
-                variant="ghost"
-                _hover={{ bg: "lightBlue.100" }}
-                _active={{ bg: "lightBlue.200" }}
-              />
-            </Tooltip>
-          </HStack>
-
-          <Text
-            fontSize={{ base: "xs", md: "sm" }}
-            color="gray.600"
-            whiteSpace="nowrap"
-            textAlign="center"
-            px={2}
-            py={1}
-            bg="white"
-            borderRadius="md"
-            border="1px solid"
-            borderColor="gray.200"
-          >
-            Showing {filteredRequests.length > 0 ? indexOfFirstItem + 1 : 0} -{" "}
-            {Math.min(indexOfLastItem, filteredRequests.length)} of{" "}
-            {filteredRequests.length} requests
-          </Text>
-        </Flex>
-      </VStack>
-
-      {/* Add New Leave Request Modal */}
-      <Modal isOpen={isAddModalOpen} onClose={onAddModalClose}>
+      {/* Add Leave Modal */}
+      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)}>
         <ModalOverlay />
-        <ModalContent borderRadius="lg" boxShadow="2xl">
-          <ModalHeader bg="lightBlue.500" color="white" borderTopRadius="lg">
-            Add New Leave Request
-          </ModalHeader>
-          <ModalCloseButton color="white" />
-          <ModalBody pb={6}>
+        <ModalContent>
+          <ModalHeader>Add Leave Request</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
             <VStack spacing={4}>
-              <FormControl isRequired>
-                <FormLabel>Employee ID</FormLabel>
-                <Input
-                  name="employeeId"
-                  type="text"
-                  placeholder="Enter employee ID"
-                  value={newLeaveData.employeeId}
-                  onChange={handleNewLeaveChange}
-                  borderRadius="md"
-                />
-              </FormControl>
-
               <FormControl isRequired>
                 <FormLabel>Leave Type</FormLabel>
                 <Select
                   name="leaveType"
                   placeholder="Select leave type"
-                  value={newLeaveData.leaveType}
-                  onChange={handleNewLeaveChange}
-                  borderRadius="md"
+                  value={newLeave.leaveType}
+                  onChange={(e) =>
+                    setNewLeave((prev) => ({
+                      ...prev,
+                      leaveType: e.target.value,
+                    }))
+                  }
                 >
-                  <option value="Sick leave request">Sick Leave</option>
-                  <option value="Excuse Request">Excuse</option>
-                  <option value="Business Trip Request">Business Trip</option>
-                  <option value="M/P Leave Request">M/P Leave</option>
-                  <option value="Bereavement leave Request">
-                    Bereavement Leave
-                  </option>
-                  <option value="Vacation leave Request">Vacation Leave</option>
+                  <option value="VL">Vacation Leave</option>
+                  <option value="SL">Sick Leave</option>
+                  <option value="LWOP">Leave Without Pay</option>
+                  <option value="BL">Bereavement Leave</option>
+                  <option value="CL">Calamity Leave</option>
                 </Select>
               </FormControl>
-
-              <HStack width="100%" flexWrap="wrap">
-                <FormControl isRequired flex="1">
+              <HStack w="100%">
+                <FormControl isRequired>
                   <FormLabel>Start Date</FormLabel>
                   <Input
-                    name="dateFrom"
                     type="date"
-                    value={newLeaveData.dateFrom}
-                    onChange={handleNewLeaveChange}
-                    borderRadius="md"
+                    name="dateFrom"
+                    value={newLeave.dateFrom}
+                    onChange={(e) =>
+                      setNewLeave((prev) => ({
+                        ...prev,
+                        dateFrom: e.target.value,
+                      }))
+                    }
                   />
                 </FormControl>
-                <FormControl isRequired flex="1">
+                <FormControl isRequired>
                   <FormLabel>End Date</FormLabel>
                   <Input
-                    name="dateTo"
                     type="date"
-                    value={newLeaveData.dateTo}
-                    onChange={handleNewLeaveChange}
-                    borderRadius="md"
+                    name="dateTo"
+                    value={newLeave.dateTo}
+                    onChange={(e) =>
+                      setNewLeave((prev) => ({
+                        ...prev,
+                        dateTo: e.target.value,
+                      }))
+                    }
                   />
                 </FormControl>
               </HStack>
-
               <FormControl isRequired>
                 <FormLabel>Reason</FormLabel>
                 <Textarea
                   name="notes"
+                  value={newLeave.notes}
+                  onChange={(e) =>
+                    setNewLeave((prev) => ({
+                      ...prev,
+                      notes: e.target.value,
+                    }))
+                  }
                   placeholder="Enter reason for leave"
-                  value={newLeaveData.notes}
-                  onChange={handleNewLeaveChange}
-                  borderRadius="md"
                 />
               </FormControl>
             </VStack>
           </ModalBody>
-
           <ModalFooter>
-            <Button
-              colorScheme="blue"
-              mr={3}
-              onClick={handleAddLeaveSubmit}
-              borderRadius="md"
-            >
+            <Button colorScheme="blue" mr={3} onClick={handleAddLeave}>
               Submit
             </Button>
-            <Button
-              onClick={onAddModalClose}
-              borderRadius="md"
-              colorScheme="gray"
-              variant="ghost"
-            >
-              Cancel
-            </Button>
+            <Button onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
-    </ChakraProvider>
+    </Box>
   );
 };
 
-export default Leave;
+export default EmployeeLeave;

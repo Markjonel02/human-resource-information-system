@@ -121,13 +121,10 @@ const App = () => {
                               element={<EmployeeRoutes />}
                             />
                             <Route
-                              path="/employees-attendance"
-                              element={<EmployeeRoutes />}
-                            />
-                            <Route
                               path="/employees-requests"
-                              element={<EmployeeRoutes />}
+                              element={<EmployeeRequests />}
                             />
+
                             <Route
                               path="/attendances"
                               element={<Attendances />}

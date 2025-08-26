@@ -3,7 +3,7 @@
 const Attendance = require("../models/Attendance");
 const User = require("../models/user"); // Assuming you have a User model
 const AttendanceLog = require("../models/attendanceLogSchema"); // New model for logs
-const LeaveCredits = require("../models/attendanceSchema/leaveCreditsSchema");
+const LeaveCredits = require("../models/LeaveSchema/leaveCreditsSchema");
 
 // Helper function to calculate hours in minutes
 const calculateHoursInMinutes = (checkIn, checkOut) => {
@@ -292,7 +292,7 @@ const addAttendance = async (req, res) => {
     };
     // ...inside addAttendance...
     if (finalStatus === "on_leave") {
-      const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "OS", "CL"];
+      const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "CL"];
       if (!leaveType || !validLeaveTypes.includes(leaveType)) {
         return res.status(400).json({
           message: "Valid leave type is required for leave status",

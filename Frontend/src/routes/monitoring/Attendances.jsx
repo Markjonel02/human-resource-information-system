@@ -1278,7 +1278,6 @@ const Attendances = () => {
                   <option value="present">Present</option>
                   <option value="absent">Absent</option>
                   <option value="late">Late (Manual)</option>
-                  <option value="Leave">Leave</option>
                 </Select>
               </FormControl>
 
