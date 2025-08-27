@@ -135,6 +135,7 @@ const calculateLateMinutes = (checkInTime, standardCheckIn = "08:00 AM") => {
 const Attendances = () => {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [leaveRecords, setLeaveRecords] = useState([]); // New state for leave records
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -206,9 +207,30 @@ const Attendances = () => {
     fetchEmployees();
   }, [toast]);
 
-  // Fetch attendance records
+  // Fetch leave records - NEW FUNCTION
   useEffect(() => {
-    // Update your existing fetchAttendance function
+    const fetchLeaveRecords = async () => {
+      try {
+        const response = await axiosInstance.get(
+          "/employeeLeave/getemp-Leaves"
+        );
+        setLeaveRecords(response.data || []);
+      } catch (err) {
+        console.error("Failed to fetch leave records:", err);
+        toast({
+          title: "Error",
+          description: "Failed to fetch leave records",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    };
+    fetchLeaveRecords();
+  }, [refreshKey]);
+
+  // Fetch attendance records and combine with leave data
+  useEffect(() => {
     const fetchAttendance = async () => {
       try {
         setIsLoading(true);
@@ -229,7 +251,34 @@ const Attendances = () => {
             params,
           }
         );
-        setAttendanceRecords(response.data);
+
+        // Combine attendance records with leave records
+        const combinedRecords = [...(response.data || [])];
+
+        // Add leave records to the combined data
+        if (leaveRecords.length > 0) {
+          const leaveAttendanceRecords = leaveRecords
+            .filter((leave) => leave.status === "approved") // Only show approved leaves
+            .map((leave) => ({
+              _id: `leave_${leave._id}`,
+              employee: leave.employee,
+              date: leave.startDate,
+              status: "on_leave",
+              checkIn: "-",
+              checkOut: "-",
+              leaveType: leave.leaveType,
+              notes: leave.reason || "",
+              dateFrom: leave.startDate,
+              dateTo: leave.endDate,
+              leaveStatus: leave.status,
+              isLeaveRecord: true, // Flag to identify leave records
+              originalLeaveId: leave._id,
+            }));
+
+          combinedRecords.push(...leaveAttendanceRecords);
+        }
+
+        setAttendanceRecords(combinedRecords);
         setError(null);
 
         // Only fetch logs if needed (optimization)
@@ -248,7 +297,7 @@ const Attendances = () => {
     };
 
     fetchAttendance();
-  }, [searchTerm, refreshKey]);
+  }, [searchTerm, refreshKey, leaveRecords]);
 
   const handleAddRecord = async () => {
     try {
@@ -348,6 +397,19 @@ const Attendances = () => {
 
   const handleSaveRecord = async () => {
     try {
+      // Don't allow editing leave records from attendance
+      if (editingRecord.isLeaveRecord) {
+        toast({
+          title: "Cannot Edit",
+          description:
+            "Leave records must be edited from the Leave Management system",
+          status: "warning",
+          duration: 3000,
+          isClosable: true,
+        });
+        return;
+      }
+
       setIsLoading(true);
 
       // Auto-determine if late based on check-in time
@@ -426,12 +488,29 @@ const Attendances = () => {
     }
   };
 
-  const handleDeleteRecord = async (id) => {
+  const handleDeleteRecord = async (record) => {
+    // Don't allow deleting leave records from attendance
+    if (record.isLeaveRecord) {
+      toast({
+        title: "Cannot Delete",
+        description:
+          "Leave records must be managed from the Leave Management system",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
     if (window.confirm("Are you sure you want to delete this record?")) {
       try {
         setIsLoading(true);
-        await axiosInstance.delete(`/attendanceRoutes/delete-attendance/${id}`);
-        setAttendanceRecords((prev) => prev.filter((rec) => rec._id !== id));
+        await axiosInstance.delete(
+          `/attendanceRoutes/delete-attendance/${record._id}`
+        );
+        setAttendanceRecords((prev) =>
+          prev.filter((rec) => rec._id !== record._id)
+        );
         setRefreshKey((prev) => prev + 1);
         toast({
           title: "Success",
@@ -487,6 +566,7 @@ const Attendances = () => {
     });
   }, [searchTerm, attendanceRecords, sortStatus]);
 
+  // Enhanced statistics calculation to include leave records
   const {
     totalMinLate,
     numLate,
@@ -611,6 +691,17 @@ const Attendances = () => {
   };
 
   const handleEditRecord = (record) => {
+    if (record.isLeaveRecord) {
+      toast({
+        title: "Cannot Edit",
+        description:
+          "Leave records must be edited from the Leave Management system",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
     setEditingRecord({ ...record });
     onEditModalOpen();
   };
@@ -746,7 +837,6 @@ const Attendances = () => {
           >
             Add Attendance
           </Button>
-          {/* Sorting Select */}
           <Box w={{ base: "full", sm: "180px" }}>
             <Select
               placeholder="Sort by Status"
@@ -867,9 +957,7 @@ const Attendances = () => {
             <StatNumber fontSize="2xl" fontWeight="bold" color="blue.600">
               {Object.values(leaveCounts).reduce((a, b) => a + b, 0)}
             </StatNumber>
-            <StatHelpText color="gray.500">
-              Total leave applications
-            </StatHelpText>
+            <StatHelpText color="gray.500">Total approved leaves</StatHelpText>
           </Stat>
         </Box>
       </SimpleGrid>
@@ -1036,7 +1124,7 @@ const Attendances = () => {
           <Tbody>
             {filteredAttendance.length === 0 ? (
               <Tr>
-                <Td colSpan={8} textAlign="center" py={8}>
+                <Td colSpan={9} textAlign="center" py={8}>
                   <VStack spacing={3}>
                     <Icon as={InfoIcon} w={8} h={8} color="gray.400" />
                     <Text color="gray.500">No attendance records found</Text>
@@ -1068,6 +1156,15 @@ const Attendances = () => {
                         <Text fontSize="xs" color="gray.500">
                           {record.employee?.employeeId || "N/A"}
                         </Text>
+                        {record.isLeaveRecord && (
+                          <Badge
+                            colorScheme="purple"
+                            variant="subtle"
+                            fontSize="xs"
+                          >
+                            Leave Record
+                          </Badge>
+                        )}
                       </VStack>
                     </HStack>
                   </Td>
@@ -1078,9 +1175,16 @@ const Attendances = () => {
                   >
                     <HStack spacing={1}>
                       <CalendarIcon w={3} h={3} color="gray.500" />
-                      <Text fontSize="sm" color="gray.900">
-                        {formatDate(record.date)}
-                      </Text>
+                      <VStack align="flex-start" spacing={0}>
+                        <Text fontSize="sm" color="gray.900">
+                          {formatDate(record.date)}
+                        </Text>
+                        {record.isLeaveRecord && record.dateTo && (
+                          <Text fontSize="xs" color="gray.600">
+                            to {formatDate(record.dateTo)}
+                          </Text>
+                        )}
+                      </VStack>
                     </HStack>
                   </Td>
                   <Td px={4} py={4}>
@@ -1142,9 +1246,16 @@ const Attendances = () => {
                     display={{ base: "none", xl: "table-cell" }}
                   >
                     {record.leaveType ? (
-                      <Tag size="sm" colorScheme="blue" variant="outline">
-                        {record.leaveType}
-                      </Tag>
+                      <VStack align="flex-start" spacing={1}>
+                        <Tag size="sm" colorScheme="blue" variant="outline">
+                          {record.leaveType}
+                        </Tag>
+                        {record.isLeaveRecord && record.notes && (
+                          <Text fontSize="xs" color="gray.500" noOfLines={1}>
+                            {record.notes}
+                          </Text>
+                        )}
+                      </VStack>
                     ) : (
                       <Text fontSize="sm" color="gray.500">
                         -
@@ -1173,7 +1284,7 @@ const Attendances = () => {
                         {record.leaveStatus
                           ? record.leaveStatus.charAt(0).toUpperCase() +
                             record.leaveStatus.slice(1)
-                          : "Pending"}
+                          : "Approved"}
                       </Tag>
                     ) : (
                       <Text fontSize="sm" color="gray.400">
@@ -1191,18 +1302,27 @@ const Attendances = () => {
                         size="sm"
                       />
                       <MenuList>
-                        <MenuItem onClick={() => handleEditRecord(record)}>
-                          Edit Record
-                        </MenuItem>
+                        {!record.isLeaveRecord && (
+                          <MenuItem onClick={() => handleEditRecord(record)}>
+                            Edit Record
+                          </MenuItem>
+                        )}
                         <MenuItem onClick={() => handleViewDetails(record)}>
                           View Details
                         </MenuItem>
-                        <MenuItem
-                          onClick={() => handleDeleteRecord(record._id)}
-                          color="red.600"
-                        >
-                          Delete Record
-                        </MenuItem>
+                        {!record.isLeaveRecord && (
+                          <MenuItem
+                            onClick={() => handleDeleteRecord(record)}
+                            color="red.600"
+                          >
+                            Delete Record
+                          </MenuItem>
+                        )}
+                        {record.isLeaveRecord && (
+                          <MenuItem isDisabled color="gray.400">
+                            Managed via Leave System
+                          </MenuItem>
+                        )}
                       </MenuList>
                     </Menu>
                   </Td>
@@ -1255,18 +1375,15 @@ const Attendances = () => {
                 </Select>
               </FormControl>
 
-              {/* Show Date only for non-leave statuses */}
-              {newRecord.status !== "Leave" && (
-                <FormControl isRequired>
-                  <FormLabel>Date</FormLabel>
-                  <Input
-                    type="date"
-                    name="date"
-                    value={newRecord.date}
-                    onChange={handleNewRecordChange}
-                  />
-                </FormControl>
-              )}
+              <FormControl isRequired>
+                <FormLabel>Date</FormLabel>
+                <Input
+                  type="date"
+                  name="date"
+                  value={newRecord.date}
+                  onChange={handleNewRecordChange}
+                />
+              </FormControl>
 
               <FormControl isRequired>
                 <FormLabel>Status</FormLabel>
@@ -1280,45 +1397,6 @@ const Attendances = () => {
                   <option value="late">Late (Manual)</option>
                 </Select>
               </FormControl>
-
-              {newRecord.status === "Leave" && (
-                <>
-                  <FormControl isRequired>
-                    <FormLabel>Leave Type</FormLabel>
-                    <Select
-                      name="leaveType"
-                      value={newRecord.leaveType}
-                      onChange={handleNewRecordChange}
-                      placeholder="Select Leave Type"
-                    >
-                      <option value="VL">Vacation Leave (VL)</option>
-                      <option value="SL">Sick Leave (SL)</option>
-                      <option value="LWOP">Leave Without Pay (LWOP)</option>
-                      <option value="BL">Bereavement Leave (BL)</option>
-                      <option value="OS">Offset (OS)</option>
-                      <option value="CL">Calamity Leave (CL)</option>
-                    </Select>
-                  </FormControl>
-                  <FormControl isRequired>
-                    <FormLabel>Leave Date From</FormLabel>
-                    <Input
-                      type="date"
-                      name="dateFrom"
-                      value={newRecord.dateFrom}
-                      onChange={handleNewRecordChange}
-                    />
-                  </FormControl>
-                  <FormControl isRequired>
-                    <FormLabel>Leave Date To</FormLabel>
-                    <Input
-                      type="date"
-                      name="dateTo"
-                      value={newRecord.dateTo}
-                      onChange={handleNewRecordChange}
-                    />
-                  </FormControl>
-                </>
-              )}
 
               {(newRecord.status === "present" ||
                 newRecord.status === "late") && (
@@ -1413,7 +1491,6 @@ const Attendances = () => {
           <DrawerBody p={0}>
             {selectedEmployee && (
               <VStack align="stretch" spacing={0}>
-                {/* Employee Header */}
                 <Box
                   bg="gradient-to-r"
                   bgGradient="linear(to-r, blue.50, purple.50)"
@@ -1441,10 +1518,18 @@ const Attendances = () => {
                         {selectedEmployee.employee?.role || "N/A"} •{" "}
                         {selectedEmployee.employee?.department || "N/A"}
                       </Text>
+                      {selectedEmployee.isLeaveRecord && (
+                        <Badge
+                          colorScheme="purple"
+                          variant="solid"
+                          fontSize="sm"
+                        >
+                          Leave Record
+                        </Badge>
+                      )}
                     </VStack>
                   </HStack>
 
-                  {/* Status Badge */}
                   <HStack justify="center">
                     <Tag
                       size="lg"
@@ -1472,7 +1557,6 @@ const Attendances = () => {
                   </HStack>
                 </Box>
 
-                {/* Tabs for different sections */}
                 <Tabs>
                   <TabList bg="gray.50">
                     <Tab>Today's Record</Tab>
@@ -1481,7 +1565,6 @@ const Attendances = () => {
                   </TabList>
 
                   <TabPanels>
-                    {/* Today's Record Tab */}
                     <TabPanel p={6}>
                       <VStack align="stretch" spacing={4}>
                         <Box
@@ -1494,7 +1577,11 @@ const Attendances = () => {
                           <Heading size="sm" mb={3} color="gray.700">
                             <HStack>
                               <Icon as={CalendarIcon} color="blue.500" />
-                              <Text>Attendance Details</Text>
+                              <Text>
+                                {selectedEmployee.isLeaveRecord
+                                  ? "Leave Details"
+                                  : "Attendance Details"}
+                              </Text>
                             </HStack>
                           </Heading>
                           <SimpleGrid columns={2} spacing={4}>
@@ -1506,7 +1593,9 @@ const Attendances = () => {
                                 letterSpacing="wide"
                                 mb={1}
                               >
-                                Date
+                                {selectedEmployee.isLeaveRecord
+                                  ? "From Date"
+                                  : "Date"}
                               </Text>
                               <Text
                                 fontSize="md"
@@ -1516,6 +1605,27 @@ const Attendances = () => {
                                 {formatDate(selectedEmployee.date)}
                               </Text>
                             </Box>
+                            {selectedEmployee.isLeaveRecord &&
+                              selectedEmployee.dateTo && (
+                                <Box>
+                                  <Text
+                                    fontSize="xs"
+                                    color="gray.500"
+                                    textTransform="uppercase"
+                                    letterSpacing="wide"
+                                    mb={1}
+                                  >
+                                    To Date
+                                  </Text>
+                                  <Text
+                                    fontSize="md"
+                                    fontWeight="semibold"
+                                    color="gray.800"
+                                  >
+                                    {formatDate(selectedEmployee.dateTo)}
+                                  </Text>
+                                </Box>
+                              )}
                             <Box>
                               <Text
                                 fontSize="xs"
@@ -1626,27 +1736,31 @@ const Attendances = () => {
                             <Heading size="sm" mb={2} color="blue.700">
                               Leave Information
                             </Heading>
-                            <Tag size="lg" colorScheme="blue" variant="subtle">
-                              {selectedEmployee.leaveType}
-                            </Tag>
-                            {(selectedEmployee.dateFrom ||
-                              selectedEmployee.dateTo) && (
-                              <Text fontSize="sm" color="gray.700" mt={2}>
-                                {selectedEmployee.dateFrom && (
-                                  <>
-                                    <b>From:</b>{" "}
-                                    {formatDate(selectedEmployee.dateFrom)}
-                                  </>
-                                )}
-                                {selectedEmployee.dateTo && (
-                                  <>
-                                    {selectedEmployee.dateFrom && " | "}
-                                    <b>To:</b>{" "}
-                                    {formatDate(selectedEmployee.dateTo)}
-                                  </>
-                                )}
-                              </Text>
-                            )}
+                            <VStack align="flex-start" spacing={2}>
+                              <Tag
+                                size="lg"
+                                colorScheme="blue"
+                                variant="subtle"
+                              >
+                                {selectedEmployee.leaveType}
+                              </Tag>
+                              {selectedEmployee.leaveStatus && (
+                                <Tag
+                                  size="sm"
+                                  colorScheme={
+                                    selectedEmployee.leaveStatus === "approved"
+                                      ? "green"
+                                      : selectedEmployee.leaveStatus ===
+                                        "pending"
+                                      ? "orange"
+                                      : "red"
+                                  }
+                                  variant="solid"
+                                >
+                                  {selectedEmployee.leaveStatus.toUpperCase()}
+                                </Tag>
+                              )}
+                            </VStack>
                           </Box>
                         )}
 
@@ -1661,7 +1775,11 @@ const Attendances = () => {
                             <Heading size="sm" mb={2} color="yellow.800">
                               <HStack>
                                 <Icon as={FaFileAlt} color="yellow.600" />
-                                <Text>Notes</Text>
+                                <Text>
+                                  {selectedEmployee.isLeaveRecord
+                                    ? "Reason"
+                                    : "Notes"}
+                                </Text>
                               </HStack>
                             </Heading>
                             <Text
@@ -1676,7 +1794,6 @@ const Attendances = () => {
                       </VStack>
                     </TabPanel>
 
-                    {/* Employee Info Tab */}
                     <TabPanel p={6}>
                       <VStack align="stretch" spacing={4}>
                         <Box
@@ -1723,7 +1840,6 @@ const Attendances = () => {
                       </VStack>
                     </TabPanel>
 
-                    {/* Logs Tab */}
                     <TabPanel p={6}>
                       <VStack align="stretch" spacing={4}>
                         <Heading size="sm" color="gray.700">
@@ -1832,17 +1948,14 @@ const Attendances = () => {
                     />
                   </FormControl>
 
-                  {/* Show Date only for non-leave statuses (edit modal) */}
-                  {editingRecord.status !== "Leave" && (
-                    <FormControl>
-                      <FormLabel>Date</FormLabel>
-                      <Input
-                        value={formatDate(editingRecord.date)}
-                        isReadOnly
-                        bg="gray.50"
-                      />
-                    </FormControl>
-                  )}
+                  <FormControl>
+                    <FormLabel>Date</FormLabel>
+                    <Input
+                      value={formatDate(editingRecord.date)}
+                      isReadOnly
+                      bg="gray.50"
+                    />
+                  </FormControl>
 
                   <FormControl>
                     <FormLabel>Status</FormLabel>
@@ -1854,56 +1967,8 @@ const Attendances = () => {
                       <option value="Present">Present</option>
                       <option value="Absent">Absent</option>
                       <option value="Late">Late</option>
-                      <option value="Leave">Leave</option>
                     </Select>
                   </FormControl>
-
-                  {editingRecord.status === "Leave" && (
-                    <>
-                      <FormControl>
-                        <FormLabel>Leave Type</FormLabel>
-                        <Select
-                          name="leaveType"
-                          value={editingRecord.leaveType || ""}
-                          onChange={handleEditChange}
-                          placeholder="Select Leave Type"
-                        >
-                          <option value="VL">Vacation Leave (VL)</option>
-                          <option value="SL">Sick Leave (SL)</option>
-                          <option value="LWOP">Leave Without Pay (LWOP)</option>
-                          <option value="BL">Bereavement Leave (BL)</option>
-                          <option value="OS">Offset (OS)</option>
-                          <option value="CL">Calamity Leave (CL)</option>
-                        </Select>
-                      </FormControl>
-                      <FormControl>
-                        <FormLabel>Leave Date From</FormLabel>
-                        <Input
-                          type="date"
-                          name="dateFrom"
-                          value={
-                            editingRecord.dateFrom
-                              ? editingRecord.dateFrom.substring(0, 10)
-                              : ""
-                          }
-                          onChange={handleEditChange}
-                        />
-                      </FormControl>
-                      <FormControl>
-                        <FormLabel>Leave Date To</FormLabel>
-                        <Input
-                          type="date"
-                          name="dateTo"
-                          value={
-                            editingRecord.dateTo
-                              ? editingRecord.dateTo.substring(0, 10)
-                              : ""
-                          }
-                          onChange={handleEditChange}
-                        />
-                      </FormControl>
-                    </>
-                  )}
 
                   {(editingRecord.status === "Present" ||
                     editingRecord.status === "Late") && (

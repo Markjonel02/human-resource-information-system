@@ -125,8 +125,8 @@ router.post(
 
 router.get(
   "/get-leave-requests",
-  authorizeRoles("admin",),
-  testAttendance.getAllLeaveRequests
+  authorizeRoles("admin"),
+  testAttendance.getAllEmployeeLeave
 );
 
 module.exports = router;

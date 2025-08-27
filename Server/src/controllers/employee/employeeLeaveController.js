@@ -90,18 +90,45 @@ const addLeave = async (req, res) => {
 
 const getEmployeeLeave = async (req, res) => {
   try {
-    const empLeaves = await Leave.find({ employee: req.user._id }).sort({
-      createdAt: -1,
-    });
-    if (!empLeaves || empLeaves.length === 0) {
+    const currentUser = req.user;
+
+    // Step 1: Validate authentication
+    if (!currentUser || !currentUser._id) {
+      return res
+        .status(401)
+        .json({ message: "Unauthorized: User not authenticated" });
+    }
+
+    // Step 2: Validate role access
+    const allowedRoles = ["employee", "admin"];
+    if (!allowedRoles.includes(currentUser.role)) {
+      return res
+        .status(403)
+        .json({ message: "Forbidden: Access denied for this role" });
+    }
+
+    // Step 3: Build query based on role
+    const query =
+      currentUser.role === "employee" ? { employee: currentUser._id } : {}; // Admins can view all leave records
+
+    // Step 4: Fetch leave records
+    const leaveRecords = await Leave.find(query)
+      .sort({ createdAt: -1 })
+      .populate("employee", "firstname lastname employeeId department");
+
+    // Step 5: Handle empty results
+    if (!Array.isArray(leaveRecords) || leaveRecords.length === 0) {
       return res.status(404).json({ message: "No leave records found." });
     }
-    res.json(empLeaves);
+
+    // Step 6: Return results
+    res.status(200).json(leaveRecords);
   } catch (error) {
     console.error("Error in getEmployeeLeave:", error);
-    res
-      .status(500)
-      .json({ message: "Internal server error", error: error.message });
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 };
 

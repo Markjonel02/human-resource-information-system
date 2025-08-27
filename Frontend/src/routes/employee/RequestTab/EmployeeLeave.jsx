@@ -198,7 +198,7 @@ const EmployeeLeave = () => {
           </Text>
         </CardHeader>
         <CardBody>
-          <SimpleGrid columns={{ base: 2, sm: 2, md: 3, lg: 6 }} spacing={4}>
+          <SimpleGrid columns={{ base: 2, sm: 2, md: 3, lg: 5 }} spacing={4}>
             {Object.entries(leaveCredits).map(([type, credit]) => (
               <VStack
                 key={type}
