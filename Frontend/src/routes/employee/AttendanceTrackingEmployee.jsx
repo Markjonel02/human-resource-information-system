@@ -517,7 +517,7 @@ const EmployeAttendanceTracking = () => {
           </Heading>
         </CardHeader>
         <CardBody pt={0}>
-          <SimpleGrid columns={{ base: 2, sm: 3, md: 6 }} spacing={4}>
+          <SimpleGrid columns={{ base: 2, sm: 3, md: 5 }} spacing={4}>
             {Object.entries(leaveCredits).map(([type, credit]) => (
               <VStack key={type} bg="blue.50" p={3} borderRadius="md">
                 <Text fontSize="xs" color="blue.600" fontWeight="semibold">
