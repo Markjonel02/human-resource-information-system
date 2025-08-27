@@ -14,31 +14,43 @@ const addLeave = async (req, res) => {
     const { leaveType, dateFrom, dateTo, notes } = req.body;
     const employeeId = req.user._id;
 
+    // Step 1: Validate required fields
     if (!leaveType || !dateFrom || !dateTo || !notes) {
       return res.status(400).json({ message: "All fields are required." });
     }
 
+    // Step 2: Validate leave type
     const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "CL"];
     if (!validLeaveTypes.includes(leaveType)) {
       return res.status(400).json({ message: "Invalid leave type." });
     }
 
-    // ... (LeaveCredits and Overlap checks)
+    // Step 3: Calculate total leave days
+    const totalLeaveDays =
+      Math.ceil(
+        (new Date(dateTo) - new Date(dateFrom)) / (1000 * 60 * 60 * 24)
+      ) + 1;
 
-    if (leaveType !== "LWOP") {
+    // Step 4: Validate leave credits (only for types that require credits)
+    const creditRequiredTypes = ["VL", "SL", "BL", "CL"];
+    if (creditRequiredTypes.includes(leaveType)) {
       const credits = await LeaveCredits.findOne({ employee: employeeId });
 
       if (
         !credits ||
         !credits.credits[leaveType] ||
-        credits.credits[leaveType].remaining <= 0
+        credits.credits[leaveType].remaining < totalLeaveDays
       ) {
-        return res.status(400).json({ message: "No leave credits available." });
+        return res.status(400).json({
+          message: `Insufficient ${leaveType} credits. You requested ${totalLeaveDays} day(s), but only ${
+            credits?.credits[leaveType]?.remaining || 0
+          } are available.`,
+        });
       }
     }
 
+    // Step 5: Check for overlapping leave
     const overlap = await Leave.findOne({
-      // Use the Leave model for overlap check
       employee: employeeId,
       leaveStatus: { $in: ["pending", "approved"] },
       $or: [
@@ -56,13 +68,7 @@ const addLeave = async (req, res) => {
       });
     }
 
-    // Calculate total leave days
-    const totalLeaveDays =
-      Math.ceil(
-        (new Date(dateTo) - new Date(dateFrom)) / (1000 * 60 * 60 * 24)
-      ) + 1;
-
-    // Create a new LEAVE document, NOT an Attendance document
+    // Step 6: Create and save leave request
     const newLeaveRequest = new Leave({
       employee: employeeId,
       leaveType,
@@ -70,10 +76,9 @@ const addLeave = async (req, res) => {
       dateTo: new Date(dateTo),
       totalLeaveDays,
       notes,
-      leaveStatus: "pending", // Redundant, but good practice
+      leaveStatus: "pending",
     });
 
-    // Save the new LEAVE document
     await newLeaveRequest.save();
 
     res.status(201).json({
@@ -82,26 +87,54 @@ const addLeave = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in addLeave:", error);
-    res
-      .status(500)
-      .json({ message: "Internal server error", error: error.message });
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 };
 
 const getEmployeeLeave = async (req, res) => {
   try {
-    const empLeaves = await Leave.find({ employee: req.user._id }).sort({
-      createdAt: -1,
-    });
-    if (!empLeaves || empLeaves.length === 0) {
+    const currentUser = req.user;
+
+    // Step 1: Validate authentication
+    if (!currentUser || !currentUser._id) {
+      return res
+        .status(401)
+        .json({ message: "Unauthorized: User not authenticated" });
+    }
+
+    // Step 2: Validate role access
+    const allowedRoles = ["employee", "admin"];
+    if (!allowedRoles.includes(currentUser.role)) {
+      return res
+        .status(403)
+        .json({ message: "Forbidden: Access denied for this role" });
+    }
+
+    // Step 3: Build query based on role
+    const query =
+      currentUser.role === "employee" ? { employee: currentUser._id } : {}; // Admins can view all leave records
+
+    // Step 4: Fetch leave records
+    const leaveRecords = await Leave.find(query)
+      .sort({ createdAt: -1 })
+      .populate("employee", "firstname lastname employeeId department");
+
+    // Step 5: Handle empty results
+    if (!Array.isArray(leaveRecords) || leaveRecords.length === 0) {
       return res.status(404).json({ message: "No leave records found." });
     }
-    res.json(empLeaves);
+
+    // Step 6: Return results
+    res.status(200).json(leaveRecords);
   } catch (error) {
     console.error("Error in getEmployeeLeave:", error);
-    res
-      .status(500)
-      .json({ message: "Internal server error", error: error.message });
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 };
 

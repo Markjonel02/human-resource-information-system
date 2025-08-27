@@ -76,7 +76,6 @@ const EmployeeRequestLayout = () => {
       )}
     </Flex>
   );
-
   return (
     <Box mt={10} bg="white" rounded="2xl" shadow="xl">
       <Tabs variant="unstyled" isFitted colorScheme="teal">

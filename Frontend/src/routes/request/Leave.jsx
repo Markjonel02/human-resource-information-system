@@ -383,9 +383,7 @@ const Leave = () => {
   const fetchLeaveRequests = useCallback(async () => {
     try {
       // Fetch all attendance records with leave status
-      const res = await axiosInstance.get(
-        "/employeeAttendance/get-leave-requests"
-      );
+      const res = await axiosInstance.get("/employeeLeave/getemp-leaves");
       // Transform backend data to match frontend structure
       const data = Array.isArray(res.data) ? res.data : [];
       setLeaveRequests(
@@ -407,7 +405,7 @@ const Leave = () => {
             item.employee?.firstname && item.employee?.lastname
               ? `${item.employee.firstname} ${item.employee.lastname}`
               : item.employee?.name || "Unknown Employee",
-          approverAvatarUrl: "https://placehold.co/40x40/000000/FFFFFF?text=NA",
+          approverAvatarUrl: `https://placehold.co/40x40/000000/FFFFFF?text=${item.employee?.firstname[0]}${item.employee?.lastname[0]}`,
           status:
             item.leaveStatus === "approved"
               ? "Approved"
@@ -427,6 +425,7 @@ const Leave = () => {
           "Failed to fetch leave requests from server.",
         status: "error",
         duration: 3000,
+        position: "top",
         isClosable: true,
       });
     }
@@ -499,6 +498,7 @@ const Leave = () => {
       toast({
         title: "Leave Rejected",
         status: "info",
+        position: "top",
         duration: 3000,
         isClosable: true,
       });
@@ -519,6 +519,7 @@ const Leave = () => {
         description: "The leave request has been rejected.",
         status: "info",
         duration: 3000,
+        position: "top",
         isClosable: true,
       });
     }
@@ -547,6 +548,7 @@ const Leave = () => {
           "Please fill in all required fields including Employee ID.",
         status: "error",
         duration: 3000,
+        position: "top",
         isClosable: true,
       });
       return;
@@ -590,6 +592,7 @@ const Leave = () => {
         description: "Your new leave request has been submitted successfully.",
         status: "success",
         duration: 3000,
+        position: "top",
         isClosable: true,
       });
 
@@ -605,6 +608,7 @@ const Leave = () => {
         status: "error",
         duration: 3000,
         isClosable: true,
+        position: "top",
       });
     }
   };
@@ -657,6 +661,7 @@ const Leave = () => {
       toast({
         title: "Selected Leaves Approved",
         status: "success",
+        position: "top",
         duration: 3000,
         isClosable: true,
       });
@@ -671,6 +676,7 @@ const Leave = () => {
         status: "error",
         duration: 3000,
         isClosable: true,
+        position: "top",
       });
     }
   };
@@ -686,6 +692,7 @@ const Leave = () => {
         status: "info",
         duration: 3000,
         isClosable: true,
+        position: "top",
       });
       setSelectedRequestIds([]);
       setIsSelectAllChecked(false);
@@ -708,6 +715,7 @@ const Leave = () => {
         status: "info",
         duration: 3000,
         isClosable: true,
+        position: "top",
       });
     }
   };
@@ -828,15 +836,11 @@ const Leave = () => {
               />
             ))
           ) : (
-            <Text
-              colSpan={3}
-              textAlign="center"
-              fontSize="lg"
-              color="gray.500"
-              py={10}
-            >
-              No leave requests found for the current filter or page. 😔
-            </Text>
+            <Box colSpan={3}>
+              <Text textAlign="center" fontSize="lg" color="gray.500" py={10}>
+                No leave requests found for the current filter or page. 😔
+              </Text>
+            </Box>
           )}
         </SimpleGrid>
 

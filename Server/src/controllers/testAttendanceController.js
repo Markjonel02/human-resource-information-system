@@ -95,8 +95,9 @@ const getRecordChanges = (oldRecord, newRecord) => {
 
   return changes;
 };
-
+// Single Leave Approval Controller
 const approveLeave = async (req, res) => {
+  // 1. Authorization: Only allow admins to approve leave requests.
   if (req.user.role !== "admin") {
     return res.status(403).json({
       message: "Access denied. Only Admin users can approve leave requests.",
@@ -105,39 +106,105 @@ const approveLeave = async (req, res) => {
 
   try {
     const { id } = req.params;
-    const attendance = await Attendance.findById(id).populate("employee");
-    if (!attendance) {
-      return res.status(404).json({ message: "Attendance record not found" });
-    }
-    if (attendance.status !== "on_leave") {
-      return res
-        .status(400)
-        .json({ message: "Only leave requests can be approved." });
-    }
-    // Mark as approved
-    attendance.leaveStatus = "approved"; // <-- Only update leaveStatus
-    attendance.status = "on_leave"; // Keep status as on_leave
-    await attendance.save();
 
+    // 2. Find the leave record and populate the employee details.
+    // The .populate() method is crucial to access the employee's ID later.
+    const leaveRecord = await Leave.findById(id).populate("employee");
+
+    // 3. Handle case where the leave record is not found.
+    if (!leaveRecord) {
+      return res.status(404).json({ message: "Leave record not found" });
+    }
+
+    // 4. Validate the leave status. We can only approve pending requests.
+    if (leaveRecord.leaveStatus !== "pending") {
+      return res.status(400).json({
+        message: "This leave request has already been processed.",
+      });
+    }
+
+    // 5. Calculate the total number of days to deduct from the credits.
+    let daysToDeduct = 0;
+    if (leaveRecord.totalLeaveDays) {
+      daysToDeduct = leaveRecord.totalLeaveDays;
+    } else if (leaveRecord.dateFrom && leaveRecord.dateTo) {
+      const dateFrom = new Date(leaveRecord.dateFrom);
+      const dateTo = new Date(leaveRecord.dateTo);
+      daysToDeduct = Math.ceil((dateTo - dateFrom) / (1000 * 60 * 60 * 24)) + 1;
+    } else {
+      return res.status(400).json({
+        message: "Cannot determine the number of leave days from the record.",
+      });
+    }
+
+    // 6. Find the employee's leave credit record.
+    const employee = leaveRecord.employee;
+    const leaveCredit = await LeaveCredits.findOne({ employee: employee._id });
+
+    // 7. Handle case where the employee's credit record is not found.
+    if (!employee || !leaveCredit) {
+      return res.status(404).json({
+        message: "Employee or leave credit record not found.",
+      });
+    }
+
+    // 8. Use standard bracket notation to check for the leave type.
+    if (!leaveCredit.credits[leaveRecord.leaveType]) {
+      return res.status(400).json({
+        message: "Leave type not found in employee's credits.",
+      });
+    }
+
+    // 9. Find the specific leave type (e.g., 'VL', 'SL') within the credits object.
+    const currentCredit = leaveCredit.credits[leaveRecord.leaveType];
+
+    // 10. Check if the employee has enough remaining credits.
+    if (currentCredit.remaining < daysToDeduct) {
+      return res.status(400).json({
+        message: `Not enough ${leaveRecord.leaveType} credits to approve this request.`,
+      });
+    }
+
+    // 11. Subtract the total days from the remaining credits.
+    leaveCredit.credits[leaveRecord.leaveType].remaining -= daysToDeduct;
+
+    // 12. Save the updated leave credit document to the database.
+    await leaveCredit.save();
+
+    // 13. Update the status of the leave request to 'approved'.
+    leaveRecord.leaveStatus = "approved";
+    leaveRecord.status = "on_leave";
+
+    // 14. Save the updated leave record.
+    await leaveRecord.save();
+
+    // 15. Log the approval action for audit trail purposes.
     await createAttendanceLog({
-      employeeId: attendance.employee._id,
-      attendanceId: attendance._id,
+      employeeId: employee._id,
+      attendanceId: leaveRecord._id,
       action: "LEAVE_APPROVED",
       description: `Leave approved by admin (${req.user.firstname} ${req.user.lastname})`,
       performedBy: req.user._id,
-      changes: { leaveStatus: { from: "pending", to: "approved" } },
+      changes: {
+        leaveStatus: { from: "pending", to: "approved" },
+        leaveCredits: {
+          leaveType: leaveRecord.leaveType,
+          daysDeducted: daysToDeduct,
+        },
+      },
       metadata: {
         approvedBy: req.user.firstname + " " + req.user.lastname,
-        date: attendance.date,
-        leaveType: attendance.leaveType,
-        dateFrom: attendance.dateFrom || "",
-        dateTo: attendance.dateTo || "",
+        date: leaveRecord.date,
+        leaveType: leaveRecord.leaveType,
+        dateFrom: leaveRecord.dateFrom || "",
+        dateTo: leaveRecord.dateTo || "",
       },
     });
 
-    res.json({
-      message: "Leave approved successfully",
-      attendance,
+    // 16. Send a success response.
+    res.status(200).json({
+      message: "Leave approved successfully and credits updated.",
+      leaveRecord,
     });
   } catch (error) {
     console.error("Error approving leave:", error);
@@ -148,6 +215,7 @@ const approveLeave = async (req, res) => {
   }
 };
 
+// Bulk Leave Approval Controller
 const approveLeaveBulk = async (req, res) => {
   if (req.user.role !== "admin") {
     return res.status(403).json({
@@ -156,58 +224,273 @@ const approveLeaveBulk = async (req, res) => {
   }
 
   try {
-    const { ids } = req.body; // Expecting an array of attendance IDs
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "No attendance records provided." });
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        message: "Please provide an array of leave request IDs.",
+      });
     }
 
-    const updatedRecords = [];
+    const approvedLeaves = [];
+    const errors = [];
+
+    // Process each leave request
     for (const id of ids) {
-      const attendance = await Attendance.findById(id).populate("employee");
-      if (!attendance) {
-        continue; // Skip non-existent records
-      }
-      if (attendance.status !== "on_leave") {
-        continue; // Only approve leave requests
-      }
-      // Mark as approved
-      attendance.leaveStatus = "approved"; // <-- Only update leaveStatus
-      attendance.status = "on_leave"; // Keep status as on_leave
-      await attendance.save();
+      try {
+        // Find the leave record and populate the employee
+        const leaveRecord = await Leave.findById(id).populate("employee");
+        if (!leaveRecord) {
+          errors.push({ id, error: "Leave record not found" });
+          continue;
+        }
 
-      await createAttendanceLog({
-        employeeId: attendance.employee._id,
-        attendanceId: attendance._id,
-        action: "LEAVE_APPROVED",
-        description: `Leave approved by admin (${req.user.firstname} ${req.user.lastname})`,
-        performedBy: req.user._id,
-        changes: { leaveStatus: { from: "pending", to: "approved" } },
-        metadata: {
-          approvedBy: req.user.firstname + " " + req.user.lastname,
-          date: attendance.date,
-          leaveType: attendance.leaveType,
-          dateFrom: attendance.dateFrom,
-          dateTo: attendance.dateTo,
-        },
-      });
+        // Check if the leave request is pending
+        if (leaveRecord.leaveStatus !== "pending") {
+          errors.push({ id, error: "Leave request already processed" });
+          continue;
+        }
 
-      updatedRecords.push(attendance);
+        // Calculate days to deduct
+        let daysToDeduct = 0;
+        if (leaveRecord.totalLeaveDays) {
+          daysToDeduct = leaveRecord.totalLeaveDays;
+        } else if (leaveRecord.dateFrom && leaveRecord.dateTo) {
+          const dateFrom = new Date(leaveRecord.dateFrom);
+          const dateTo = new Date(leaveRecord.dateTo);
+          daysToDeduct =
+            Math.ceil((dateTo - dateFrom) / (1000 * 60 * 60 * 24)) + 1;
+        } else {
+          errors.push({ id, error: "Cannot determine leave days" });
+          continue;
+        }
+
+        // Find employee's leave credits
+        const employee = leaveRecord.employee;
+        const leaveCredit = await LeaveCredits.findOne({
+          employee: employee._id,
+        });
+
+        if (!employee || !leaveCredit) {
+          errors.push({
+            id,
+            error: "Employee or leave credit record not found",
+          });
+          continue;
+        }
+
+        // Check leave type and credits
+        if (!leaveCredit.credits.has(leaveRecord.leaveType)) {
+          errors.push({
+            id,
+            error: "Leave type not found in employee's credits",
+          });
+          continue;
+        }
+
+        const currentCredit = leaveCredit.credits.get(leaveRecord.leaveType);
+        if (currentCredit.remaining < daysToDeduct) {
+          errors.push({ id, error: "Not enough leave credits" });
+          continue;
+        }
+
+        // Update credits and leave status
+        leaveCredit.credits.get(leaveRecord.leaveType).remaining -=
+          daysToDeduct;
+        await leaveCredit.save();
+
+        leaveRecord.leaveStatus = "approved";
+        leaveRecord.status = "on_leave";
+        await leaveRecord.save();
+
+        // Log the action
+        await createAttendanceLog({
+          employeeId: employee._id,
+          attendanceId: leaveRecord._id,
+          action: "LEAVE_APPROVED_BULK",
+          description: `Leave bulk approved by admin (${req.user.firstname} ${req.user.lastname})`,
+          performedBy: req.user._id,
+          changes: {
+            leaveStatus: { from: "pending", to: "approved" },
+            leaveCredits: {
+              leaveType: leaveRecord.leaveType,
+              daysDeducted: daysToDeduct,
+            },
+          },
+          metadata: {
+            approvedBy: req.user.firstname + " " + req.user.lastname,
+            bulkOperation: true,
+          },
+        });
+
+        approvedLeaves.push({
+          id,
+          employeeName: `${employee.firstname} ${employee.lastname}`,
+        });
+      } catch (error) {
+        errors.push({ id, error: error.message });
+      }
     }
 
     res.json({
-      message: `${updatedRecords.length} leave requests approved successfully`,
-      records: updatedRecords,
+      message: `Bulk approval completed. ${approvedLeaves.length} approved, ${errors.length} failed.`,
+      approved: approvedLeaves,
+      errors: errors,
     });
   } catch (error) {
-    console.error("Error approving leave in bulk:", error);
+    console.error("Error bulk approving leaves:", error);
     res.status(500).json({
       message: "Internal server error",
       error: error.message,
     });
   }
 };
+
+// Reject Leave Controller
+const rejectLeave = async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({
+      message: "Access denied. Only Admin users can reject leave requests.",
+    });
+  }
+
+  try {
+    const { id } = req.params;
+    const { reason } = req.body; // Optional rejection reason
+
+    // Find the leave record and populate the employee
+    const leaveRecord = await Leave.findById(id).populate("employee");
+    if (!leaveRecord) {
+      return res.status(404).json({ message: "Leave record not found" });
+    }
+
+    // Check if the leave request is pending
+    if (leaveRecord.leaveStatus !== "pending") {
+      return res
+        .status(400)
+        .json({ message: "This leave request has already been processed." });
+    }
+
+    // Update the leave request status to 'rejected'
+    leaveRecord.leaveStatus = "rejected";
+    leaveRecord.status = "present"; // or whatever default status you use
+    if (reason) {
+      leaveRecord.rejectionReason = reason;
+    }
+    await leaveRecord.save();
+
+    // Log the action
+    await createAttendanceLog({
+      employeeId: leaveRecord.employee._id,
+      attendanceId: leaveRecord._id,
+      action: "LEAVE_REJECTED",
+      description: `Leave rejected by admin (${req.user.firstname} ${req.user.lastname})`,
+      performedBy: req.user._id,
+      changes: {
+        leaveStatus: { from: "pending", to: "rejected" },
+      },
+      metadata: {
+        rejectedBy: req.user.firstname + " " + req.user.lastname,
+        rejectionReason: reason || "No reason provided",
+        leaveType: leaveRecord.leaveType,
+      },
+    });
+
+    res.json({
+      message: "Leave rejected successfully.",
+      leaveRecord,
+    });
+  } catch (error) {
+    console.error("Error rejecting leave:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+// Bulk Reject Leave Controller
+const rejectLeaveBulk = async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({
+      message: "Access denied. Only Admin users can reject leave requests.",
+    });
+  }
+
+  try {
+    const { ids, reason } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        message: "Please provide an array of leave request IDs.",
+      });
+    }
+
+    const rejectedLeaves = [];
+    const errors = [];
+
+    // Process each leave request
+    for (const id of ids) {
+      try {
+        const leaveRecord = await Leave.findById(id).populate("employee");
+        if (!leaveRecord) {
+          errors.push({ id, error: "Leave record not found" });
+          continue;
+        }
+
+        if (leaveRecord.leaveStatus !== "pending") {
+          errors.push({ id, error: "Leave request already processed" });
+          continue;
+        }
+
+        // Update status
+        leaveRecord.leaveStatus = "rejected";
+        leaveRecord.status = "present";
+        if (reason) {
+          leaveRecord.rejectionReason = reason;
+        }
+        await leaveRecord.save();
+
+        // Log the action
+        await createAttendanceLog({
+          employeeId: leaveRecord.employee._id,
+          attendanceId: leaveRecord._id,
+          action: "LEAVE_REJECTED_BULK",
+          description: `Leave bulk rejected by admin (${req.user.firstname} ${req.user.lastname})`,
+          performedBy: req.user._id,
+          changes: {
+            leaveStatus: { from: "pending", to: "rejected" },
+          },
+          metadata: {
+            rejectedBy: req.user.firstname + " " + req.user.lastname,
+            bulkOperation: true,
+            rejectionReason: reason || "No reason provided",
+          },
+        });
+
+        rejectedLeaves.push({
+          id,
+          employeeName: `${leaveRecord.employee.firstname} ${leaveRecord.employee.lastname}`,
+        });
+      } catch (error) {
+        errors.push({ id, error: error.message });
+      }
+    }
+
+    res.json({
+      message: `Bulk rejection completed. ${rejectedLeaves.length} rejected, ${errors.length} failed.`,
+      rejected: rejectedLeaves,
+      errors: errors,
+    });
+  } catch (error) {
+    console.error("Error bulk rejecting leaves:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
 // Add new attendance record (Admin/HR only)
 const addAttendance = async (req, res) => {
   if (req.user.role !== "admin" && req.user.role !== "hr") {
@@ -1021,21 +1304,49 @@ const getRecentAttendanceLogs = async (req, res) => {
     });
   }
 };
+
 // A new controller function to get all leave requests
-const getAllLeaveRequests = async (req, res) => {
+const getAllEmployeeLeave = async (req, res) => {
   try {
-    const allLeaves = await Leave.find().populate("employee").sort({
-      createdAt: -1,
-    });
-    if (!allLeaves || allLeaves.length === 0) {
+    const currentUser = req.user;
+
+    // Step 1: Validate authentication
+    if (!currentUser || !currentUser._id) {
+      return res
+        .status(401)
+        .json({ message: "Unauthorized: User not authenticated" });
+    }
+
+    // Step 2: Validate role access
+    const allowedRoles = ["employee", "admin"];
+    if (!allowedRoles.includes(currentUser.role)) {
+      return res
+        .status(403)
+        .json({ message: "Forbidden: Access denied for this role" });
+    }
+
+    // Step 3: Build query based on role
+    const query =
+      currentUser.role === "employee" ? { employee: currentUser._id } : {}; // Admins can view all leave records
+
+    // Step 4: Fetch leave records
+    const leaveRecords = await Leave.find(query)
+      .sort({ createdAt: -1 })
+      .populate("employee", "firstname lastname employeeId department");
+
+    // Step 5: Handle empty results
+    if (!Array.isArray(leaveRecords) || leaveRecords.length === 0) {
       return res.status(404).json({ message: "No leave records found." });
     }
-    res.json(allLeaves);
+
+    // Step 6: Return results
+    res.status(200).json(leaveRecords);
   } catch (error) {
-    console.error("Error in getAllLeaveRequests:", error);
-    res
-      .status(500)
-      .json({ message: "Internal server error", error: error.message });
+    console.error("Error in getEmployeeLeave:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 };
 
@@ -1050,5 +1361,7 @@ module.exports = {
   getRecentAttendanceLogs,
   approveLeave,
   approveLeaveBulk,
-  getAllLeaveRequests,
+  rejectLeave,
+  rejectLeaveBulk,
+  getAllEmployeeLeave,
 };
