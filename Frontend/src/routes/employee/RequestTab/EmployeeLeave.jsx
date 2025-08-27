@@ -172,7 +172,7 @@ const EmployeeLeave = () => {
       setEditingLeave(null);
       fetchLeaveHistory();
       fetchLeaveCredits();
-      await refreshData(); // Refresh both credits and history
+      /*       await refreshData(); // Refresh both credits and history */
     } catch (err) {
       toast({
         title: "Error",
