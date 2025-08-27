@@ -14,31 +14,43 @@ const addLeave = async (req, res) => {
     const { leaveType, dateFrom, dateTo, notes } = req.body;
     const employeeId = req.user._id;
 
+    // Step 1: Validate required fields
     if (!leaveType || !dateFrom || !dateTo || !notes) {
       return res.status(400).json({ message: "All fields are required." });
     }
 
+    // Step 2: Validate leave type
     const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "CL"];
     if (!validLeaveTypes.includes(leaveType)) {
       return res.status(400).json({ message: "Invalid leave type." });
     }
 
-    // ... (LeaveCredits and Overlap checks)
+    // Step 3: Calculate total leave days
+    const totalLeaveDays =
+      Math.ceil(
+        (new Date(dateTo) - new Date(dateFrom)) / (1000 * 60 * 60 * 24)
+      ) + 1;
 
-    if (leaveType !== "LWOP") {
+    // Step 4: Validate leave credits (only for types that require credits)
+    const creditRequiredTypes = ["VL", "SL", "BL", "CL"];
+    if (creditRequiredTypes.includes(leaveType)) {
       const credits = await LeaveCredits.findOne({ employee: employeeId });
 
       if (
         !credits ||
         !credits.credits[leaveType] ||
-        credits.credits[leaveType].remaining <= 0
+        credits.credits[leaveType].remaining < totalLeaveDays
       ) {
-        return res.status(400).json({ message: "No leave credits available." });
+        return res.status(400).json({
+          message: `Insufficient ${leaveType} credits. You requested ${totalLeaveDays} day(s), but only ${
+            credits?.credits[leaveType]?.remaining || 0
+          } are available.`,
+        });
       }
     }
 
+    // Step 5: Check for overlapping leave
     const overlap = await Leave.findOne({
-      // Use the Leave model for overlap check
       employee: employeeId,
       leaveStatus: { $in: ["pending", "approved"] },
       $or: [
@@ -56,13 +68,7 @@ const addLeave = async (req, res) => {
       });
     }
 
-    // Calculate total leave days
-    const totalLeaveDays =
-      Math.ceil(
-        (new Date(dateTo) - new Date(dateFrom)) / (1000 * 60 * 60 * 24)
-      ) + 1;
-
-    // Create a new LEAVE document, NOT an Attendance document
+    // Step 6: Create and save leave request
     const newLeaveRequest = new Leave({
       employee: employeeId,
       leaveType,
@@ -70,10 +76,9 @@ const addLeave = async (req, res) => {
       dateTo: new Date(dateTo),
       totalLeaveDays,
       notes,
-      leaveStatus: "pending", // Redundant, but good practice
+      leaveStatus: "pending",
     });
 
-    // Save the new LEAVE document
     await newLeaveRequest.save();
 
     res.status(201).json({
@@ -82,9 +87,10 @@ const addLeave = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in addLeave:", error);
-    res
-      .status(500)
-      .json({ message: "Internal server error", error: error.message });
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 };
 

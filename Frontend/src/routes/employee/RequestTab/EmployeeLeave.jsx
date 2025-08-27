@@ -65,20 +65,24 @@ const EmployeeLeave = () => {
   });
   const toast = useToast();
 
-  const fetchLeaveCredits = () => {
-    axiosInstance
-      .get("/employeeLeave/my-leave-credits")
-      .then((res) => setLeaveCredits(res.data.credits || res.data))
-      .catch(() => setLeaveCredits({}));
+  const fetchLeaveCredits = async () => {
+    try {
+      const res = await axiosInstance.get("/employeeLeave/my-leave-credits");
+      setLeaveCredits(res.data.credits || res.data);
+    } catch (error) {
+      console.error("Error fetching leave credits:", error);
+      setLeaveCredits({});
+    }
   };
 
-  const fetchLeaveHistory = () => {
-    axiosInstance
-      .get("/employeeLeave/getemp-leaves")
-      .then((res) => {
-        setLeaveHistory(Array.isArray(res.data) ? res.data : []);
-      })
-      .catch(() => setLeaveHistory([]));
+  const fetchLeaveHistory = async () => {
+    try {
+      const res = await axiosInstance.get("/employeeLeave/getemp-leaves");
+      setLeaveHistory(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      console.error("Error fetching leave history:", error);
+      setLeaveHistory([]);
+    }
   };
 
   useEffect(() => {
@@ -168,6 +172,7 @@ const EmployeeLeave = () => {
       setEditingLeave(null);
       fetchLeaveHistory();
       fetchLeaveCredits();
+      await refreshData(); // Refresh both credits and history
     } catch (err) {
       toast({
         title: "Error",
@@ -191,31 +196,62 @@ const EmployeeLeave = () => {
   return (
     <Box w="full" p={4} mx="auto">
       {/* Leave Credits */}
+
+      {/* Leave Credits */}
       <Card mb={6}>
         <CardHeader>
-          <Text fontWeight="bold" fontSize="lg">
-            Remaining Leave Credits
-          </Text>
+          <Flex justify="space-between" align="center">
+            <Text fontWeight="bold" fontSize="lg">
+              Remaining Leave Credits
+            </Text>
+            <Text fontSize="sm" color="gray.500">
+              Updated: {new Date().toLocaleDateString()}
+            </Text>
+          </Flex>
         </CardHeader>
         <CardBody>
-          <SimpleGrid columns={{ base: 2, sm: 2, md: 3, lg: 5 }} spacing={4}>
-            {Object.entries(leaveCredits).map(([type, credit]) => (
-              <VStack
-                key={type}
-                bg="#EBF8FF" // Light blue color
-                p={3}
-                borderRadius="md"
-                align="flex-start"
-              >
-                <Text fontSize="sm" color="blue.600" fontWeight="semibold">
-                  {LEAVE_TYPE_LABELS[type] || type}
-                </Text>
-                <Text fontSize="md" color="blue.700" fontWeight="bold">
-                  {credit.remaining} / {credit.total}
-                </Text>
-              </VStack>
-            ))}
-          </SimpleGrid>
+          {Object.keys(leaveCredits).length > 0 ? (
+            <SimpleGrid columns={{ base: 2, sm: 2, md: 3, lg: 5 }} spacing={4}>
+              {Object.entries(leaveCredits).map(([type, credit]) => (
+                <VStack
+                  key={type}
+                  bg={credit.remaining > 0 ? "#EBF8FF" : "#FEB2B2"}
+                  p={3}
+                  borderRadius="md"
+                  align="flex-start"
+                  border={
+                    credit.remaining === 0
+                      ? "2px solid #E53E3E"
+                      : "1px solid #BEE3F8"
+                  }
+                >
+                  <Text
+                    fontSize="sm"
+                    color={credit.remaining > 0 ? "blue.600" : "red.600"}
+                    fontWeight="semibold"
+                  >
+                    {LEAVE_TYPE_LABELS[type] || type}
+                  </Text>
+                  <Text
+                    fontSize="md"
+                    color={credit.remaining > 0 ? "blue.700" : "red.700"}
+                    fontWeight="bold"
+                  >
+                    {credit.remaining} / {credit.total}
+                  </Text>
+                  {credit.remaining === 0 && (
+                    <Text fontSize="xs" color="red.600" fontWeight="medium">
+                      No credits left
+                    </Text>
+                  )}
+                </VStack>
+              ))}
+            </SimpleGrid>
+          ) : (
+            <Text color="gray.500" textAlign="center">
+              No leave credits data available
+            </Text>
+          )}
         </CardBody>
       </Card>
 
