@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Box,
   Flex,
@@ -177,7 +177,122 @@ const Attendances = () => {
     dateTo: "",
   });
   const toast = useToast();
+  const fetchLeaveRequests = useCallback(async () => {
+    try {
+      const res = await axiosInstance.get("/employee/my");
+      const data = Array.isArray(res.data) ? res.data : [];
+      setLeaveRequests(
+        data
+          .filter((item) => item.status === "on_leave")
+          .map((item) => ({
+            id: item._id,
+            leaveType: item.leaveType || "Leave",
+            days:
+              item.totalLeaveDays && item.totalLeaveDays > 1
+                ? `${item.totalLeaveDays} Days`
+                : item.totalLeaveDays === 1
+                ? "1 Day"
+                : calculateDays(item.dateFrom, item.dateTo) > 1
+                ? `${calculateDays(item.dateFrom, item.dateTo)} Days`
+                : "1 Day",
+            startDate: item.dateFrom || "",
+            endDate: item.dateTo || "",
+            reason: item.notes || "",
+            status:
+              item.leaveStatus === "approved"
+                ? "Approved"
+                : item.leaveStatus === "pending"
+                ? "Pending"
+                : item.leaveStatus === "rejected"
+                ? "Rejected"
+                : "Pending",
+          }))
+      );
+    } catch (err) {
+      toast({
+        title: "Error",
+        description:
+          err.response?.data?.message || "Failed to fetch leave requests.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  }, [toast]);
+  const handleAddLeaveSubmit = async () => {
+    if (
+      !newLeaveData.leaveType ||
+      !newLeaveData.dateFrom ||
+      !newLeaveData.dateTo ||
+      !newLeaveData.notes
+    ) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
 
+    try {
+      await axiosInstance.post("/employee/add-leave", {
+        leaveType: newLeaveData.leaveType,
+        dateFrom: newLeaveData.dateFrom,
+        dateTo: newLeaveData.dateTo,
+        notes: newLeaveData.notes,
+      });
+      setNewLeaveData({
+        leaveType: "",
+        dateFrom: "",
+        dateTo: "",
+        notes: "",
+      });
+      onAddModalClose();
+      toast({
+        title: "Leave Request Added",
+        description: "Your new leave request has been submitted successfully.",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      fetchLeaveRequests();
+      setCurrentPage(1);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description:
+          err.response?.data?.message || "Failed to create leave request.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // Edit Leave (example usage, you can add an Edit button per row)
+  const handleEditLeave = async (id, updatedData) => {
+    try {
+      await axiosInstance.put(`/employee/edit-leave/${id}`, updatedData);
+      toast({
+        title: "Leave Request Updated",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      fetchLeaveRequests();
+    } catch (err) {
+      toast({
+        title: "Error",
+        description:
+          err.response?.data?.message || "Failed to update leave request.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
   // Auto refresh every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
@@ -207,34 +322,12 @@ const Attendances = () => {
     fetchEmployees();
   }, [toast]);
 
-  // Fetch leave records - NEW FUNCTION
-  useEffect(() => {
-    const fetchLeaveRecords = async () => {
-      try {
-        const response = await axiosInstance.get(
-          "/employeeLeave/getemp-Leaves"
-        );
-        setLeaveRecords(response.data || []);
-      } catch (err) {
-        console.error("Failed to fetch leave records:", err);
-        toast({
-          title: "Error",
-          description: "Failed to fetch leave records",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
-    };
-    fetchLeaveRecords();
-  }, [refreshKey]);
-
   // Fetch attendance records and combine with leave data
   useEffect(() => {
     const fetchAttendance = async () => {
       try {
         setIsLoading(true);
-        const params = {};
+        const params = { includeLeave: true };
 
         if (searchTerm) {
           const statusMatch = searchTerm.match(/present|absent|late|leave/i);
@@ -245,38 +338,16 @@ const Attendances = () => {
           }
         }
 
+        // Fetch combined attendance and leave records from backend
         const response = await axiosInstance.get(
           "/attendanceRoutes/get-attendance",
-          {
-            params,
-          }
+          { params }
         );
 
-        // Combine attendance records with leave records
-        const combinedRecords = [...(response.data || [])];
-
-        // Add leave records to the combined data
-        if (leaveRecords.length > 0) {
-          const leaveAttendanceRecords = leaveRecords
-            .filter((leave) => leave.status === "approved") // Only show approved leaves
-            .map((leave) => ({
-              _id: `leave_${leave._id}`,
-              employee: leave.employee,
-              date: leave.startDate,
-              status: "on_leave",
-              checkIn: "-",
-              checkOut: "-",
-              leaveType: leave.leaveType,
-              notes: leave.reason || "",
-              dateFrom: leave.startDate,
-              dateTo: leave.endDate,
-              leaveStatus: leave.status,
-              isLeaveRecord: true, // Flag to identify leave records
-              originalLeaveId: leave._id,
-            }));
-
-          combinedRecords.push(...leaveAttendanceRecords);
-        }
+        // Use backend's combined data (attendance + leave)
+        const combinedRecords = Array.isArray(response.data?.data)
+          ? response.data.data
+          : [];
 
         setAttendanceRecords(combinedRecords);
         setError(null);
@@ -297,8 +368,7 @@ const Attendances = () => {
     };
 
     fetchAttendance();
-  }, [searchTerm, refreshKey, leaveRecords]);
-
+  }, [searchTerm, refreshKey, isDrawerOpen, selectedEmployee]);
   const handleAddRecord = async () => {
     try {
       if (!newRecord.employeeId || !newRecord.date) {
