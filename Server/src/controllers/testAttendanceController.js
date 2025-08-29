@@ -717,7 +717,7 @@ const addAttendance = async (req, res) => {
 
 // Get all attendance records (Admin/HR only)
 const getAttendance = async (req, res) => {
-  // --- MODIFIED: Added role check and removed employee-specific logic ---
+  // Restrict access to admin and HR roles only
   if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res.status(403).json({
       message:
@@ -726,13 +726,7 @@ const getAttendance = async (req, res) => {
   }
 
   try {
-    const {
-      status,
-      employee,
-      page = 1,
-      limit = 100,
-      includeLeave = true,
-    } = req.query;
+    const { status, employee, page = 1, limit = 100 } = req.query;
     const currentUser = req.user;
 
     console.log("Current User:", {
@@ -743,15 +737,12 @@ const getAttendance = async (req, res) => {
 
     // Build attendance query
     const attendanceQuery = {};
-
-    // Admin and HR can see all attendance records and filter
-    if (status && status !== "leave") {
+    if (status) {
       attendanceQuery.status = status.toLowerCase();
     }
 
     let employeeIds = null;
     if (employee) {
-      // Search by employee name or ID
       const employees = await User.find({
         $or: [
           { firstname: { $regex: employee, $options: "i" } },
@@ -764,17 +755,14 @@ const getAttendance = async (req, res) => {
         employeeIds = employees.map((emp) => emp._id);
         attendanceQuery.employee = { $in: employeeIds };
       } else {
-        // No matching employees found
-        return res.json({ attendance: [], leave: [], total: 0 });
+        return res.json({ data: [], total: 0 });
       }
     }
 
     console.log("Final attendance query:", attendanceQuery);
 
-    // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Fetch attendance records
     const attendanceRecords = await Attendance.find(attendanceQuery)
       .populate(
         "employee",
@@ -786,10 +774,8 @@ const getAttendance = async (req, res) => {
 
     console.log("Found attendance records:", attendanceRecords.length);
 
-    // Transform attendance data
     const transformedAttendance = attendanceRecords.map((record) => ({
       _id: record._id,
-      type: "attendance",
       employee: record.employee,
       date: record.date,
       status: record.status.charAt(0).toUpperCase() + record.status.slice(1),
@@ -814,124 +800,38 @@ const getAttendance = async (req, res) => {
       notes: record.notes,
     }));
 
-    // Fetch leave records if requested
-    let transformedLeave = [];
-    if (includeLeave === "true" || includeLeave === true) {
-      const leaveQuery = {};
-
-      // Apply employee filter to leave records if specified
-      if (employeeIds) {
-        leaveQuery.employee = { $in: employeeIds };
-      }
-
-      // Filter by leave status if status filter is 'leave' or specific leave statuses
-      if (
-        status === "leave" ||
-        ["pending", "approved", "rejected"].includes(status?.toLowerCase())
-      ) {
-        if (status !== "leave") {
-          leaveQuery.status = status.toLowerCase();
-        }
-      }
-
-      console.log("Leave query:", leaveQuery);
-
-      const leaveRecords = await Leave.find(leaveQuery)
-        .populate(
-          "employee",
-          "firstname lastname employeeId department role employmentType"
-        )
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(parseInt(limit));
-
-      console.log("Found leave records:", leaveRecords.length);
-
-      // Transform leave data to match attendance structure
-      transformedLeave = leaveRecords.map((record) => ({
-        _id: record._id,
-        type: "leave",
-        employee: record.employee,
-        date: record.startDate || record.createdAt,
-        status: record.status
-          ? record.status.charAt(0).toUpperCase() + record.status.slice(1)
-          : "Pending",
-        checkIn: "-",
-        checkOut: "-",
-        hoursRendered: 0,
-        tardinessMinutes: 0,
-        leaveType: record.leaveType,
-        leaveStatus: record.status,
-        notes: record.reason || record.notes,
-        // Additional leave-specific fields
-        startDate: record.startDate,
-        endDate: record.endDate,
-        duration: record.duration,
-        reason: record.reason,
-        createdAt: record.createdAt,
-        updatedAt: record.updatedAt,
-        isLeaveRecord: true, // Flag to identify leave records
-      }));
-    }
-
-    // Combine and sort all records by date
-    const allRecords = [...transformedAttendance, ...transformedLeave];
-
-    // Sort combined records by date (most recent first)
-    allRecords.sort((a, b) => {
-      const dateA = new Date(a.date || a.createdAt);
-      const dateB = new Date(b.date || b.createdAt);
-      return dateB - dateA;
-    });
-
-    // Apply pagination to combined results
-    const paginatedRecords = allRecords.slice(0, parseInt(limit));
-
-    // Log access (only if user exists)
-    const performedBy = req.user ? req.user._id : null;
+    // Log access
+    const performedBy = req.user?._id;
     if (performedBy) {
       try {
         await createAttendanceLog({
-          employeeId: null, // General access, not for a specific employee
+          employeeId: null,
           action: "BULK_ACCESS",
-          description: `Accessed attendance and leave records (${paginatedRecords.length} records) - Role: ${currentUser.role}`,
+          description: `Accessed attendance records (${transformedAttendance.length} records) - Role: ${currentUser.role}`,
           performedBy: performedBy,
           metadata: {
             query: req.query,
             attendanceCount: transformedAttendance.length,
-            leaveCount: transformedLeave.length,
-            totalRecords: paginatedRecords.length,
             page: page,
             limit: limit,
             userRole: currentUser.role,
-            includeLeave: includeLeave,
           },
         });
       } catch (logError) {
         console.error("Error creating attendance log:", logError);
-        // Continue without failing the main request
       }
     }
 
-    console.log("Returning combined records:", {
-      attendance: transformedAttendance.length,
-      leave: transformedLeave.length,
-      total: paginatedRecords.length,
-    });
-
-    // Return structured response
     res.json({
-      data: paginatedRecords,
+      data: transformedAttendance,
       summary: {
-        attendance: transformedAttendance.length,
-        leave: transformedLeave.length,
-        total: paginatedRecords.length,
+        total: transformedAttendance.length,
         page: parseInt(page),
         limit: parseInt(limit),
       },
     });
   } catch (error) {
-    console.error("Error fetching attendance and leave records:", error);
+    console.error("Error fetching attendance records:", error);
     res.status(500).json({
       message: "Internal server error",
       error: error.message,
@@ -1456,7 +1356,30 @@ const getAllEmployeeLeave = async (req, res) => {
   }
 };
 
-// --- MODIFIED: `getMyAttendance` was removed from the exports ---
+const getLeaveBreakdown = async (req, res) => {
+  try {
+    const breakdown = await Leave.aggregate([
+      {
+        $group: {
+          _id: "$leaveType",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Transform to key-value format
+    const leaveCounts = breakdown.reduce((acc, item) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {});
+
+    res.status(200).json(leaveCounts);
+  } catch (error) {
+    console.error("Error fetching leave breakdown:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 module.exports = {
   addAttendance,
   getAttendance,
@@ -1470,4 +1393,5 @@ module.exports = {
   rejectLeave,
   rejectLeaveBulk,
   getAllEmployeeLeave,
+  getLeaveBreakdown,
 };

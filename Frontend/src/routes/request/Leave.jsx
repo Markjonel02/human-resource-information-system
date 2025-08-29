@@ -23,6 +23,7 @@ import {
   ModalCloseButton,
   FormControl,
   FormLabel,
+  Heading,
   Input,
   Textarea,
   useDisclosure,
@@ -343,13 +344,12 @@ const Leave = () => {
   const [filterStatus, setFilterStatus] = useState("All");
   const [selectedRequestIds, setSelectedRequestIds] = useState([]);
   const [isSelectAllChecked, setIsSelectAllChecked] = useState(false);
-
   const {
     isOpen: isAddModalOpen,
     onOpen: onAddModalOpen,
     onClose: onAddModalClose,
   } = useDisclosure();
-
+  const [leaveCounts, setLeaveCounts] = useState({});
   const toast = useToast();
   const [newLeaveData, setNewLeaveData] = useState({
     leaveType: "",
@@ -364,6 +364,21 @@ const Leave = () => {
   const [itemsPerPage, setItemsPerPage] = useState(6);
 
   const [leaveRequests, setLeaveRequests] = useState([]);
+
+  useEffect(() => {
+    const fetchLeaveBreakdown = async () => {
+      try {
+        const response = await axiosInstance.get(
+          "/attendanceRoutes/get-leave-breakdown"
+        );
+        setLeaveCounts(response.data);
+      } catch (error) {
+        console.error("Failed to fetch leave breakdown:", error);
+      }
+    };
+
+    fetchLeaveBreakdown();
+  }, []);
 
   // Filter the requests based on the selected status
   const filteredRequests = leaveRequests.filter(
@@ -729,7 +744,7 @@ const Leave = () => {
         p={8}
         width="100%"
         spacing={6}
-        bg="gray.50"
+       
       >
         {/* Top Controls: Add Leave, Bulk Actions, Filter */}
         <Flex
@@ -810,7 +825,46 @@ const Leave = () => {
               <option value="Rejected">Rejected</option>
             </Select>
           </HStack>
+
+          {/* Leave Breakdown */}
         </Flex>
+        {/* Leave Breakdown */}
+        <Box
+          bg="white"
+          p={{ base: 4, md: 6 }}
+          borderRadius="lg"
+          shadow="md"
+          mb={6}
+          w="100%" // ✅ Full width
+        >
+          <Heading size="md" mb={4} color="gray.700" textAlign="left">
+            Leave Breakdown
+          </Heading>
+
+          <SimpleGrid columns={{ base: 2, sm: 3, md: 6 }} spacing={4} w="100%">
+            {Object.entries(leaveCounts).map(([type, count]) => (
+              <VStack
+                key={type}
+                bg="blue.50"
+                p={3}
+                borderRadius="md"
+                w="100%" // ✅ Stretch items in grid
+              >
+                <Text
+                  fontSize="xs"
+                  color="blue.600"
+                  fontWeight="semibold"
+                  textAlign="center"
+                >
+                  {type}
+                </Text>
+                <Text fontSize="xl" fontWeight="bold" color="blue.700">
+                  {count}
+                </Text>
+              </VStack>
+            ))}
+          </SimpleGrid>
+        </Box>
 
         {/* Leave Request Cards */}
         <SimpleGrid

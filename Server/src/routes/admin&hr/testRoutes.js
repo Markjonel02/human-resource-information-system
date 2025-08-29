@@ -129,4 +129,10 @@ router.get(
   testAttendance.getAllEmployeeLeave
 );
 
+router.get(
+  "/get-leave-breakdown",
+  authorizeRoles("admin"),
+  testAttendance.getLeaveBreakdown
+);
+
 module.exports = router;

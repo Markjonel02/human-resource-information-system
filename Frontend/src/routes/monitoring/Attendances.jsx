@@ -135,7 +135,6 @@ const calculateLateMinutes = (checkInTime, standardCheckIn = "08:00 AM") => {
 const Attendances = () => {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [employees, setEmployees] = useState([]);
-  const [leaveRecords, setLeaveRecords] = useState([]); // New state for leave records
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -171,128 +170,10 @@ const Attendances = () => {
     status: "present",
     checkIn: "08:00 AM",
     checkOut: "05:00 PM",
-    leaveType: "",
     notes: "",
-    dateFrom: "",
-    dateTo: "",
   });
   const toast = useToast();
-  const fetchLeaveRequests = useCallback(async () => {
-    try {
-      const res = await axiosInstance.get("/employee/my");
-      const data = Array.isArray(res.data) ? res.data : [];
-      setLeaveRequests(
-        data
-          .filter((item) => item.status === "on_leave")
-          .map((item) => ({
-            id: item._id,
-            leaveType: item.leaveType || "Leave",
-            days:
-              item.totalLeaveDays && item.totalLeaveDays > 1
-                ? `${item.totalLeaveDays} Days`
-                : item.totalLeaveDays === 1
-                ? "1 Day"
-                : calculateDays(item.dateFrom, item.dateTo) > 1
-                ? `${calculateDays(item.dateFrom, item.dateTo)} Days`
-                : "1 Day",
-            startDate: item.dateFrom || "",
-            endDate: item.dateTo || "",
-            reason: item.notes || "",
-            status:
-              item.leaveStatus === "approved"
-                ? "Approved"
-                : item.leaveStatus === "pending"
-                ? "Pending"
-                : item.leaveStatus === "rejected"
-                ? "Rejected"
-                : "Pending",
-          }))
-      );
-    } catch (err) {
-      toast({
-        title: "Error",
-        description:
-          err.response?.data?.message || "Failed to fetch leave requests.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  }, [toast]);
-  const handleAddLeaveSubmit = async () => {
-    if (
-      !newLeaveData.leaveType ||
-      !newLeaveData.dateFrom ||
-      !newLeaveData.dateTo ||
-      !newLeaveData.notes
-    ) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
 
-    try {
-      await axiosInstance.post("/employee/add-leave", {
-        leaveType: newLeaveData.leaveType,
-        dateFrom: newLeaveData.dateFrom,
-        dateTo: newLeaveData.dateTo,
-        notes: newLeaveData.notes,
-      });
-      setNewLeaveData({
-        leaveType: "",
-        dateFrom: "",
-        dateTo: "",
-        notes: "",
-      });
-      onAddModalClose();
-      toast({
-        title: "Leave Request Added",
-        description: "Your new leave request has been submitted successfully.",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-      fetchLeaveRequests();
-      setCurrentPage(1);
-    } catch (err) {
-      toast({
-        title: "Error",
-        description:
-          err.response?.data?.message || "Failed to create leave request.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  // Edit Leave (example usage, you can add an Edit button per row)
-  const handleEditLeave = async (id, updatedData) => {
-    try {
-      await axiosInstance.put(`/employee/edit-leave/${id}`, updatedData);
-      toast({
-        title: "Leave Request Updated",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-      fetchLeaveRequests();
-    } catch (err) {
-      toast({
-        title: "Error",
-        description:
-          err.response?.data?.message || "Failed to update leave request.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
   // Auto refresh every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
@@ -321,16 +202,15 @@ const Attendances = () => {
     };
     fetchEmployees();
   }, [toast]);
-
-  // Fetch attendance records and combine with leave data
+  // Fetch attendance records only
   useEffect(() => {
     const fetchAttendance = async () => {
       try {
         setIsLoading(true);
-        const params = { includeLeave: true };
+        const params = {};
 
         if (searchTerm) {
-          const statusMatch = searchTerm.match(/present|absent|late|leave/i);
+          const statusMatch = searchTerm.match(/present|absent|late/i);
           if (statusMatch) {
             params.status = statusMatch[0];
           } else {
@@ -338,18 +218,17 @@ const Attendances = () => {
           }
         }
 
-        // Fetch combined attendance and leave records from backend
+        // Fetch only attendance records (no leave data)
         const response = await axiosInstance.get(
           "/attendanceRoutes/get-attendance",
           { params }
         );
 
-        // Use backend's combined data (attendance + leave)
-        const combinedRecords = Array.isArray(response.data?.data)
+        const attendanceData = Array.isArray(response.data?.data)
           ? response.data.data
           : [];
 
-        setAttendanceRecords(combinedRecords);
+        setAttendanceRecords(attendanceData);
         setError(null);
 
         // Only fetch logs if needed (optimization)
@@ -369,6 +248,7 @@ const Attendances = () => {
 
     fetchAttendance();
   }, [searchTerm, refreshKey, isDrawerOpen, selectedEmployee]);
+
   const handleAddRecord = async () => {
     try {
       if (!newRecord.employeeId || !newRecord.date) {
@@ -397,26 +277,14 @@ const Attendances = () => {
         }
       }
 
-      // Transform status to match backend expectations
-      if (status === "Leave") status = "on_leave";
-
       const recordData = {
         employeeId: newRecord.employeeId,
         date: newRecord.date,
         status: status,
-        checkIn:
-          newRecord.status !== "absent" && newRecord.status !== "Leave"
-            ? newRecord.checkIn
-            : undefined,
+        checkIn: newRecord.status !== "absent" ? newRecord.checkIn : undefined,
         checkOut:
-          newRecord.status !== "absent" && newRecord.status !== "Leave"
-            ? newRecord.checkOut
-            : undefined,
-        leaveType:
-          newRecord.status === "Leave" ? newRecord.leaveType : undefined,
+          newRecord.status !== "absent" ? newRecord.checkOut : undefined,
         notes: newRecord.notes,
-        dateFrom: newRecord.status === "Leave" ? newRecord.dateFrom : undefined,
-        dateTo: newRecord.status === "Leave" ? newRecord.dateTo : undefined,
       };
 
       const response = await axiosInstance.post(
@@ -445,10 +313,7 @@ const Attendances = () => {
         status: "present",
         checkIn: companySettings.standardCheckIn,
         checkOut: companySettings.standardCheckOut,
-        leaveType: "",
         notes: "",
-        dateFrom: "",
-        dateTo: "",
       });
 
       onAddModalClose();
@@ -467,19 +332,6 @@ const Attendances = () => {
 
   const handleSaveRecord = async () => {
     try {
-      // Don't allow editing leave records from attendance
-      if (editingRecord.isLeaveRecord) {
-        toast({
-          title: "Cannot Edit",
-          description:
-            "Leave records must be edited from the Leave Management system",
-          status: "warning",
-          duration: 3000,
-          isClosable: true,
-        });
-        return;
-      }
-
       setIsLoading(true);
 
       // Auto-determine if late based on check-in time
@@ -500,20 +352,12 @@ const Attendances = () => {
       }
 
       const updateData = {
-        status: status === "Leave" ? "on_leave" : status.toLowerCase(),
+        status: status.toLowerCase(),
         checkIn:
           editingRecord.checkIn !== "-" ? editingRecord.checkIn : undefined,
         checkOut:
           editingRecord.checkOut !== "-" ? editingRecord.checkOut : undefined,
-        leaveType:
-          editingRecord.status === "Leave"
-            ? editingRecord.leaveType
-            : undefined,
         notes: editingRecord.notes,
-        dateFrom:
-          editingRecord.status === "Leave" ? editingRecord.dateFrom : undefined,
-        dateTo:
-          editingRecord.status === "Leave" ? editingRecord.dateTo : undefined,
       };
 
       const response = await axiosInstance.put(
@@ -684,7 +528,7 @@ const Attendances = () => {
       numLate,
       numAbsent,
       numPresent,
-      leaveCounts,
+
       absentEmployees,
     };
   }, [filteredAttendance, companySettings.standardCheckIn]);
@@ -917,7 +761,6 @@ const Attendances = () => {
             >
               <option value="">All</option>
               <option value="present">Present</option>
-              <option value="on_leave">Leave</option>
               <option value="absent">Absent</option>
               <option value="late">Late</option>
             </Select>
@@ -1022,34 +865,15 @@ const Attendances = () => {
         >
           <Stat>
             <StatLabel color="gray.600" fontSize="sm">
-              On Leave
+              Check In
             </StatLabel>
             <StatNumber fontSize="2xl" fontWeight="bold" color="blue.600">
-              {Object.values(leaveCounts).reduce((a, b) => a + b, 0)}
+              {numPresent}
             </StatNumber>
-            <StatHelpText color="gray.500">Total approved leaves</StatHelpText>
+            <StatHelpText color="gray.500">Total CheckIn Employee</StatHelpText>
           </Stat>
         </Box>
       </SimpleGrid>
-
-      {/* Leave Breakdown */}
-      <Box bg="white" p={6} borderRadius="lg" shadow="md" mb={6}>
-        <Heading size="md" mb={4} color="gray.700">
-          Leave Breakdown
-        </Heading>
-        <SimpleGrid columns={{ base: 2, sm: 3, md: 6 }} spacing={4}>
-          {Object.entries(leaveCounts).map(([type, count]) => (
-            <VStack key={type} bg="blue.50" p={3} borderRadius="md">
-              <Text fontSize="xs" color="blue.600" fontWeight="semibold">
-                {type}
-              </Text>
-              <Text fontSize="xl" fontWeight="bold" color="blue.700">
-                {count}
-              </Text>
-            </VStack>
-          ))}
-        </SimpleGrid>
-      </Box>
 
       {/* Absent Employees Alert */}
       {absentEmployees.length > 0 && (
@@ -1162,21 +986,9 @@ const Attendances = () => {
                 letterSpacing="wider"
                 display={{ base: "none", xl: "table-cell" }}
               >
-                Leave Type
+                Notes
               </Th>
-              <Th
-                py={3}
-                px={4}
-                textAlign="left"
-                fontSize="xs"
-                fontWeight="medium"
-                color="gray.500"
-                textTransform="uppercase"
-                letterSpacing="wider"
-                display={{ base: "none", xl: "table-cell" }}
-              >
-                Leave Status
-              </Th>
+
               <Th
                 py={3}
                 px={4}
@@ -1315,53 +1127,17 @@ const Attendances = () => {
                     py={4}
                     display={{ base: "none", xl: "table-cell" }}
                   >
-                    {record.leaveType ? (
-                      <VStack align="flex-start" spacing={1}>
-                        <Tag size="sm" colorScheme="blue" variant="outline">
-                          {record.leaveType}
-                        </Tag>
-                        {record.isLeaveRecord && record.notes && (
-                          <Text fontSize="xs" color="gray.500" noOfLines={1}>
-                            {record.notes}
-                          </Text>
-                        )}
-                      </VStack>
+                    {record.notes ? (
+                      <Text fontSize="xs" color="gray.500" noOfLines={1}>
+                        {record.notes}
+                      </Text>
                     ) : (
                       <Text fontSize="sm" color="gray.500">
                         -
                       </Text>
                     )}
                   </Td>
-                  <Td
-                    px={4}
-                    py={4}
-                    display={{ base: "none", xl: "table-cell" }}
-                  >
-                    {record.status.toLowerCase() === "on_leave" ? (
-                      <Tag
-                        size="sm"
-                        colorScheme={
-                          record.leaveStatus === "approved"
-                            ? "green"
-                            : record.leaveStatus === "pending"
-                            ? "orange"
-                            : record.leaveStatus === "rejected"
-                            ? "red"
-                            : "gray"
-                        }
-                        variant="subtle"
-                      >
-                        {record.leaveStatus
-                          ? record.leaveStatus.charAt(0).toUpperCase() +
-                            record.leaveStatus.slice(1)
-                          : "Approved"}
-                      </Tag>
-                    ) : (
-                      <Text fontSize="sm" color="gray.400">
-                        -
-                      </Text>
-                    )}
-                  </Td>
+
                   <Td px={4} py={4} textAlign="right">
                     <Menu>
                       <MenuButton
@@ -1794,73 +1570,6 @@ const Attendances = () => {
                               </SimpleGrid>
                             </Box>
                           )}
-
-                        {selectedEmployee.leaveType && (
-                          <Box
-                            bg="blue.50"
-                            p={4}
-                            borderRadius="lg"
-                            border="1px"
-                            borderColor="blue.200"
-                          >
-                            <Heading size="sm" mb={2} color="blue.700">
-                              Leave Information
-                            </Heading>
-                            <VStack align="flex-start" spacing={2}>
-                              <Tag
-                                size="lg"
-                                colorScheme="blue"
-                                variant="subtle"
-                              >
-                                {selectedEmployee.leaveType}
-                              </Tag>
-                              {selectedEmployee.leaveStatus && (
-                                <Tag
-                                  size="sm"
-                                  colorScheme={
-                                    selectedEmployee.leaveStatus === "approved"
-                                      ? "green"
-                                      : selectedEmployee.leaveStatus ===
-                                        "pending"
-                                      ? "orange"
-                                      : "red"
-                                  }
-                                  variant="solid"
-                                >
-                                  {selectedEmployee.leaveStatus.toUpperCase()}
-                                </Tag>
-                              )}
-                            </VStack>
-                          </Box>
-                        )}
-
-                        {selectedEmployee.notes && (
-                          <Box
-                            bg="yellow.50"
-                            p={4}
-                            borderRadius="lg"
-                            border="1px"
-                            borderColor="yellow.200"
-                          >
-                            <Heading size="sm" mb={2} color="yellow.800">
-                              <HStack>
-                                <Icon as={FaFileAlt} color="yellow.600" />
-                                <Text>
-                                  {selectedEmployee.isLeaveRecord
-                                    ? "Reason"
-                                    : "Notes"}
-                                </Text>
-                              </HStack>
-                            </Heading>
-                            <Text
-                              fontSize="sm"
-                              color="gray.700"
-                              lineHeight="tall"
-                            >
-                              {selectedEmployee.notes}
-                            </Text>
-                          </Box>
-                        )}
                       </VStack>
                     </TabPanel>
 
