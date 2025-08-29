@@ -135,4 +135,16 @@ router.get(
   testAttendance.getLeaveBreakdown
 );
 
+router.post(
+  "/reject-leave/:id",
+  authorizeRoles("admin"),
+  testAttendance.rejectLeave
+);
+
+router.post(
+  "/reject-leave-bulk/:id",
+  authorizeRoles("admin"),
+  testAttendance.rejectLeaveBulk
+);
+
 module.exports = router;

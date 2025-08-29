@@ -279,11 +279,13 @@ const LeaveRequestCard = ({
           <CalendarIcon color={calendarIconColor} mr={2} />
           <Text fontSize="sm" color={dateTextColor} fontWeight="medium">
             {startDate
-              ? new Date(startDate).toLocaleDateString("en-US", {
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })
+              ? new Date(startDate)
+                  .toLocaleDateString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                  .substring(0, 3)
               : ""}
             {" - "}
             {endDate
@@ -309,27 +311,26 @@ const LeaveRequestCard = ({
         <Text fontSize="sm" fontWeight="semibold" color="gray.700">
           Actions
         </Text>
-        <HStack spacing={2}>
+        <HStack spacing={2} ml={5}>
           <Button
             colorScheme="green"
             size="sm"
             onClick={onApprove}
             leftIcon={<CheckIcon />}
             isDisabled={status !== "Pending"}
-            boxShadow="md"
+            boxShadow="sm"
             _hover={{ bg: "green.600", transform: "scale(1.05)" }}
             _active={{ bg: "green.700", transform: "scale(0.95)" }}
           >
             Approve
           </Button>
           <Button
-            colorScheme="red"
             size="sm"
             onClick={onReject}
             leftIcon={<CloseIcon />}
             isDisabled={status !== "Pending"}
-            boxShadow="md"
-            _hover={{ bg: "red.600", transform: "scale(1.05)" }}
+            boxShadow="sm"
+            _hover={{ bg: "red.50", transform: "scale(1.05)" }}
             _active={{ bg: "red.700", transform: "scale(0.95)" }}
           >
             Reject
@@ -509,7 +510,7 @@ const Leave = () => {
 
   const handleReject = async (id) => {
     try {
-      await axiosInstance.post(`/attendance/reject-leave/${id}`);
+      await axiosInstance.post(`/attendanceRoutes/reject-leave/${id}`);
       toast({
         title: "Leave Rejected",
         status: "info",
@@ -517,22 +518,21 @@ const Leave = () => {
         duration: 3000,
         isClosable: true,
       });
-      fetchLeaveRequests(); // Refresh the list after rejection
+      fetchLeaveRequests();
     } catch (err) {
       console.error("Error rejecting leave:", err);
-      // If no reject endpoint exists, update locally
       setLeaveRequests((prevRequests) =>
         prevRequests.map((req) =>
-          req.id === id ? { ...req, status: "Rejected" } : req
+          req._id === id ? { ...req, status: "Rejected" } : req
         )
       );
       setSelectedRequestIds((prev) =>
         prev.filter((selectedId) => selectedId !== id)
       );
       toast({
-        title: "Request Rejected",
-        description: "The leave request has been rejected.",
-        status: "info",
+        title: "Rejection Failed",
+        description: err.response?.data?.message || "Something went wrong.",
+        status: "error",
         duration: 3000,
         position: "top",
         isClosable: true,
@@ -699,7 +699,7 @@ const Leave = () => {
   const handleRejectSelected = async () => {
     try {
       // If bulk reject endpoint exists
-      await axiosInstance.post(`/attendance/reject-leave-bulk`, {
+      await axiosInstance.post(`/attendanceRoutes/reject-leave-bulk`, {
         ids: selectedRequestIds,
       });
       toast({
@@ -744,7 +744,6 @@ const Leave = () => {
         p={8}
         width="100%"
         spacing={6}
-       
       >
         {/* Top Controls: Add Leave, Bulk Actions, Filter */}
         <Flex
@@ -825,23 +824,14 @@ const Leave = () => {
               <option value="Rejected">Rejected</option>
             </Select>
           </HStack>
-
-          {/* Leave Breakdown */}
         </Flex>
         {/* Leave Breakdown */}
-        <Box
-          bg="white"
-          p={{ base: 4, md: 6 }}
-          borderRadius="lg"
-          shadow="md"
-          mb={6}
-          w="100%" // ✅ Full width
-        >
+        <Box bg="white" p={4} borderRadius="lg" shadow="sm" mb={6} w="100%">
           <Heading size="md" mb={4} color="gray.700" textAlign="left">
             Leave Breakdown
           </Heading>
 
-          <SimpleGrid columns={{ base: 2, sm: 3, md: 6 }} spacing={4} w="100%">
+          <SimpleGrid columns={{ base: 2, sm: 2, md: 5 }} spacing={4} w="100%">
             {Object.entries(leaveCounts).map(([type, count]) => (
               <VStack
                 key={type}

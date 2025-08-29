@@ -179,27 +179,59 @@ const approveLeave = async (req, res) => {
     await leaveRecord.save();
 
     // 15. Log the approval action for audit trail purposes.
-    await createAttendanceLog({
-      employeeId: employee._id,
-      attendanceId: leaveRecord._id,
-      action: "LEAVE_APPROVED",
-      description: `Leave approved by admin (${req.user.firstname} ${req.user.lastname})`,
-      performedBy: req.user._id,
-      changes: {
-        leaveStatus: { from: "pending", to: "approved" },
-        leaveCredits: {
-          leaveType: leaveRecord.leaveType,
-          daysDeducted: daysToDeduct,
-        },
-      },
-      metadata: {
-        approvedBy: req.user.firstname + " " + req.user.lastname,
-        date: leaveRecord.date,
-        leaveType: leaveRecord.leaveType,
-        dateFrom: leaveRecord.dateFrom || "",
-        dateTo: leaveRecord.dateTo || "",
-      },
-    });
+    const rejectLeave = async (req, res) => {
+      if (req.user.role !== "admin") {
+        return res.status(403).json({
+          message: "Access denied. Only Admin users can reject leave requests.",
+        });
+      }
+
+      try {
+        const { id } = req.params;
+        const leaveRecord = await Leave.findById(id).populate("employee");
+
+        if (!leaveRecord) {
+          return res.status(404).json({ message: "Leave record not found" });
+        }
+
+        if (leaveRecord.leaveStatus !== "pending") {
+          return res.status(400).json({
+            message: "This leave request has already been processed.",
+          });
+        }
+
+        leaveRecord.leaveStatus = "rejected";
+        await leaveRecord.save();
+
+        await createAttendanceLog({
+          employeeId: leaveRecord.employee._id,
+          attendanceId: leaveRecord._id,
+          action: "LEAVE_REJECTED",
+          description: `Leave rejected by admin (${req.user.firstname} ${req.user.lastname})`,
+          performedBy: req.user._id,
+          changes: {
+            leaveStatus: { from: "pending", to: "rejected" },
+          },
+          metadata: {
+            rejectedBy: `${req.user.firstname} ${req.user.lastname}`,
+            leaveType: leaveRecord.leaveType,
+            dateFrom: leaveRecord.dateFrom,
+            dateTo: leaveRecord.dateTo,
+          },
+        });
+
+        res.json({
+          message: "Leave rejected successfully.",
+          leaveRecord,
+        });
+      } catch (error) {
+        console.error("Error rejecting leave:", error);
+        res.status(500).json({
+          message: "Internal server error",
+          error: error.message,
+        });
+      }
+    };
 
     // 16. Send a success response.
     res.status(200).json({
@@ -356,43 +388,39 @@ const rejectLeave = async (req, res) => {
 
   try {
     const { id } = req.params;
-    const { reason } = req.body; // Optional rejection reason
-
-    // Find the leave record and populate the employee
     const leaveRecord = await Leave.findById(id).populate("employee");
+
     if (!leaveRecord) {
       return res.status(404).json({ message: "Leave record not found" });
     }
 
-    // Check if the leave request is pending
     if (leaveRecord.leaveStatus !== "pending") {
       return res
         .status(400)
         .json({ message: "This leave request has already been processed." });
     }
 
-    // Update the leave request status to 'rejected'
     leaveRecord.leaveStatus = "rejected";
-    leaveRecord.status = "present"; // or whatever default status you use
-    if (reason) {
-      leaveRecord.rejectionReason = reason;
-    }
     await leaveRecord.save();
-
-    // Log the action
     await createAttendanceLog({
-      employeeId: leaveRecord.employee._id,
+      employeeId: employee._id,
       attendanceId: leaveRecord._id,
-      action: "LEAVE_REJECTED",
-      description: `Leave rejected by admin (${req.user.firstname} ${req.user.lastname})`,
+      action: "LEAVE_APPROVED",
+      description: `Leave approved by admin (${req.user.firstname} ${req.user.lastname})`,
       performedBy: req.user._id,
       changes: {
-        leaveStatus: { from: "pending", to: "rejected" },
+        leaveStatus: { from: "pending", to: "approved" },
+        leaveCredits: {
+          leaveType: leaveRecord.leaveType,
+          daysDeducted: daysToDeduct,
+        },
       },
       metadata: {
-        rejectedBy: req.user.firstname + " " + req.user.lastname,
-        rejectionReason: reason || "No reason provided",
+        approvedBy: req.user.firstname + " " + req.user.lastname,
+        date: leaveRecord.date,
         leaveType: leaveRecord.leaveType,
+        dateFrom: leaveRecord.dateFrom || "",
+        dateTo: leaveRecord.dateTo || "",
       },
     });
 
@@ -1358,6 +1386,10 @@ const getAllEmployeeLeave = async (req, res) => {
 
 const getLeaveBreakdown = async (req, res) => {
   try {
+    // Define all valid leave types
+    const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "CL"];
+
+    // Aggregate leave counts from the database
     const breakdown = await Leave.aggregate([
       {
         $group: {
@@ -1367,11 +1399,17 @@ const getLeaveBreakdown = async (req, res) => {
       },
     ]);
 
-    // Transform to key-value format
-    const leaveCounts = breakdown.reduce((acc, item) => {
+    // Convert aggregation result to a map
+    const aggregatedCounts = breakdown.reduce((acc, item) => {
       acc[item._id] = item.count;
       return acc;
     }, {});
+
+    // Ensure all leave types are represented
+    const leaveCounts = {};
+    validLeaveTypes.forEach((type) => {
+      leaveCounts[type] = aggregatedCounts[type] || 0;
+    });
 
     res.status(200).json(leaveCounts);
   } catch (error) {
