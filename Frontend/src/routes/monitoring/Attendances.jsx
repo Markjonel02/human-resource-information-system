@@ -528,7 +528,7 @@ const Attendances = () => {
       numLate,
       numAbsent,
       numPresent,
-      leaveCounts,
+
       absentEmployees,
     };
   }, [filteredAttendance, companySettings.standardCheckIn]);
@@ -865,12 +865,12 @@ const Attendances = () => {
         >
           <Stat>
             <StatLabel color="gray.600" fontSize="sm">
-              On Leave
+              Check In
             </StatLabel>
             <StatNumber fontSize="2xl" fontWeight="bold" color="blue.600">
-              {Object.values(leaveCounts).reduce((a, b) => a + b, 0)}
+              {numPresent}
             </StatNumber>
-            <StatHelpText color="gray.500">Total approved leaves</StatHelpText>
+            <StatHelpText color="gray.500">Total CheckIn Employee</StatHelpText>
           </Stat>
         </Box>
       </SimpleGrid>
@@ -1122,58 +1122,22 @@ const Attendances = () => {
                       {calculateHoursRendered(record.checkIn, record.checkOut)}
                     </Text>
                   </Td>
-                  {/*                   <Td
+                  <Td
                     px={4}
                     py={4}
                     display={{ base: "none", xl: "table-cell" }}
                   >
-                    {record.leaveType ? (
-                      <VStack align="flex-start" spacing={1}>
-                        <Tag size="sm" colorScheme="blue" variant="outline">
-                          {record.leaveType}
-                        </Tag>
-                        {record.isLeaveRecord && record.notes && (
-                          <Text fontSize="xs" color="gray.500" noOfLines={1}>
-                            {record.notes}
-                          </Text>
-                        )}
-                      </VStack>
+                    {record.notes ? (
+                      <Text fontSize="xs" color="gray.500" noOfLines={1}>
+                        {record.notes}
+                      </Text>
                     ) : (
                       <Text fontSize="sm" color="gray.500">
                         -
                       </Text>
                     )}
                   </Td>
-                  <Td
-                    px={4}
-                    py={4}
-                    display={{ base: "none", xl: "table-cell" }}
-                  >
-                    {record.status.toLowerCase() === "on_leave" ? (
-                      <Tag
-                        size="sm"
-                        colorScheme={
-                          record.leaveStatus === "approved"
-                            ? "green"
-                            : record.leaveStatus === "pending"
-                            ? "orange"
-                            : record.leaveStatus === "rejected"
-                            ? "red"
-                            : "gray"
-                        }
-                        variant="subtle"
-                      >
-                        {record.leaveStatus
-                          ? record.leaveStatus.charAt(0).toUpperCase() +
-                            record.leaveStatus.slice(1)
-                          : "Approved"}
-                      </Tag>
-                    ) : (
-                      <Text fontSize="sm" color="gray.400">
-                        -
-                      </Text>
-                    )}
-                  </Td> */}
+
                   <Td px={4} py={4} textAlign="right">
                     <Menu>
                       <MenuButton
@@ -1606,73 +1570,6 @@ const Attendances = () => {
                               </SimpleGrid>
                             </Box>
                           )}
-
-                        {selectedEmployee.leaveType && (
-                          <Box
-                            bg="blue.50"
-                            p={4}
-                            borderRadius="lg"
-                            border="1px"
-                            borderColor="blue.200"
-                          >
-                            <Heading size="sm" mb={2} color="blue.700">
-                              Leave Information
-                            </Heading>
-                            <VStack align="flex-start" spacing={2}>
-                              <Tag
-                                size="lg"
-                                colorScheme="blue"
-                                variant="subtle"
-                              >
-                                {selectedEmployee.leaveType}
-                              </Tag>
-                              {selectedEmployee.leaveStatus && (
-                                <Tag
-                                  size="sm"
-                                  colorScheme={
-                                    selectedEmployee.leaveStatus === "approved"
-                                      ? "green"
-                                      : selectedEmployee.leaveStatus ===
-                                        "pending"
-                                      ? "orange"
-                                      : "red"
-                                  }
-                                  variant="solid"
-                                >
-                                  {selectedEmployee.leaveStatus.toUpperCase()}
-                                </Tag>
-                              )}
-                            </VStack>
-                          </Box>
-                        )}
-
-                        {selectedEmployee.notes && (
-                          <Box
-                            bg="yellow.50"
-                            p={4}
-                            borderRadius="lg"
-                            border="1px"
-                            borderColor="yellow.200"
-                          >
-                            <Heading size="sm" mb={2} color="yellow.800">
-                              <HStack>
-                                <Icon as={FaFileAlt} color="yellow.600" />
-                                <Text>
-                                  {selectedEmployee.isLeaveRecord
-                                    ? "Reason"
-                                    : "Notes"}
-                                </Text>
-                              </HStack>
-                            </Heading>
-                            <Text
-                              fontSize="sm"
-                              color="gray.700"
-                              lineHeight="tall"
-                            >
-                              {selectedEmployee.notes}
-                            </Text>
-                          </Box>
-                        )}
                       </VStack>
                     </TabPanel>
 

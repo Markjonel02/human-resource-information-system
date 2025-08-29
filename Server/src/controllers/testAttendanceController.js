@@ -1356,7 +1356,30 @@ const getAllEmployeeLeave = async (req, res) => {
   }
 };
 
-// --- MODIFIED: `getMyAttendance` was removed from the exports ---
+const getLeaveBreakdown = async (req, res) => {
+  try {
+    const breakdown = await Leave.aggregate([
+      {
+        $group: {
+          _id: "$leaveType",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Transform to key-value format
+    const leaveCounts = breakdown.reduce((acc, item) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {});
+
+    res.status(200).json(leaveCounts);
+  } catch (error) {
+    console.error("Error fetching leave breakdown:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 module.exports = {
   addAttendance,
   getAttendance,
@@ -1370,4 +1393,5 @@ module.exports = {
   rejectLeave,
   rejectLeaveBulk,
   getAllEmployeeLeave,
+  getLeaveBreakdown,
 };
