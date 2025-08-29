@@ -40,11 +40,18 @@ const addLeave = async (req, res) => {
     }
 
     // Check if any leave type has insufficient credits for the requested duration
-    for (const type of creditRequiredTypes) {
-      const remaining = credits.credits[type]?.remaining || 0;
+    // Map leave types to their remaining credits
+    const remainingCredits = creditRequiredTypes.reduce((acc, type) => {
+      acc[type] = credits.credits[type]?.remaining || 0;
+      return acc;
+    }, {});
+
+    // Check if the requested leave type has enough credits
+    if (creditRequiredTypes.includes(leaveType)) {
+      const remaining = remainingCredits[leaveType];
       if (totalLeaveDays > remaining) {
         return res.status(400).json({
-          message: `Requested ${totalLeaveDays} day(s) exceeds available ${type} credits (${remaining} remaining).`,
+          message: `Requested ${totalLeaveDays} day(s) exceeds available ${leaveType} credits (${remaining} remaining).`,
         });
       }
     }
