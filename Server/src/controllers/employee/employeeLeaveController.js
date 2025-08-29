@@ -31,20 +31,20 @@ const addLeave = async (req, res) => {
         (new Date(dateTo) - new Date(dateFrom)) / (1000 * 60 * 60 * 24)
       ) + 1;
 
-    // Step 4: Validate leave credits (only for types that require credits)
+    // Step 4: Validate leave credits (for all types with credits)
     const creditRequiredTypes = ["VL", "SL", "BL", "CL"];
-    if (creditRequiredTypes.includes(leaveType)) {
-      const credits = await LeaveCredits.findOne({ employee: employeeId });
+    const credits = await LeaveCredits.findOne({ employee: employeeId });
 
-      if (
-        !credits ||
-        !credits.credits[leaveType] ||
-        credits.credits[leaveType].remaining < totalLeaveDays
-      ) {
+    if (!credits) {
+      return res.status(400).json({ message: "Leave credits not found." });
+    }
+
+    // Check if any leave type has insufficient credits for the requested duration
+    for (const type of creditRequiredTypes) {
+      const remaining = credits.credits[type]?.remaining || 0;
+      if (totalLeaveDays > remaining) {
         return res.status(400).json({
-          message: `Insufficient ${leaveType} credits. You requested ${totalLeaveDays} day(s), but only ${
-            credits?.credits[leaveType]?.remaining || 0
-          } are available.`,
+          message: `Requested ${totalLeaveDays} day(s) exceeds available ${type} credits (${remaining} remaining).`,
         });
       }
     }

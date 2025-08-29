@@ -35,7 +35,7 @@ const LeaveSchema = new Schema(
       enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
-    // Fields for the approval workflow
+
     approvedBy: {
       type: Schema.Types.ObjectId,
       ref: "user", // Link to the admin/manager who approved/rejected

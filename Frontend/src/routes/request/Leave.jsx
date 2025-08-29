@@ -30,6 +30,7 @@ import {
   useToast,
   IconButton,
   Tooltip,
+  GridItem,
 } from "@chakra-ui/react";
 import {
   CalendarIcon,
@@ -40,6 +41,7 @@ import {
   ArrowForwardIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  InfoOutlineIcon,
 } from "@chakra-ui/icons";
 import axiosInstance from "../../lib/axiosInstance";
 
@@ -133,8 +135,8 @@ const LeaveRequestCard = ({
   startDate,
   endDate,
   reason,
-  approverName,
-  approverAvatarUrl,
+  requesterName,
+  requesterAvatarUrl,
   status,
   onApprove,
   onReject,
@@ -199,10 +201,10 @@ const LeaveRequestCard = ({
       break;
   }
 
-  const truncatedApproverName =
-    approverName.length > 15
-      ? `${approverName.substring(0, 15)}...`
-      : approverName;
+  const truncatedRequesterName =
+    requesterName.length > 15
+      ? `${requesterName.substring(0, 15)}...`
+      : requesterName;
 
   const displayReason =
     reason.length > 50 ? `${reason.substring(0, 50)}...` : reason;
@@ -261,9 +263,9 @@ const LeaveRequestCard = ({
         </Badge>
       </Flex>
       <HStack spacing={2} align="center" mb={4} pl={2}>
-        <Avatar size="xs" name={approverName} src={approverAvatarUrl} />
+        <Avatar size="xs" name={requesterName} src={requesterAvatarUrl} />
         <Text fontSize="xs" fontWeight="medium" color="gray.700">
-          {truncatedApproverName}
+          {truncatedRequesterName}
         </Text>
       </HStack>
       <Box bg={daysBoxBg} p={4} borderRadius="lg" mb={4}>
@@ -279,11 +281,13 @@ const LeaveRequestCard = ({
           <CalendarIcon color={calendarIconColor} mr={2} />
           <Text fontSize="sm" color={dateTextColor} fontWeight="medium">
             {startDate
-              ? new Date(startDate).toLocaleDateString("en-US", {
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })
+              ? new Date(startDate)
+                  .toLocaleDateString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                  .substring(0, 3)
               : ""}
             {" - "}
             {endDate
@@ -309,27 +313,26 @@ const LeaveRequestCard = ({
         <Text fontSize="sm" fontWeight="semibold" color="gray.700">
           Actions
         </Text>
-        <HStack spacing={2}>
+        <HStack spacing={2} ml={5}>
           <Button
             colorScheme="green"
             size="sm"
             onClick={onApprove}
             leftIcon={<CheckIcon />}
             isDisabled={status !== "Pending"}
-            boxShadow="md"
+            boxShadow="sm"
             _hover={{ bg: "green.600", transform: "scale(1.05)" }}
             _active={{ bg: "green.700", transform: "scale(0.95)" }}
           >
             Approve
           </Button>
           <Button
-            colorScheme="red"
             size="sm"
             onClick={onReject}
             leftIcon={<CloseIcon />}
             isDisabled={status !== "Pending"}
-            boxShadow="md"
-            _hover={{ bg: "red.600", transform: "scale(1.05)" }}
+            boxShadow="sm"
+            _hover={{ bg: "red.50", transform: "scale(1.05)" }}
             _active={{ bg: "red.700", transform: "scale(0.95)" }}
           >
             Reject
@@ -416,11 +419,14 @@ const Leave = () => {
           startDate: item.dateFrom || "",
           endDate: item.dateTo || "",
           reason: item.notes || "",
-          approverName:
+          requesterName:
             item.employee?.firstname && item.employee?.lastname
               ? `${item.employee.firstname} ${item.employee.lastname}`
               : item.employee?.name || "Unknown Employee",
-          approverAvatarUrl: `https://placehold.co/40x40/000000/FFFFFF?text=${item.employee?.firstname[0]}${item.employee?.lastname[0]}`,
+
+          requesterAvatarUrl: `https://placehold.co/40x40/000000/FFFFFF?text=${
+            item.employee?.firstname?.[0] || ""
+          }${item.employee?.lastname?.[0] || ""}`,
           status:
             item.leaveStatus === "approved"
               ? "Approved"
@@ -509,7 +515,7 @@ const Leave = () => {
 
   const handleReject = async (id) => {
     try {
-      await axiosInstance.post(`/attendance/reject-leave/${id}`);
+      await axiosInstance.post(`/attendanceRoutes/reject-leave/${id}`);
       toast({
         title: "Leave Rejected",
         status: "info",
@@ -517,22 +523,21 @@ const Leave = () => {
         duration: 3000,
         isClosable: true,
       });
-      fetchLeaveRequests(); // Refresh the list after rejection
+      fetchLeaveRequests();
     } catch (err) {
       console.error("Error rejecting leave:", err);
-      // If no reject endpoint exists, update locally
       setLeaveRequests((prevRequests) =>
         prevRequests.map((req) =>
-          req.id === id ? { ...req, status: "Rejected" } : req
+          req._id === id ? { ...req, status: "Rejected" } : req
         )
       );
       setSelectedRequestIds((prev) =>
         prev.filter((selectedId) => selectedId !== id)
       );
       toast({
-        title: "Request Rejected",
-        description: "The leave request has been rejected.",
-        status: "info",
+        title: "Rejection Failed",
+        description: err.response?.data?.message || "Something went wrong.",
+        status: "error",
         duration: 3000,
         position: "top",
         isClosable: true,
@@ -699,7 +704,7 @@ const Leave = () => {
   const handleRejectSelected = async () => {
     try {
       // If bulk reject endpoint exists
-      await axiosInstance.post(`/attendance/reject-leave-bulk`, {
+      await axiosInstance.post(`/attendanceRoutes/reject-leave-bulk`, {
         ids: selectedRequestIds,
       });
       toast({
@@ -744,7 +749,6 @@ const Leave = () => {
         p={8}
         width="100%"
         spacing={6}
-       
       >
         {/* Top Controls: Add Leave, Bulk Actions, Filter */}
         <Flex
@@ -825,23 +829,14 @@ const Leave = () => {
               <option value="Rejected">Rejected</option>
             </Select>
           </HStack>
-
-          {/* Leave Breakdown */}
         </Flex>
         {/* Leave Breakdown */}
-        <Box
-          bg="white"
-          p={{ base: 4, md: 6 }}
-          borderRadius="lg"
-          shadow="md"
-          mb={6}
-          w="100%" // ✅ Full width
-        >
+        <Box bg="white" p={4} borderRadius="lg" shadow="sm" mb={6} w="100%">
           <Heading size="md" mb={4} color="gray.700" textAlign="left">
             Leave Breakdown
           </Heading>
 
-          <SimpleGrid columns={{ base: 2, sm: 3, md: 6 }} spacing={4} w="100%">
+          <SimpleGrid columns={{ base: 2, sm: 2, md: 5 }} spacing={4} w="100%">
             {Object.entries(leaveCounts).map(([type, count]) => (
               <VStack
                 key={type}
@@ -867,6 +862,7 @@ const Leave = () => {
         </Box>
 
         {/* Leave Request Cards */}
+
         <SimpleGrid
           columns={{ base: 1, md: 2, lg: 3 }}
           spacing={{ base: 5, md: 8 }}
@@ -890,11 +886,39 @@ const Leave = () => {
               />
             ))
           ) : (
-            <Box colSpan={3}>
-              <Text textAlign="center" fontSize="lg" color="gray.500" py={10}>
-                No leave requests found for the current filter or page. 😔
-              </Text>
-            </Box>
+            <GridItem colSpan={{ base: 1, md: 2, lg: 3 }}>
+              <Flex
+                direction="column"
+                align="center"
+                justify="center"
+                py={20}
+                w="100%"
+                textAlign="center"
+              >
+                <Box
+                  bg="blue.50"
+                  borderRadius="full"
+                  p={4}
+                  mb={4}
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  <InfoOutlineIcon boxSize={10} color="blue.500" />
+                </Box>
+                <Text
+                  fontSize="lg"
+                  fontWeight="semibold"
+                  color="gray.700"
+                  mb={2}
+                >
+                  No leave requests found
+                </Text>
+                <Text fontSize="sm" color="gray.500">
+                  Try adjusting your filters or check back later ✨
+                </Text>
+              </Flex>
+            </GridItem>
           )}
         </SimpleGrid>
 
