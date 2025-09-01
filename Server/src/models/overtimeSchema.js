@@ -13,6 +13,7 @@ const OverTimeScheme = new mongoose.Schema(
       enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
+    reason: { type: String, required: true },
   },
   { timestamps: true }
 );
