@@ -5,9 +5,6 @@ import {
   Heading,
   Button,
   Select,
-  SimpleGrid,
-  Text,
-  Badge,
   useColorModeValue,
   Modal,
   ModalOverlay,
@@ -21,8 +18,28 @@ import {
   Input,
   Textarea,
   useDisclosure,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  Badge,
+  IconButton,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  useToast,
 } from "@chakra-ui/react";
 import { AddIcon } from "@chakra-ui/icons";
+import {
+  FiMoreVertical,
+  FiEye,
+  FiEdit,
+  FiTrash2,
+  FiArrowDown,
+} from "react-icons/fi";
 
 // Mock overtime data
 const mockOvertimes = [
@@ -49,52 +66,23 @@ const mockOvertimes = [
   },
 ];
 
-const OvertimeCard = ({ overtime }) => {
-  const cardBg = useColorModeValue("white", "gray.800");
-  const statusColor = {
-    Pending: "orange",
-    Approved: "green",
-    Rejected: "red",
-  };
-
-  return (
-    <Box
-      p={4}
-      bg={cardBg}
-      borderRadius="2xl"
-      boxShadow="md"
-      transition="all 0.2s"
-      _hover={{ transform: "translateY(-4px)", boxShadow: "lg" }}
-    >
-      <Flex justify="space-between" align="center" mb={2}>
-        <Text fontWeight="bold">{new Date(overtime.date).toDateString()}</Text>
-        <Badge colorScheme={statusColor[overtime.status]}>
-          {overtime.status}
-        </Badge>
-      </Flex>
-      <Text fontSize="sm" color="gray.500">
-        Hours Rendered
-      </Text>
-      <Text fontSize="xl" fontWeight="bold" mb={2}>
-        {overtime.hours} hrs
-      </Text>
-      <Text fontSize="sm" color="gray.600" noOfLines={2}>
-        {overtime.reason}
-      </Text>
-    </Box>
-  );
-};
-
 export default function OvertimeUI() {
   const [sortBy, setSortBy] = useState("date");
   const [overtimes, setOvertimes] = useState(mockOvertimes);
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const toast = useToast();
 
   const [formData, setFormData] = useState({
     date: "",
     hours: "",
     reason: "",
   });
+
+  const statusColor = {
+    Pending: "orange",
+    Approved: "green",
+    Rejected: "red",
+  };
 
   const handleSort = (criteria) => {
     setSortBy(criteria);
@@ -121,6 +109,46 @@ export default function OvertimeUI() {
     setOvertimes([newOvertime, ...overtimes]);
     setFormData({ date: "", hours: "", reason: "" });
     onClose();
+    toast({
+      title: "Overtime Added",
+      status: "success",
+      duration: 2500,
+      isClosable: true,
+      position: "top",
+    });
+  };
+
+  const handleView = (ot) => {
+    toast({
+      title: "Viewing Overtime",
+      description: `${ot.date} - ${ot.hours} hrs (${ot.status})`,
+      status: "info",
+      duration: 3000,
+      isClosable: true,
+      position: "top",
+    });
+  };
+
+  const handleEdit = (ot) => {
+    setFormData({ date: ot.date, hours: ot.hours, reason: ot.reason });
+    onOpen();
+    toast({
+      title: "Edit Mode",
+      description: "Make your changes in the modal.",
+      status: "warning",
+      duration: 2000,
+      position: "top",
+    });
+  };
+
+  const handleDelete = (id) => {
+    setOvertimes(overtimes.filter((ot) => ot.id !== id));
+    toast({
+      title: "Overtime Deleted",
+      status: "error",
+      duration: 2500,
+      position: "top",
+    });
   };
 
   return (
@@ -146,30 +174,107 @@ export default function OvertimeUI() {
             <option value="status">Sort by Status</option>
           </Select>
           <Button
-            leftIcon={<AddIcon />}
             colorScheme="blue"
-            borderRadius="xl"
-            boxShadow="sm"
-            _hover={{ boxShadow: "md" }}
+            px={10}
+            py={2.5}
+            fontWeight="semibold"
+            fontSize="sm"
+            borderRadius="lg"
+            boxShadow="base"
+            transition="all 0.2s ease-in-out"
+            _hover={{
+              boxShadow: "md",
+              transform: "translateY(-1px)",
+            }}
+            _active={{
+              boxShadow: "sm",
+              transform: "scale(0.98)",
+            }}
             onClick={onOpen}
           >
-            New Overtime
+            + New Overtime
           </Button>
         </Flex>
       </Flex>
 
-      {/* Overtime Cards Grid */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-        {overtimes.map((overtime) => (
-          <OvertimeCard key={overtime.id} overtime={overtime} />
-        ))}
-      </SimpleGrid>
+      {/* Overtime Table */}
+      <Box
+        borderWidth="1px"
+        borderRadius="2xl"
+        overflow="hidden"
+        boxShadow="md"
+      >
+        <Table variant="simple">
+          <Thead bg={useColorModeValue("gray.100", "gray.700")}>
+            <Tr>
+              <Th>Date</Th>
+              <Th>Hours</Th>
+              <Th>Reason</Th>
+              <Th>Status</Th>
+              <Th textAlign="center">Actions</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {overtimes.map((overtime) => (
+              <Tr
+                key={overtime.id}
+                _hover={{ bg: useColorModeValue("gray.50", "gray.800") }}
+              >
+                <Td>{new Date(overtime.date).toLocaleDateString()}</Td>
+                <Td>{overtime.hours} hrs</Td>
+                <Td maxW="250px" isTruncated>
+                  {overtime.reason}
+                </Td>
+                <Td>
+                  <Badge colorScheme={statusColor[overtime.status]}>
+                    {overtime.status}
+                  </Badge>
+                </Td>
+                <Td textAlign="center">
+                  <Menu>
+                    <MenuButton
+                      as={IconButton}
+                      icon={<FiMoreVertical />}
+                      variant="ghost"
+                      borderRadius="full"
+                      aria-label="Options"
+                    />
+                    <MenuList>
+                      <MenuItem
+                        icon={<FiEye />}
+                        onClick={() => handleView(overtime)}
+                      >
+                        View
+                      </MenuItem>
+                      <MenuItem
+                        icon={<FiEdit />}
+                        onClick={() => handleEdit(overtime)}
+                      >
+                        Edit
+                      </MenuItem>
+                      <MenuItem
+                        icon={<FiTrash2 />}
+                        color="red.500"
+                        onClick={() => handleDelete(overtime.id)}
+                      >
+                        Delete
+                      </MenuItem>
+                    </MenuList>
+                  </Menu>
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      </Box>
 
-      {/* Add Overtime Modal */}
+      {/* Add / Edit Overtime Modal */}
       <Modal isOpen={isOpen} onClose={onClose} isCentered size="lg">
         <ModalOverlay />
         <ModalContent borderRadius="2xl" boxShadow="2xl" p={2}>
-          <ModalHeader>Add New Overtime</ModalHeader>
+          <ModalHeader>
+            {formData.id ? "Edit Overtime" : "Add New Overtime"}
+          </ModalHeader>
           <ModalCloseButton />
           <ModalBody>
             <FormControl mb={4} isRequired>
@@ -209,7 +314,7 @@ export default function OvertimeUI() {
               Cancel
             </Button>
             <Button colorScheme="blue" borderRadius="xl" onClick={handleSubmit}>
-              Submit Overtime
+              {formData.id ? "Update Overtime" : "Submit Overtime"}
             </Button>
           </ModalFooter>
         </ModalContent>

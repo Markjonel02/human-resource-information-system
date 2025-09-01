@@ -8,11 +8,11 @@ const addOvertime = async (req, res) => {
   }
 
   try {
-    const { date, hours } = req.body;
+    const { date, hours, reason } = req.body;
     const employeeId = req.user._id;
 
     // Step 1: Validate required fields
-    if (!date || !hours) {
+    if (!date || !hours || !reason) {
       return res.status(400).json({ message: "All fields are required." });
     }
 
@@ -22,6 +22,7 @@ const addOvertime = async (req, res) => {
       date: new Date(date),
       hours,
       status: "pending",
+      reason,
     });
 
     await newOvertimeRequest.save();
@@ -32,6 +33,32 @@ const addOvertime = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in addOvertime:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+const deleteOvertime = async (req, res) => {
+  try {
+    const { id } = req.params; // overtime ID
+
+    // Find and delete overtime belonging to the logged-in user
+    const deletedOvertime = await overtime.findOneAndDelete({
+      _id: id,
+      employee: req.user._id, // make sure only owner/admin can delete
+    });
+
+    if (!deletedOvertime) {
+      return res
+        .status(404)
+        .json({ message: "Overtime record not found or unauthorized." });
+    }
+
+    res.status(200).json({ message: "Overtime record deleted successfully." });
+  } catch (error) {
+    console.error("Error in deleteOvertime:", error);
     res.status(500).json({
       message: "Internal server error",
       error: error.message,
@@ -95,13 +122,14 @@ const editOvertime = async (req, res) => {
 
   try {
     const { id } = req.params;
-    const { date, hours } = req.body;
+    const { date, hours, reason } = req.body;
 
     const overtimeRequest = await overtime.findOne({
       _id: id,
       employee: req.user._id,
       // Only allow editing if the overtime status is 'pending'
       status: "pending",
+      reason,
     });
 
     if (!overtimeRequest) {
@@ -133,4 +161,5 @@ module.exports = {
   addOvertime,
   getEmployeeOvertime,
   editOvertime,
+  deleteOvertime,
 };
