@@ -1,0 +1,20 @@
+const mongoose = require("mongoose");
+const OverTimeScheme = new mongoose.Schema(
+  {
+    employee: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Employee",
+      required: true,
+    },
+    date: { type: Date, required: true },
+    hours: { type: Number, required: true },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("OverTime", OverTimeScheme);

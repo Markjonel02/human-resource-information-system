@@ -3,6 +3,19 @@
 
 const LeaveCredits = require("../../models/LeaveSchema/leaveCreditsSchema");
 const Leave = require("../../models/LeaveSchema/leaveSchema");
+const Attendances = require("../../models/Attendance");
+const AttendanceLog = require("../../models/attendanceLogSchema");
+// Create date range for attendance check
+function normalizeDateRange(dateFrom, dateTo) {
+  const start = new Date(dateFrom);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(dateTo);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}
+
 const addLeave = async (req, res) => {
   if (req.user.role !== "employee") {
     return res.status(403).json({
@@ -75,6 +88,22 @@ const addLeave = async (req, res) => {
       });
     }
 
+    const { start, end } = normalizeDateRange(dateFrom, dateTo);
+    //checking if there are attendance records before filing leave request
+    const attendanceRecords = await Attendances.find({
+      employee: employeeId,
+      date: { $gte: start, $lte: end },
+    });
+
+    // Step 5: Check for attendance records during the leave period
+    if (attendanceRecords.length > 0) {
+      return res.status(400).json({
+        message:
+          "You have attendance records during the requested leave period.",
+        conflicts: attendanceRecords.map((r) => r.date),
+      });
+    }
+
     // Step 6: Create and save leave request
     const newLeaveRequest = new Leave({
       employee: employeeId,
@@ -88,6 +117,21 @@ const addLeave = async (req, res) => {
 
     await newLeaveRequest.save();
 
+    // Log the leave request creation
+    await AttendanceLog.create({
+      employeeId,
+      action: "LEAVE_REQUESTED",
+      description: `Leave requested by employee (${req.user.firstname} ${req.user.lastname})`,
+      performedBy: req.user._id,
+      changes: {
+        leaveStatus: { from: "pending", to: "approved" },
+      },
+      metadata: {
+        leaveType,
+        dateFrom,
+        dateTo,
+      },
+    });
     res.status(201).json({
       message: "Leave request filed successfully.",
       leaveRequest: newLeaveRequest,
@@ -193,6 +237,19 @@ const editLeave = async (req, res) => {
         ) + 1;
     }
 
+    const { start, end } = normalizeDates(dateFrom, dateTo);
+    const checkAttendance = await Attendances.find({
+      employee: req.user._id,
+      date: { $gte: start, $lte: end },
+    });
+
+    if (checkAttendance.length > 0) {
+      return res.status(400).json({
+        message:
+          "You have attendance records during the requested leave period.",
+        conflicts: checkAttendance.map((r) => r.date),
+      });
+    }
     await leaveRequest.save();
     res.json({
       message: "Leave request updated successfully.",
