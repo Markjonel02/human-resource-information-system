@@ -46,10 +46,10 @@ const parseTimeToDate = (timeStr, baseDate) => {
 };
 
 // Helper function to create attendance logs
-const createAttendanceLog = async (data) => {
+exports.createAttendanceLog = async (data) => {
   try {
     const logEntry = new AttendanceLog({
-      employeeId: data.employeeId,
+      employeeId: data.req.user._id,
       attendanceId: data.attendanceId,
       action: data.action,
       description: data.description,
