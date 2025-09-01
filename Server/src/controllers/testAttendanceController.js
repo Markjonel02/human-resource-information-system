@@ -49,7 +49,7 @@ const parseTimeToDate = (timeStr, baseDate) => {
 exports.createAttendanceLog = async (data) => {
   try {
     const logEntry = new AttendanceLog({
-      employeeId: data.employeeId,
+      employeeId: data.req.user._id,
       attendanceId: data.attendanceId,
       action: data.action,
       description: data.description,

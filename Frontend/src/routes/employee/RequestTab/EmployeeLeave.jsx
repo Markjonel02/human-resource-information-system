@@ -32,8 +32,9 @@ import {
   CardHeader,
   TableContainer,
   IconButton,
+  Icon,
 } from "@chakra-ui/react";
-import { FiEdit, FiPlusCircle } from "react-icons/fi"; // Chakra's recommended icon library
+import { FiEdit, FiPlusCircle, FiInfo } from "react-icons/fi"; // Chakra's recommended icon library
 import axiosInstance from "../../../lib/axiosInstance";
 
 const LEAVE_TYPE_LABELS = {
@@ -137,7 +138,6 @@ const EmployeeLeave = () => {
     setEditingLeave({ ...leave });
     setIsEditModalOpen(true);
   };
-
   const handleUpdateLeave = async () => {
     if (
       !editingLeave.leaveType ||
@@ -161,6 +161,7 @@ const EmployeeLeave = () => {
         `/employeeLeave/edit-leave/${editingLeave._id}`,
         editingLeave
       );
+
       toast({
         title: "Leave Request Updated",
         status: "success",
@@ -168,21 +169,42 @@ const EmployeeLeave = () => {
         isClosable: true,
         position: "top",
       });
+
       setIsEditModalOpen(false);
       setEditingLeave(null);
       fetchLeaveHistory();
       fetchLeaveCredits();
-      /*       await refreshData(); // Refresh both credits and history */
     } catch (err) {
-      toast({
-        title: "Error",
-        description:
-          err.response?.data?.message || "Failed to update leave request.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-        position: "top",
-      });
+      // Extract error response
+      const errorData = err.response?.data;
+
+      if (
+        errorData?.message?.includes("attendance records") &&
+        Array.isArray(errorData?.conflicts)
+      ) {
+        // Format conflicting dates nicely
+        const conflictDates = errorData.conflicts
+          .map((date) => new Date(date).toLocaleDateString())
+          .join(", ");
+
+        toast({
+          title: "Leave Conflict",
+          description: `Cannot update leave. Attendance already exists on: ${conflictDates}`,
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+          position: "top",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: errorData?.message || "Failed to update leave request.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+          position: "top",
+        });
+      }
     }
   };
 
@@ -358,9 +380,10 @@ const EmployeeLeave = () => {
               ) : (
                 <Tr>
                   <Td colSpan={7} textAlign="center" py={8}>
-                    <Text color="gray.500" fontSize="lg" fontWeight="semibold">
-                      No leave records found.
-                    </Text>
+                    <Flex align="center" justify="center" color="blue.500">
+                      <Icon as={FiInfo} boxSize={6} mr={2} />
+                      <Text>No leave credits data available</Text>
+                    </Flex>
                   </Td>
                 </Tr>
               )}
