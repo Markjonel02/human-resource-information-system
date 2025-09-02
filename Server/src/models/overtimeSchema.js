@@ -14,6 +14,11 @@ const OverTimeScheme = new mongoose.Schema(
       default: "pending",
     },
     reason: { type: String, required: true },
+    overtimeType: {
+      type: String,
+      enum: ["regular", "holiday", "weekend", "other"],
+      default: "regular",
+    },
   },
   { timestamps: true }
 );

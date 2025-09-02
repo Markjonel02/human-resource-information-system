@@ -1,66 +1,65 @@
 const overtime = require("../../models/overtimeSchema");
 
 const addOvertime = async (req, res) => {
-  if (req.user.role !== "employee") {
-    return res.status(403).json({
-      message: "Access denied. Only employees can file overtime requests.",
-    });
-  }
-
   try {
-    const { date, hours, reason } = req.body;
+    const { date, hours, reason, overtimeType = "regular" } = req.body;
     const employeeId = req.user._id;
 
-    // Step 1: Validate required fields
+    // Validation
     if (!date || !hours || !reason) {
-      return res.status(400).json({ message: "All fields are required." });
+      return res.status(400).json({
+        success: false,
+        message: "Date, hours, and reason are required.",
+      });
     }
 
-    // Step 2: Create and save overtime request
+    if (hours <= 0 || hours > 24) {
+      return res.status(400).json({
+        success: false,
+        message: "Hours must be between 1 and 24.",
+      });
+    }
+
+    // Check for duplicate overtime on the same date
+    const existingOvertime = await overtime.findOne({
+      employee: employeeId,
+      date: new Date(date),
+      status: { $ne: "rejected" },
+    });
+
+    if (existingOvertime) {
+      return res.status(400).json({
+        success: false,
+        message: "An overtime request already exists for this date.",
+      });
+    }
+
     const newOvertimeRequest = new overtime({
       employee: employeeId,
       date: new Date(date),
-      hours,
+      hours: parseFloat(hours),
       status: "pending",
       reason,
+      overtimeType,
+      createdAt: new Date(),
     });
 
     await newOvertimeRequest.save();
+    await newOvertimeRequest.populate(
+      "employee",
+      "firstname lastname employeeId department"
+    );
 
     res.status(201).json({
-      message: "Overtime request filed successfully.",
+      success: true,
+      message: "Overtime request submitted successfully.",
       overtimeRequest: newOvertimeRequest,
     });
   } catch (error) {
     console.error("Error in addOvertime:", error);
     res.status(500).json({
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-};
-
-const deleteOvertime = async (req, res) => {
-  try {
-    const { id } = req.params; // overtime ID
-
-    // Find and delete overtime belonging to the logged-in user
-    const deletedOvertime = await overtime.findOneAndDelete({
-      _id: id,
-      employee: req.user._id, // make sure only owner/admin can delete
-    });
-
-    if (!deletedOvertime) {
-      return res
-        .status(404)
-        .json({ message: "Overtime record not found or unauthorized." });
-    }
-
-    res.status(200).json({ message: "Overtime record deleted successfully." });
-  } catch (error) {
-    console.error("Error in deleteOvertime:", error);
-    res.status(500).json({
-      message: "Internal server error",
+      success: false,
+      message: "Failed to submit overtime request",
       error: error.message,
     });
   }
@@ -70,88 +69,132 @@ const getEmployeeOvertime = async (req, res) => {
   try {
     const currentUser = req.user;
 
-    // Step 1: Validate authentication
     if (!currentUser || !currentUser._id) {
-      return res
-        .status(401)
-        .json({ message: "Unauthorized: User not authenticated" });
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
     }
 
-    // Step 2: Validate role access
-    const allowedRoles = ["employee", "admin"];
+    const allowedRoles = ["employee", "admin", "hr"];
     if (!allowedRoles.includes(currentUser.role)) {
-      return res
-        .status(403)
-        .json({ message: "Forbidden: Access denied for this role" });
+      return res.status(403).json({
+        success: false,
+        message: "Access denied",
+      });
     }
 
-    // Step 3: Build query based on role
+    // Build query based on role
     const query =
-      currentUser.role === "employee" ? { employee: currentUser._id } : {}; // Admins can view all overtime records
+      currentUser.role === "employee" ? { employee: currentUser._id } : {};
 
-    // Step 4: Fetch overtime records
     const overtimeRecords = await overtime
       .find(query)
       .sort({ createdAt: -1 })
       .populate("employee", "firstname lastname employeeId department");
 
-    // Step 5: Handle empty results
-    if (!Array.isArray(overtimeRecords) || overtimeRecords.length === 0) {
-      return res.status(404).json({ message: "No overtime records found." });
-    }
-
-    // Step 6: Return results
-    res.status(200).json(overtimeRecords);
+    // Return empty array instead of 404 when no records found
+    res.status(200).json({
+      success: true,
+      data: overtimeRecords || [],
+      count: overtimeRecords.length,
+    });
   } catch (error) {
     console.error("Error in getEmployeeOvertime:", error);
     res.status(500).json({
-      message: "Internal server error",
+      success: false,
+      message: "Failed to fetch overtime records",
       error: error.message,
     });
   }
 };
 
-// Edit existing overtime request for employee
 const editOvertime = async (req, res) => {
-  if (req.user.role !== "employee") {
-    return res.status(403).json({
-      message:
-        "Access denied. Only employees can edit their overtime requests.",
-    });
-  }
-
   try {
     const { id } = req.params;
-    const { date, hours, reason } = req.body;
+    const { date, hours, reason, overtimeType } = req.body;
+    const currentUser = req.user;
 
-    const overtimeRequest = await overtime.findOne({
-      _id: id,
-      employee: req.user._id,
-      // Only allow editing if the overtime status is 'pending'
-      status: "pending",
-      reason,
-    });
+    // Build query based on user role
+    const query = { _id: id };
+    if (currentUser.role === "employee") {
+      query.employee = currentUser._id;
+      query.status = "pending"; // Employees can only edit pending requests
+    }
+
+    const overtimeRequest = await overtime.findOne(query);
 
     if (!overtimeRequest) {
       return res.status(404).json({
-        message:
-          "Overtime record not found or cannot be edited. It may have already been processed.",
+        success: false,
+        message: "Overtime record not found or cannot be edited.",
       });
     }
 
+    // Validate hours if provided
+    if (hours && (hours <= 0 || hours > 24)) {
+      return res.status(400).json({
+        success: false,
+        message: "Hours must be between 1 and 24.",
+      });
+    }
+
+    // Update fields
     if (date) overtimeRequest.date = new Date(date);
-    if (hours) overtimeRequest.hours = hours;
+    if (hours) overtimeRequest.hours = parseFloat(hours);
+    if (reason) overtimeRequest.reason = reason;
+    if (overtimeType) overtimeRequest.overtimeType = overtimeType;
 
     await overtimeRequest.save();
+    await overtimeRequest.populate(
+      "employee",
+      "firstname lastname employeeId department"
+    );
 
     res.status(200).json({
+      success: true,
       message: "Overtime request updated successfully.",
       overtimeRequest,
     });
   } catch (error) {
     console.error("Error in editOvertime:", error);
     res.status(500).json({
-      message: "Internal server error",
+      success: false,
+      message: "Failed to update overtime request",
+      error: error.message,
+    });
+  }
+};
+
+const deleteOvertime = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentUser = req.user;
+
+    const query = { _id: id };
+    if (currentUser.role === "employee") {
+      query.employee = currentUser._id;
+      query.status = "pending"; // Employees can only delete pending requests
+    }
+
+    const deletedOvertime = await overtime.findOneAndDelete(query);
+
+    if (!deletedOvertime) {
+      return res.status(404).json({
+        success: false,
+        message: "Overtime record not found or cannot be deleted.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Overtime record deleted successfully.",
+    });
+  } catch (error) {
+    console.error("Error in deleteOvertime:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete overtime record",
       error: error.message,
     });
   }
