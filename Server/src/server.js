@@ -8,7 +8,7 @@ const userRoutes = require("./routes/userRoutes.js");
 const testRoutes = require("./routes/admin&hr/testRoutes.js");
 const employeeLeave = require("./routes/employee/employeeLeaveRoutes.js");
 const employeeAttendance = require("./routes/employee/employeeRoutes.js");
-
+const EmployeeOvertimeRoutes = require("./routes/employee/overtimeRoutes.js");
 dotenv.config();
 const app = express();
 const port = process.env.PORT;
@@ -28,8 +28,11 @@ app.use(
 // All routes defined in routes.js will now be accessible from the root path '/'
 app.use("/api", userRoutes);
 app.use("/api/attendanceRoutes", testRoutes);
+
+//employeeRoutes
 app.use("/api/employeeAttendance", employeeAttendance);
 app.use("/api/employeeLeave", employeeLeave);
+app.use("/api/overtime", EmployeeOvertimeRoutes);
 // Basic root route (can be removed if all routes are in routes.js)
 app.get("/", (req, res) => {
   res.send("API is running!");

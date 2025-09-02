@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Flex,
@@ -31,58 +31,71 @@ import {
   MenuList,
   MenuItem,
   useToast,
+  Spinner,
 } from "@chakra-ui/react";
-import { AddIcon } from "@chakra-ui/icons";
-import {
-  FiMoreVertical,
-  FiEye,
-  FiEdit,
-  FiTrash2,
-  FiArrowDown,
-} from "react-icons/fi";
-
-// Mock overtime data
-const mockOvertimes = [
-  {
-    id: 1,
-    date: "2025-08-30",
-    hours: 4,
-    status: "Pending",
-    reason: "Project deadline",
-  },
-  {
-    id: 2,
-    date: "2025-08-28",
-    hours: 3,
-    status: "Approved",
-    reason: "Server maintenance",
-  },
-  {
-    id: 3,
-    date: "2025-08-25",
-    hours: 6,
-    status: "Rejected",
-    reason: "Not urgent",
-  },
-];
-
-export default function OvertimeUI() {
+import { FiMoreVertical, FiEye, FiEdit, FiTrash2 } from "react-icons/fi";
+import axiosInstance from "../../../lib/axiosInstance";
+const OvertimeUI = () => {
   const [sortBy, setSortBy] = useState("date");
-  const [overtimes, setOvertimes] = useState(mockOvertimes);
+  const [overtimes, setOvertimes] = useState([]);
+  const [loading, setLoading] = useState(true);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
   const [formData, setFormData] = useState({
+    id: null,
     date: "",
     hours: "",
     reason: "",
   });
 
   const statusColor = {
-    Pending: "orange",
-    Approved: "green",
-    Rejected: "red",
+    pending: "orange",
+    approved: "green",
+    rejected: "red",
   };
+
+  // Load data on mount
+  // Load data on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axiosInstance.get(
+          "/overtime/getEmployeeOvertime"
+        );
+        setOvertimes(response.data);
+      } catch (err) {
+        // Check if the error is a 404 with a specific message from the server
+        if (err.response && err.response.status === 404) {
+          // Handle the "No records found" case gracefully
+          setOvertimes([]); // Set an empty array to render the empty state
+          toast({
+            title: "No overtime records found.",
+            description: "You haven't submitted any overtime requests yet.",
+            status: "info",
+            duration: 5000,
+            isClosable: true,
+            position: "top",
+          });
+        } else {
+          // Handle all other types of errors
+          const errorMessage =
+            err.response?.data?.message || "Error loading overtime records.";
+          toast({
+            title: "Failed to load records",
+            description: errorMessage,
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+            position: "top",
+          });
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [toast]); // Add toast to dependency array
 
   const handleSort = (criteria) => {
     setSortBy(criteria);
@@ -95,65 +108,90 @@ export default function OvertimeUI() {
     setOvertimes(sorted);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.date || !formData.hours || !formData.reason) return;
 
-    const newOvertime = {
-      id: overtimes.length + 1,
-      date: formData.date,
-      hours: Number(formData.hours),
-      reason: formData.reason,
-      status: "Pending",
-    };
-
-    setOvertimes([newOvertime, ...overtimes]);
-    setFormData({ date: "", hours: "", reason: "" });
-    onClose();
-    toast({
-      title: "Overtime Added",
-      status: "success",
-      duration: 2500,
-      isClosable: true,
-      position: "top",
-    });
+    try {
+      if (formData.id) {
+        // Edit mode
+        const updated = await axiosInstance.put(
+          `/employeeOvertime/editOvertime/${formData.id}`,
+          {
+            date: formData.date,
+            hours: formData.hours,
+            reason: formData.reason,
+          }
+        );
+        setOvertimes((prev) =>
+          prev.map((ot) =>
+            ot._id === formData.id ? updated.overtimeRequest : ot
+          )
+        );
+        toast({ title: "Overtime updated", status: "success" });
+      } else {
+        // Add new
+        const newRecord = await addOvertime({
+          date: formData.date,
+          hours: formData.hours,
+          reason: formData.reason,
+        });
+        setOvertimes((prev) => [newRecord.overtimeRequest, ...prev]);
+        toast({ title: "Overtime added", status: "success" });
+      }
+      setFormData({ id: null, date: "", hours: "", reason: "" });
+      onClose();
+    } catch (err) {
+      toast({
+        title: err.response?.data?.message || "Error submitting overtime",
+        status: "error",
+      });
+    }
   };
 
   const handleView = (ot) => {
     toast({
-      title: "Viewing Overtime",
-      description: `${ot.date} - ${ot.hours} hrs (${ot.status})`,
+      title: "Overtime Details",
+      description: `${ot.date.split("T")[0]} - ${ot.hours} hrs (${ot.status})`,
       status: "info",
       duration: 3000,
-      isClosable: true,
       position: "top",
     });
   };
 
   const handleEdit = (ot) => {
-    setFormData({ date: ot.date, hours: ot.hours, reason: ot.reason });
-    onOpen();
-    toast({
-      title: "Edit Mode",
-      description: "Make your changes in the modal.",
-      status: "warning",
-      duration: 2000,
-      position: "top",
+    setFormData({
+      id: ot._id,
+      date: ot.date.split("T")[0],
+      hours: ot.hours,
+      reason: ot.reason,
     });
+    onOpen();
   };
 
-  const handleDelete = (id) => {
-    setOvertimes(overtimes.filter((ot) => ot.id !== id));
-    toast({
-      title: "Overtime Deleted",
-      status: "error",
-      duration: 2500,
-      position: "top",
-    });
+  const handleDelete = async (id) => {
+    try {
+      await deleteOvertime(id);
+      setOvertimes((prev) => prev.filter((ot) => ot._id !== id));
+      toast({ title: "Overtime deleted", status: "success" });
+    } catch (err) {
+      toast({
+        title: err.response?.data?.message || "Error deleting overtime",
+        status: "error",
+      });
+    }
   };
+
+  if (loading) {
+    return (
+      <Flex justify="center" align="center" minH="50vh">
+        <Spinner size="xl" />
+      </Flex>
+    );
+  }
 
   return (
     <Box p={6} maxW="1200px" mx="auto">
-      {/* Header Section */}
+      {/* Header */}
       <Flex
         justify="space-between"
         align="center"
@@ -173,31 +211,13 @@ export default function OvertimeUI() {
             <option value="hours">Sort by Hours</option>
             <option value="status">Sort by Status</option>
           </Select>
-          <Button
-            colorScheme="blue"
-            px={10}
-            py={2.5}
-            fontWeight="semibold"
-            fontSize="sm"
-            borderRadius="lg"
-            boxShadow="base"
-            transition="all 0.2s ease-in-out"
-            _hover={{
-              boxShadow: "md",
-              transform: "translateY(-1px)",
-            }}
-            _active={{
-              boxShadow: "sm",
-              transform: "scale(0.98)",
-            }}
-            onClick={onOpen}
-          >
+          <Button colorScheme="blue" onClick={onOpen}>
             + New Overtime
           </Button>
         </Flex>
       </Flex>
 
-      {/* Overtime Table */}
+      {/* Table */}
       <Box
         borderWidth="1px"
         borderRadius="2xl"
@@ -216,17 +236,17 @@ export default function OvertimeUI() {
           </Thead>
           <Tbody>
             {overtimes.map((overtime) => (
-              <Tr
-                key={overtime.id}
-                _hover={{ bg: useColorModeValue("gray.50", "gray.800") }}
-              >
+              <Tr key={overtime._id}>
                 <Td>{new Date(overtime.date).toLocaleDateString()}</Td>
                 <Td>{overtime.hours} hrs</Td>
                 <Td maxW="250px" isTruncated>
                   {overtime.reason}
                 </Td>
                 <Td>
-                  <Badge colorScheme={statusColor[overtime.status]}>
+                  <Badge
+                    colorScheme={statusColor[overtime.status] || "gray"}
+                    fontWeight={500}
+                  >
                     {overtime.status}
                   </Badge>
                 </Td>
@@ -237,7 +257,6 @@ export default function OvertimeUI() {
                       icon={<FiMoreVertical />}
                       variant="ghost"
                       borderRadius="full"
-                      aria-label="Options"
                     />
                     <MenuList>
                       <MenuItem
@@ -255,7 +274,7 @@ export default function OvertimeUI() {
                       <MenuItem
                         icon={<FiTrash2 />}
                         color="red.500"
-                        onClick={() => handleDelete(overtime.id)}
+                        onClick={() => handleDelete(overtime._id)}
                       >
                         Delete
                       </MenuItem>
@@ -268,10 +287,10 @@ export default function OvertimeUI() {
         </Table>
       </Box>
 
-      {/* Add / Edit Overtime Modal */}
+      {/* Modal */}
       <Modal isOpen={isOpen} onClose={onClose} isCentered size="lg">
         <ModalOverlay />
-        <ModalContent borderRadius="2xl" boxShadow="2xl" p={2}>
+        <ModalContent>
           <ModalHeader>
             {formData.id ? "Edit Overtime" : "Add New Overtime"}
           </ModalHeader>
@@ -291,7 +310,6 @@ export default function OvertimeUI() {
               <FormLabel>Hours</FormLabel>
               <Input
                 type="number"
-                placeholder="Enter number of hours"
                 value={formData.hours}
                 onChange={(e) =>
                   setFormData({ ...formData, hours: e.target.value })
@@ -301,7 +319,6 @@ export default function OvertimeUI() {
             <FormControl mb={2} isRequired>
               <FormLabel>Reason</FormLabel>
               <Textarea
-                placeholder="Explain why you worked overtime..."
                 value={formData.reason}
                 onChange={(e) =>
                   setFormData({ ...formData, reason: e.target.value })
@@ -310,15 +327,17 @@ export default function OvertimeUI() {
             </FormControl>
           </ModalBody>
           <ModalFooter gap={3}>
-            <Button variant="ghost" borderRadius="xl" onClick={onClose}>
+            <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button colorScheme="blue" borderRadius="xl" onClick={handleSubmit}>
-              {formData.id ? "Update Overtime" : "Submit Overtime"}
+            <Button colorScheme="blue" onClick={handleSubmit}>
+              {formData.id ? "Update" : "Submit"}
             </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
     </Box>
   );
-}
+};
+
+export default OvertimeUI;
