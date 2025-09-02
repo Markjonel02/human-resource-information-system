@@ -62,7 +62,7 @@ const OVERTIME_TYPES = [
   { value: "regular", label: "Regular Overtime" },
   { value: "holiday", label: "Holiday Overtime" },
   { value: "weekend", label: "Weekend Overtime" },
-  { value: "other", label: "Other" }, // <-- Add this
+  { value: "other", label: "Other" },
 ];
 
 const STATUS_COLORS = {
@@ -85,8 +85,17 @@ const INITIAL_FORM_DATA = {
   overtimeType: "regular",
 };
 
-// Custom Hook for Overtime API
-const useOvertimeAPI = () => {
+// Main Overtime Component
+const OvertimeUI = () => {
+  // State management
+  const [overtimes, setOvertimes] = useState([]);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sortBy, setSortBy] = useState("date");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [formData, setFormData] = useState(INITIAL_FORM_DATA);
+
+  const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
   const handleApiError = useCallback(
@@ -104,50 +113,24 @@ const useOvertimeAPI = () => {
     [toast]
   );
 
-  return {
-    fetchOvertimeRecords: async () => {
+  // Function to fetch data, wrapped in useCallback to prevent infinite loop
+  const loadOvertimeData = useCallback(async () => {
+    try {
       const response = await axiosInstance.get("/overtime/getEmployeeOvertime");
-      // Always return an array
-      return Array.isArray(response.data.data) ? response.data.data : [];
-    },
+      const data = Array.isArray(response.data.data) ? response.data.data : [];
+      setOvertimes(data);
+    } catch (error) {
+      handleApiError(error, "Failed to fetch overtime records");
+      setOvertimes([]);
+    } finally {
+      setIsInitialLoading(false);
+    }
+  }, [handleApiError]);
 
-    createOvertimeRecord: async (data) => {
-      const response = await axiosInstance.post("/overtime/addOvertime", data);
-      return response.data;
-    },
-
-    updateOvertimeRecord: async (id, data) => {
-      const response = await axiosInstance.put(
-        `/overtime/editOvertime/${id}`,
-        data
-      );
-      return response.data;
-    },
-
-    deleteOvertimeRecord: async (id) => {
-      const response = await axiosInstance.delete(
-        `/overtime/deleteOvertime/${id}`
-      );
-      return response.data;
-    },
-
-    handleApiError,
-  };
-};
-
-// Main Overtime Component
-const OvertimeUI = () => {
-  // State management
-  const [overtimes, setOvertimes] = useState([]);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [sortBy, setSortBy] = useState("date");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [formData, setFormData] = useState(INITIAL_FORM_DATA);
-
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const toast = useToast();
-  const api = useOvertimeAPI();
+  // useEffect to call the data fetching function on component mount
+  useEffect(() => {
+    loadOvertimeData();
+  }, [loadOvertimeData]);
 
   // Memoized filtered and sorted data
   const processedOvertimes = useMemo(() => {
@@ -184,27 +167,6 @@ const OvertimeUI = () => {
 
     return { total, pending, approved, rejected, totalHours };
   }, [overtimes]);
-
-  const loadOvertimeData = useCallback(async () => {
-    try {
-      const data = await api.fetchOvertimeRecords();
-      setOvertimes(data);
-    } catch (error) {
-      api.handleApiError(error, "Failed to fetch overtime records");
-      setOvertimes([]);
-    } finally {
-      setIsInitialLoading(false); // <-- Ensure loading is always reset
-    }
-  }, [api]);
-
-  // Load data on component mount
-  useEffect(() => {
-    const initializeData = async () => {
-      await loadOvertimeData();
-      setIsInitialLoading(false); // Always set loading to false
-    };
-    initializeData();
-  }, [loadOvertimeData]);
 
   // Form handlers
   const resetForm = useCallback(() => {
@@ -264,13 +226,15 @@ const OvertimeUI = () => {
       };
 
       if (formData.id) {
-        await api.updateOvertimeRecord(formData.id, submitData);
+        await axiosInstance.put(
+          `/overtime/editOvertime/${formData.id}`,
+          submitData
+        );
       } else {
-        await api.createOvertimeRecord(submitData);
+        await axiosInstance.post("/overtime/addOvertime", submitData);
       }
 
-      // Reload data and show success message
-      await loadOvertimeData();
+      await loadOvertimeData(); // Re-fetch data to update the table
 
       toast({
         title: "Success",
@@ -284,7 +248,10 @@ const OvertimeUI = () => {
 
       handleCloseModal();
     } catch (error) {
-      // Error already handled in API hook
+      handleApiError(
+        error,
+        `Failed to ${formData.id ? "update" : "submit"} overtime request`
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -292,10 +259,10 @@ const OvertimeUI = () => {
     validateForm,
     isSubmitting,
     formData,
-    api,
     loadOvertimeData,
     toast,
     handleCloseModal,
+    handleApiError,
   ]);
 
   // Handle view overtime details
@@ -367,7 +334,7 @@ const OvertimeUI = () => {
       }
 
       try {
-        await api.deleteOvertimeRecord(id);
+        await axiosInstance.delete(`/overtime/deleteOvertime/${id}`);
         await loadOvertimeData();
 
         toast({
@@ -378,10 +345,10 @@ const OvertimeUI = () => {
           isClosable: true,
         });
       } catch (error) {
-        // Error already handled in API hook
+        handleApiError(error, "Failed to delete overtime record");
       }
     },
-    [overtimes, api, toast, loadOvertimeData]
+    [overtimes, toast, loadOvertimeData, handleApiError]
   );
 
   // Handle new overtime request
