@@ -5,6 +5,7 @@ const User = require("../models/user"); // Assuming you have a User model
 const AttendanceLog = require("../models/attendanceLogSchema"); // New model for logs
 const LeaveCredits = require("../models/LeaveSchema/leaveCreditsSchema");
 const Leave = require("../models/LeaveSchema/leaveSchema");
+const Overtime = require("../models/overtimeSchema");
 // Helper function to calculate hours in minutes
 const calculateHoursInMinutes = (checkIn, checkOut) => {
   if (!checkIn || !checkOut) return 0;
@@ -1418,6 +1419,45 @@ const getLeaveBreakdown = async (req, res) => {
   }
 };
 
+const approveOvertime = async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ message: "Forbidden: Admins only" });
+  }
+
+  try {
+    const { id } = req.params;
+
+    const otRequest = await Overtime.findById(id).populate(
+      "employee",
+      "firstname lastname employeeId department"
+    );
+
+    if (!otRequest) {
+      return res.status(404).json({ message: "Overtime request not found" });
+    }
+
+    if (otRequest.status !== "pending") {
+      return res.status(400).json({
+        message: `Overtime request is already ${otRequest.status}`,
+      });
+    }
+
+    otRequest.status = "approved";
+    otRequest.approvedBy = req.user._id;
+    otRequest.approvedAt = new Date();
+
+    await otRequest.save();
+
+    res.status(200).json({
+      message: "Overtime request approved successfully",
+      overtimeRequest: otRequest,
+    });
+  } catch (err) {
+    console.error("Error approving overtime:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 module.exports = {
   addAttendance,
   getAttendance,
@@ -1432,4 +1472,5 @@ module.exports = {
   rejectLeaveBulk,
   getAllEmployeeLeave,
   getLeaveBreakdown,
+  approveOvertime,
 };
