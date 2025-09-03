@@ -41,21 +41,31 @@ import {
   StatLabel,
   StatNumber,
   StatHelpText,
-  FormHelperText,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
+  Checkbox,
+  ButtonGroup,
+  Tooltip,
+  Avatar,
 } from "@chakra-ui/react";
 import {
   FiMoreVertical,
   FiEye,
-  FiEdit,
-  FiTrash2,
+  FiCheck,
+  FiX,
   FiClock,
   FiCalendar,
   FiUser,
   FiCheckCircle,
   FiXCircle,
   FiAlertCircle,
+  FiUsers,
 } from "react-icons/fi";
-import { AddIcon } from "@chakra-ui/icons";
+import { CheckIcon, CloseIcon } from "@chakra-ui/icons";
 import axiosInstance from "../../../lib/axiosInstance";
 
 // Constants
@@ -78,33 +88,28 @@ const STATUS_ICONS = {
   rejected: FiXCircle,
 };
 
-const INITIAL_FORM_DATA = {
-  id: null,
-  date: new Date().toISOString().split("T")[0],
-  hours: "",
-  reason: "",
-  overtimeType: "regular",
-};
-constOverTimeAdmin  = () => {
-  // Updated initial form data with date range
-  const INITIAL_FORM_DATA = {
-    id: "",
-    dateFrom: "",
-    dateTo: "",
-    hours: "",
-    reason: "",
-    overtimeType: "regular",
-  };
-
+const OverTimeAdmin = () => {
   // State management
   const [overtimes, setOvertimes] = useState([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sortBy, setSortBy] = useState("dateFrom");
   const [statusFilter, setStatusFilter] = useState("");
-  const [formData, setFormData] = useState(INITIAL_FORM_DATA);
+  const [departmentFilter, setDepartmentFilter] = useState("");
+  const [selectedOvertimes, setSelectedOvertimes] = useState([]);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [currentOvertimeId, setCurrentOvertimeId] = useState(null);
 
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const {
+    isOpen: isRejectModalOpen,
+    onOpen: onRejectModalOpen,
+    onClose: onRejectModalClose,
+  } = useDisclosure();
+  const {
+    isOpen: isBulkModalOpen,
+    onOpen: onBulkModalOpen,
+    onClose: onBulkModalClose,
+  } = useDisclosure();
   const toast = useToast();
 
   const handleApiError = useCallback(
@@ -123,10 +128,16 @@ constOverTimeAdmin  = () => {
     [toast]
   );
 
-  // Function to fetch data, wrapped in useCallback to prevent infinite loop
+  // Function to fetch all overtime data for admin
   const loadOvertimeData = useCallback(async () => {
     try {
-      const response = await axiosInstance.get("/overtime/getEmployeeOvertime");
+      const params = new URLSearchParams();
+      if (statusFilter) params.append("status", statusFilter);
+      if (departmentFilter) params.append("department", departmentFilter);
+
+      const response = await axiosInstance.get(
+        `/overtime/admin/getAllOvertimeRequests?${params}`
+      );
       const data = Array.isArray(response.data.data) ? response.data.data : [];
       setOvertimes(data);
     } catch (error) {
@@ -135,7 +146,7 @@ constOverTimeAdmin  = () => {
     } finally {
       setIsInitialLoading(false);
     }
-  }, [handleApiError]);
+  }, [handleApiError, statusFilter, departmentFilter]);
 
   // useEffect to call the data fetching function on component mount
   useEffect(() => {
@@ -159,11 +170,7 @@ constOverTimeAdmin  = () => {
 
   // Memoized filtered and sorted data
   const processedOvertimes = useMemo(() => {
-    let filtered = statusFilter
-      ? overtimes.filter((ot) => ot.status === statusFilter)
-      : overtimes;
-
-    const sorted = [...filtered].sort((a, b) => {
+    const sorted = [...overtimes].sort((a, b) => {
       switch (sortBy) {
         case "dateFrom":
           return new Date(b.dateFrom) - new Date(a.dateFrom);
@@ -171,6 +178,10 @@ constOverTimeAdmin  = () => {
           return parseFloat(b.hours) - parseFloat(a.hours);
         case "status":
           return a.status.localeCompare(b.status);
+        case "employee":
+          return `${a.employee?.firstname} ${a.employee?.lastname}`.localeCompare(
+            `${b.employee?.firstname} ${b.employee?.lastname}`
+          );
         case "days":
           const aDays = calculateDays(a.dateFrom, a.dateTo);
           const bDays = calculateDays(b.dateFrom, b.dateTo);
@@ -181,7 +192,7 @@ constOverTimeAdmin  = () => {
     });
 
     return sorted;
-  }, [overtimes, statusFilter, sortBy, calculateDays]);
+  }, [overtimes, sortBy, calculateDays]);
 
   // Memoized statistics
   const statistics = useMemo(() => {
@@ -197,124 +208,87 @@ constOverTimeAdmin  = () => {
     return { total, pending, approved, rejected, totalHours };
   }, [overtimes]);
 
-  // Form handlers
-  const resetForm = useCallback(() => {
-    setFormData(INITIAL_FORM_DATA);
-  }, []);
+  // Handle approve overtime
+  const handleApprove = useCallback(
+    async (overtimeId) => {
+      if (isSubmitting) return;
 
-  const handleInputChange = useCallback((e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  }, []);
+      setIsSubmitting(true);
+      try {
+        await axiosInstance.put(`/overtime/admin/approve/${overtimeId}`);
+        await loadOvertimeData();
 
-  const handleCloseModal = useCallback(() => {
-    resetForm();
-    onClose();
-  }, [resetForm, onClose]);
+        toast({
+          title: "Success",
+          description: "Overtime request approved successfully",
+          status: "success",
+          duration: 3000,
+          position: "top",
+          isClosable: true,
+        });
+      } catch (error) {
+        handleApiError(error, "Failed to approve overtime request");
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [isSubmitting, loadOvertimeData, toast, handleApiError]
+  );
 
-  // Validation helper
-  const validateForm = useCallback(() => {
-    if (
-      !formData.dateFrom ||
-      !formData.dateTo ||
-      !formData.hours ||
-      !formData.reason
-    ) {
+  // Handle reject overtime
+  const handleReject = useCallback(
+    async (overtimeId) => {
+      setCurrentOvertimeId(overtimeId);
+      setRejectionReason("");
+      onRejectModalOpen();
+    },
+    [onRejectModalOpen]
+  );
+
+  // Submit rejection
+  const submitRejection = useCallback(async () => {
+    if (!rejectionReason.trim()) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields",
+        description: "Please provide a rejection reason",
         status: "warning",
         duration: 3000,
         position: "top",
         isClosable: true,
       });
-      return false;
+      return;
     }
-
-    const startDate = new Date(formData.dateFrom);
-    const endDate = new Date(formData.dateTo);
-
-    if (startDate > endDate) {
-      toast({
-        title: "Invalid Date Range",
-        description: "Date from cannot be later than date to",
-        status: "warning",
-        duration: 3000,
-        position: "top",
-        isClosable: true,
-      });
-      return false;
-    }
-
-    const hours = parseFloat(formData.hours);
-    if (hours <= 0 || hours > 24) {
-      toast({
-        title: "Invalid Hours",
-        description: "Hours must be between 1 and 24",
-        status: "warning",
-        duration: 3000,
-        position: "top",
-        isClosable: true,
-      });
-      return false;
-    }
-
-    return true;
-  }, [formData, toast]);
-
-  // Handle form submission
-  const handleSubmit = useCallback(async () => {
-    if (!validateForm() || isSubmitting) return;
 
     setIsSubmitting(true);
-
     try {
-      const submitData = {
-        dateFrom: formData.dateFrom,
-        dateTo: formData.dateTo,
-        hours: parseFloat(formData.hours),
-        reason: formData.reason,
-        overtimeType: formData.overtimeType,
-      };
+      await axiosInstance.put(`/overtime/admin/reject/${currentOvertimeId}`, {
+        rejectionReason: rejectionReason.trim(),
+      });
 
-      if (formData.id) {
-        await axiosInstance.put(
-          `/overtime/editOvertime/${formData.id}`,
-          submitData
-        );
-      } else {
-        await axiosInstance.post("/overtime/addOvertime", submitData);
-      }
-
-      await loadOvertimeData(); // Re-fetch data to update the table
+      await loadOvertimeData();
+      onRejectModalClose();
+      setRejectionReason("");
+      setCurrentOvertimeId(null);
 
       toast({
         title: "Success",
-        description: `Overtime request ${
-          formData.id ? "updated" : "submitted"
-        } successfully`,
+        description: "Overtime request rejected successfully",
         status: "success",
         duration: 3000,
-        isClosable: true,
         position: "top",
+        isClosable: true,
       });
-
-      handleCloseModal();
     } catch (error) {
-      handleApiError(
-        error,
-        `Failed to ${formData.id ? "update" : "submit"} overtime request`
-      );
+      handleApiError(error, "Failed to reject overtime request");
     } finally {
       setIsSubmitting(false);
     }
   }, [
-    validateForm,
-    isSubmitting,
-    formData,
+    rejectionReason,
+    currentOvertimeId,
     loadOvertimeData,
+    onRejectModalClose,
     toast,
-    handleCloseModal,
     handleApiError,
   ]);
 
@@ -323,14 +297,17 @@ constOverTimeAdmin  = () => {
     (overtime) => {
       const dateRange = formatDateRange(overtime.dateFrom, overtime.dateTo);
       const days = calculateDays(overtime.dateFrom, overtime.dateTo);
+      const employeeName = `${overtime.employee?.firstname || ""} ${
+        overtime.employee?.lastname || ""
+      }`.trim();
 
       toast({
         title: "Overtime Details",
-        description: `${dateRange} - ${overtime.hours} hours over ${days} day${
-          days > 1 ? "s" : ""
-        } (${overtime.status})`,
+        description: `${employeeName} - ${dateRange} - ${
+          overtime.hours
+        } hours over ${days} day${days > 1 ? "s" : ""} (${overtime.status})`,
         status: "info",
-        duration: 4000,
+        duration: 5000,
         position: "top",
         isClosable: true,
       });
@@ -338,83 +315,80 @@ constOverTimeAdmin  = () => {
     [toast, formatDateRange, calculateDays]
   );
 
-  // Handle edit overtime
-  const handleEdit = useCallback(
-    (overtime) => {
-      if (overtime.status !== "pending") {
-        toast({
-          title: "Cannot Edit",
-          description: "Only pending overtime requests can be edited",
-          status: "warning",
-          duration: 3000,
-          position: "top",
-          isClosable: true,
-        });
-        return;
+  // Handle bulk selection
+  const handleSelectAll = useCallback(
+    (isChecked) => {
+      if (isChecked) {
+        const pendingIds = processedOvertimes
+          .filter((ot) => ot.status === "pending")
+          .map((ot) => ot._id);
+        setSelectedOvertimes(pendingIds);
+      } else {
+        setSelectedOvertimes([]);
       }
+    },
+    [processedOvertimes]
+  );
 
-      setFormData({
-        id: overtime._id,
-        dateFrom: overtime.dateFrom.split("T")[0],
-        dateTo: overtime.dateTo.split("T")[0],
-        hours: overtime.hours.toString(),
-        reason: overtime.reason,
-        overtimeType: overtime.overtimeType || "regular",
+  const handleSelectOvertime = useCallback((overtimeId, isChecked) => {
+    if (isChecked) {
+      setSelectedOvertimes((prev) => [...prev, overtimeId]);
+    } else {
+      setSelectedOvertimes((prev) => prev.filter((id) => id !== overtimeId));
+    }
+  }, []);
+
+  // Handle bulk approve
+  const handleBulkApprove = useCallback(async () => {
+    if (selectedOvertimes.length === 0) return;
+
+    setIsSubmitting(true);
+    try {
+      const response = await axiosInstance.post("/overtime/admin/bulkApprove", {
+        overtimeIds: selectedOvertimes,
       });
-      onOpen();
-    },
-    [onOpen, toast]
-  );
 
-  // Handle delete overtime
-  const handleDelete = useCallback(
-    async (id) => {
-      const overtime = overtimes.find((ot) => ot._id === id);
+      await loadOvertimeData();
+      setSelectedOvertimes([]);
+      onBulkModalClose();
 
-      if (overtime?.status !== "pending") {
-        toast({
-          title: "Cannot Delete",
-          description: "Only pending overtime requests can be deleted",
-          status: "warning",
-          duration: 3000,
-          position: "top",
-          isClosable: true,
-        });
-        return;
+      const { approved, conflicts, conflictingRequests } = response.data.data;
+
+      let message = `${approved} overtime requests approved successfully`;
+      if (conflicts > 0) {
+        message += `. ${conflicts} requests had conflicts and were not approved.`;
       }
 
-      if (
-        !window.confirm(
-          "Are you sure you want to delete this overtime request?"
-        )
-      ) {
-        return;
-      }
+      toast({
+        title: "Bulk Approval Complete",
+        description: message,
+        status: approved > 0 ? "success" : "warning",
+        duration: 5000,
+        position: "top",
+        isClosable: true,
+      });
+    } catch (error) {
+      handleApiError(error, "Failed to bulk approve overtime requests");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [
+    selectedOvertimes,
+    loadOvertimeData,
+    onBulkModalClose,
+    toast,
+    handleApiError,
+  ]);
 
-      try {
-        await axiosInstance.delete(`/overtime/deleteOvertime/${id}`);
-        await loadOvertimeData();
-
-        toast({
-          title: "Success",
-          description: "Overtime request deleted successfully",
-          status: "success",
-          duration: 3000,
-          position: "top",
-          isClosable: true,
-        });
-      } catch (error) {
-        handleApiError(error, "Failed to delete overtime record");
-      }
-    },
-    [overtimes, toast, loadOvertimeData, handleApiError]
-  );
-
-  // Handle new overtime request
-  const handleNewRequest = useCallback(() => {
-    resetForm();
-    onOpen();
-  }, [resetForm, onOpen]);
+  // Get unique departments
+  const departments = useMemo(() => {
+    const depts = [
+      ...new Set(
+        overtimes.map((ot) => ot.employee?.department).filter(Boolean)
+      ),
+    ];
+    return depts.sort();
+  }, [overtimes]);
 
   // Loading state
   if (isInitialLoading) {
@@ -428,26 +402,41 @@ constOverTimeAdmin  = () => {
     );
   }
 
+  const pendingCount = processedOvertimes.filter(
+    (ot) => ot.status === "pending"
+  ).length;
+  const selectedCount = selectedOvertimes.length;
+
   return (
-    <Box p={6} maxW="1200px" mx="auto">
+    <Box p={6} maxW="1400px" mx="auto">
       <VStack spacing={6} align="stretch">
         {/* Header */}
         <Flex justify="space-between" align="center" flexWrap="wrap" gap={4}>
           <Heading size="lg" color="gray.800">
-            My Overtime Requests
+            Overtime Management
           </Heading>
-          <Button
-            leftIcon={<AddIcon />}
-            colorScheme="blue"
-            onClick={handleNewRequest}
-            isDisabled={isSubmitting}
-          >
-            New Overtime Request
-          </Button>
+          {selectedCount > 0 && (
+            <ButtonGroup>
+              <Button
+                leftIcon={<CheckIcon />}
+                colorScheme="green"
+                onClick={onBulkModalOpen}
+                isDisabled={isSubmitting}
+              >
+                Approve Selected ({selectedCount})
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setSelectedOvertimes([])}
+              >
+                Clear Selection
+              </Button>
+            </ButtonGroup>
+          )}
         </Flex>
 
         {/* Statistics */}
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4}>
+        <SimpleGrid columns={{ base: 1, md: 2, lg: 5 }} spacing={4}>
           <Stat
             bg="white"
             p={4}
@@ -459,8 +448,8 @@ constOverTimeAdmin  = () => {
             <StatLabel color="gray.600">Total Requests</StatLabel>
             <StatNumber color="blue.600">{statistics.total}</StatNumber>
             <StatHelpText>
-              <Icon as={FiUser} mr={1} />
-              All time
+              <Icon as={FiUsers} mr={1} />
+              All employees
             </StatHelpText>
           </Stat>
 
@@ -504,6 +493,22 @@ constOverTimeAdmin  = () => {
             border="1px"
             borderColor="gray.200"
           >
+            <StatLabel color="gray.600">Rejected</StatLabel>
+            <StatNumber color="red.600">{statistics.rejected}</StatNumber>
+            <StatHelpText>
+              <Icon as={FiXCircle} mr={1} />
+              Declined
+            </StatHelpText>
+          </Stat>
+
+          <Stat
+            bg="white"
+            p={4}
+            borderRadius="lg"
+            shadow="sm"
+            border="1px"
+            borderColor="gray.200"
+          >
             <StatLabel color="gray.600">Total Hours</StatLabel>
             <StatNumber color="purple.600">{statistics.totalHours}</StatNumber>
             <StatHelpText>
@@ -522,6 +527,7 @@ constOverTimeAdmin  = () => {
             bg="white"
           >
             <option value="dateFrom">Sort by Date</option>
+            <option value="employee">Sort by Employee</option>
             <option value="hours">Sort by Hours</option>
             <option value="days">Sort by Days</option>
             <option value="status">Sort by Status</option>
@@ -538,7 +544,53 @@ constOverTimeAdmin  = () => {
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
           </Select>
+
+          <Select
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+            maxW="200px"
+            bg="white"
+          >
+            <option value="">All Departments</option>
+            {departments.map((dept) => (
+              <option key={dept} value={dept}>
+                {dept}
+              </option>
+            ))}
+          </Select>
         </HStack>
+
+        {/* Bulk Actions */}
+        {pendingCount > 0 && (
+          <Box
+            bg="blue.50"
+            p={4}
+            borderRadius="lg"
+            border="1px"
+            borderColor="blue.200"
+          >
+            <HStack justify="space-between">
+              <HStack>
+                <Checkbox
+                  isChecked={selectedCount === pendingCount && pendingCount > 0}
+                  isIndeterminate={
+                    selectedCount > 0 && selectedCount < pendingCount
+                  }
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                >
+                  <Text fontSize="sm" fontWeight="medium" color="blue.700">
+                    Select All Pending ({pendingCount})
+                  </Text>
+                </Checkbox>
+              </HStack>
+              {selectedCount > 0 && (
+                <Text fontSize="sm" color="blue.600">
+                  {selectedCount} of {pendingCount} selected
+                </Text>
+              )}
+            </HStack>
+          </Box>
+        )}
 
         {/* Table */}
         {processedOvertimes.length === 0 ? (
@@ -555,9 +607,9 @@ constOverTimeAdmin  = () => {
               No Overtime Records
             </Heading>
             <Text color="gray.400">
-              {statusFilter
-                ? `No ${statusFilter} overtime requests found.`
-                : "You haven't submitted any overtime requests yet."}
+              {statusFilter || departmentFilter
+                ? `No overtime requests found for the selected filters.`
+                : "No overtime requests have been submitted yet."}
             </Text>
           </Box>
         ) : (
@@ -572,6 +624,20 @@ constOverTimeAdmin  = () => {
             <Table variant="simple">
               <Thead bg={useColorModeValue("gray.50", "gray.700")}>
                 <Tr>
+                  <Th w="50px">
+                    {pendingCount > 0 && (
+                      <Checkbox
+                        isChecked={
+                          selectedCount === pendingCount && pendingCount > 0
+                        }
+                        isIndeterminate={
+                          selectedCount > 0 && selectedCount < pendingCount
+                        }
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                      />
+                    )}
+                  </Th>
+                  <Th>Employee</Th>
                   <Th>Date Range</Th>
                   <Th>Days</Th>
                   <Th>Hours</Th>
@@ -584,6 +650,40 @@ constOverTimeAdmin  = () => {
               <Tbody>
                 {processedOvertimes.map((overtime) => (
                   <Tr key={overtime._id} _hover={{ bg: "gray.50" }}>
+                    <Td>
+                      {overtime.status === "pending" && (
+                        <Checkbox
+                          isChecked={selectedOvertimes.includes(overtime._id)}
+                          onChange={(e) =>
+                            handleSelectOvertime(overtime._id, e.target.checked)
+                          }
+                        />
+                      )}
+                    </Td>
+                    <Td>
+                      <HStack spacing={3}>
+                        <Avatar
+                          size="sm"
+                          name={`${overtime.employee?.firstname || ""} ${
+                            overtime.employee?.lastname || ""
+                          }`}
+                          bg="blue.500"
+                        />
+                        <VStack align="start" spacing={0}>
+                          <Text fontWeight="medium" fontSize="sm">
+                            {`${overtime.employee?.firstname || "Unknown"} ${
+                              overtime.employee?.lastname || "Employee"
+                            }`}
+                          </Text>
+                          <Text fontSize="xs" color="gray.500">
+                            ID: {overtime.employee?.employeeId || "N/A"}
+                          </Text>
+                          <Text fontSize="xs" color="gray.500">
+                            {overtime.employee?.department || "No Department"}
+                          </Text>
+                        </VStack>
+                      </HStack>
+                    </Td>
                     <Td>
                       <VStack align="start" spacing={1}>
                         <HStack>
@@ -618,7 +718,7 @@ constOverTimeAdmin  = () => {
                         )?.label || overtime.overtimeType}
                       </Badge>
                     </Td>
-                    <Td maxW="250px">
+                    <Td maxW="200px">
                       <Text noOfLines={2} fontSize="sm">
                         {overtime.reason}
                       </Text>
@@ -640,44 +740,83 @@ constOverTimeAdmin  = () => {
                           </Text>
                         </HStack>
                       </Badge>
+                      {overtime.status !== "pending" && overtime.approvedBy && (
+                        <Text fontSize="xs" color="gray.500" mt={1}>
+                          by {overtime.approvedBy.firstname}{" "}
+                          {overtime.approvedBy.lastname}
+                        </Text>
+                      )}
                     </Td>
                     <Td textAlign="center">
-                      <Menu>
-                        <MenuButton
-                          as={IconButton}
-                          icon={<FiMoreVertical />}
-                          variant="ghost"
-                          size="sm"
-                          isDisabled={isSubmitting}
-                        />
-                        <MenuList>
-                          <MenuItem
-                            icon={<FiEye />}
-                            onClick={() => handleView(overtime)}
-                          >
-                            View Details
-                          </MenuItem>
-                          <MenuItem
-                            icon={<FiEdit />}
-                            onClick={() => handleEdit(overtime)}
-                            isDisabled={
-                              overtime.status !== "pending" || isSubmitting
-                            }
-                          >
-                            Edit
-                          </MenuItem>
-                          <MenuItem
-                            icon={<FiTrash2 />}
-                            color="red.500"
-                            onClick={() => handleDelete(overtime._id)}
-                            isDisabled={
-                              overtime.status !== "pending" || isSubmitting
-                            }
-                          >
-                            Delete
-                          </MenuItem>
-                        </MenuList>
-                      </Menu>
+                      {overtime.status === "pending" ? (
+                        <ButtonGroup size="sm" isAttached variant="outline">
+                          <Tooltip label="Approve">
+                            <IconButton
+                              icon={<FiCheck />}
+                              colorScheme="green"
+                              onClick={() => handleApprove(overtime._id)}
+                              isDisabled={isSubmitting}
+                            />
+                          </Tooltip>
+                          <Tooltip label="Reject">
+                            <IconButton
+                              icon={<FiX />}
+                              colorScheme="red"
+                              onClick={() => handleReject(overtime._id)}
+                              isDisabled={isSubmitting}
+                            />
+                          </Tooltip>
+                          <Menu>
+                            <MenuButton
+                              as={IconButton}
+                              icon={<FiMoreVertical />}
+                              isDisabled={isSubmitting}
+                            />
+                            <MenuList>
+                              <MenuItem
+                                icon={<FiEye />}
+                                onClick={() => handleView(overtime)}
+                              >
+                                View Details
+                              </MenuItem>
+                            </MenuList>
+                          </Menu>
+                        </ButtonGroup>
+                      ) : (
+                        <Menu>
+                          <MenuButton
+                            as={IconButton}
+                            icon={<FiMoreVertical />}
+                            variant="ghost"
+                            size="sm"
+                          />
+                          <MenuList>
+                            <MenuItem
+                              icon={<FiEye />}
+                              onClick={() => handleView(overtime)}
+                            >
+                              View Details
+                            </MenuItem>
+                            {overtime.rejectionReason && (
+                              <MenuItem
+                                icon={<FiAlertCircle />}
+                                onClick={() =>
+                                  toast({
+                                    title: "Rejection Reason",
+                                    description: overtime.rejectionReason,
+                                    status: "info",
+                                    duration: 5000,
+                                    position: "top",
+                                    isClosable: true,
+                                  })
+                                }
+                              >
+                                View Rejection Reason
+                              </MenuItem>
+                            )}
+                          </MenuList>
+                        </Menu>
+                      )}
                     </Td>
                   </Tr>
                 ))}
@@ -687,148 +826,87 @@ constOverTimeAdmin  = () => {
         )}
       </VStack>
 
-      {/* Form Modal - Updated with date range */}
-      <Modal isOpen={isOpen} onClose={handleCloseModal} isCentered size="lg">
+      {/* Rejection Modal */}
+      <Modal isOpen={isRejectModalOpen} onClose={onRejectModalClose} isCentered>
         <ModalOverlay />
         <ModalContent>
-          <ModalHeader>
-            {formData.id ? "Edit Overtime Request" : "New Overtime Request"}
-          </ModalHeader>
+          <ModalHeader>Reject Overtime Request</ModalHeader>
           <ModalCloseButton isDisabled={isSubmitting} />
-          <ModalBody pb={6}>
-            <VStack spacing={4}>
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
-                <FormControl isRequired>
-                  <FormLabel>Date From</FormLabel>
-                  <Input
-                    type="date"
-                    name="dateFrom"
-                    value={formData.dateFrom}
-                    onChange={handleInputChange}
-                    isDisabled={isSubmitting}
-                  />
-                </FormControl>
-
-                <FormControl isRequired>
-                  <FormLabel>Date To</FormLabel>
-                  <Input
-                    type="date"
-                    name="dateTo"
-                    value={formData.dateTo}
-                    onChange={handleInputChange}
-                    min={formData.dateFrom}
-                    isDisabled={isSubmitting}
-                  />
-                </FormControl>
-              </SimpleGrid>
-
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
-                <FormControl isRequired>
-                  <FormLabel>Hours Per Day</FormLabel>
-                  <Input
-                    type="number"
-                    step="0.5"
-                    min="0.5"
-                    max="24"
-                    name="hours"
-                    placeholder="e.g., 2.5"
-                    value={formData.hours}
-                    onChange={handleInputChange}
-                    isDisabled={isSubmitting}
-                  />
-                  <FormHelperText fontSize="xs" color="gray.500">
-                    Total hours per day during the overtime period
-                  </FormHelperText>
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>Overtime Type</FormLabel>
-                  <Select
-                    name="overtimeType"
-                    value={formData.overtimeType}
-                    onChange={handleInputChange}
-                    isDisabled={isSubmitting}
-                  >
-                    {OVERTIME_TYPES.map((type) => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </Select>
-                </FormControl>
-              </SimpleGrid>
-
-              {/* Show calculated total information */}
-              {formData.dateFrom && formData.dateTo && formData.hours && (
-                <Box
-                  w="full"
-                  p={3}
-                  bg="blue.50"
-                  borderRadius="md"
-                  border="1px"
-                  borderColor="blue.200"
-                >
-                  <HStack justify="space-between">
-                    <Text fontSize="sm" fontWeight="medium" color="blue.700">
-                      Period Summary:
-                    </Text>
-                    <Badge colorScheme="blue">
-                      {calculateDays(formData.dateFrom, formData.dateTo)} day
-                      {calculateDays(formData.dateFrom, formData.dateTo) > 1
-                        ? "s"
-                        : ""}{" "}
-                      × {formData.hours} hrs ={" "}
-                      {(
-                        calculateDays(formData.dateFrom, formData.dateTo) *
-                        parseFloat(formData.hours || 0)
-                      ).toFixed(1)}{" "}
-                      total hours
-                    </Badge>
-                  </HStack>
-                </Box>
-              )}
-
-              <FormControl isRequired>
-                <FormLabel>Reason</FormLabel>
-                <Textarea
-                  name="reason"
-                  placeholder="Please explain the reason for overtime..."
-                  value={formData.reason}
-                  onChange={handleInputChange}
-                  resize="vertical"
-                  rows={4}
-                  isDisabled={isSubmitting}
-                />
-              </FormControl>
-            </VStack>
+          <ModalBody>
+            <FormControl>
+              <FormLabel>Rejection Reason</FormLabel>
+              <Textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Please provide a reason for rejecting this overtime request..."
+                rows={4}
+                resize="vertical"
+                isDisabled={isSubmitting}
+              />
+            </FormControl>
           </ModalBody>
-
           <ModalFooter>
             <Button
               variant="ghost"
               mr={3}
-              onClick={handleCloseModal}
+              onClick={onRejectModalClose}
               isDisabled={isSubmitting}
             >
               Cancel
             </Button>
             <Button
-              colorScheme="blue"
-              onClick={handleSubmit}
+              colorScheme="red"
+              onClick={submitRejection}
               isLoading={isSubmitting}
-              loadingText={formData.id ? "Updating..." : "Submitting..."}
-              isDisabled={
-                !formData.dateFrom ||
-                !formData.dateTo ||
-                !formData.hours ||
-                !formData.reason
-              }
+              loadingText="Rejecting..."
+              isDisabled={!rejectionReason.trim()}
             >
-              {formData.id ? "Update Request" : "Submit Request"}
+              Reject Request
             </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      {/* Bulk Approve Confirmation Modal */}
+      <AlertDialog
+        isOpen={isBulkModalOpen}
+        onClose={onBulkModalClose}
+        isCentered
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Bulk Approve Overtime Requests
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              Are you sure you want to approve {selectedCount} overtime
+              requests?
+              <Box mt={3} p={3} bg="yellow.50" borderRadius="md">
+                <Text fontSize="sm" color="yellow.800">
+                  <strong>Note:</strong> Requests with leave conflicts will be
+                  automatically skipped and remain pending.
+                </Text>
+              </Box>
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button onClick={onBulkModalClose} isDisabled={isSubmitting}>
+                Cancel
+              </Button>
+              <Button
+                colorScheme="green"
+                onClick={handleBulkApprove}
+                ml={3}
+                isLoading={isSubmitting}
+                loadingText="Processing..."
+              >
+                Approve Selected
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </Box>
   );
 };
