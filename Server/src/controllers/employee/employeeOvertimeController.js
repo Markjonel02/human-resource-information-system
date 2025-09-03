@@ -1,4 +1,5 @@
 const overtime = require("../../models/overtimeSchema");
+const leave = require("../../models/LeaveSchema/leaveSchema");
 
 const addOvertime = async (req, res) => {
   try {
@@ -31,6 +32,23 @@ const addOvertime = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "An overtime request already exists for this date.",
+      });
+    }
+
+    const requestedDate = new Date(date);
+    requestedDate.setHours(0, 0, 0, 0); // Normalize to midnight for accurate comparison
+
+    const checkPendingLeave = await leave.findOne({
+      employeeId: employeeId,
+      status: "pending", // Only block if leave is not yet approved or rejected
+      startDate: { $lte: requestedDate },
+      endDate: { $gte: requestedDate },
+    });
+
+    if (checkPendingLeave) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot request overtime on ${requestedDate.toDateString()} because you have a pending leave scheduled from ${checkPendingLeave.startDate.toDateString()} to ${checkPendingLeave.endDate.toDateString()}.`,
       });
     }
 
@@ -76,7 +94,7 @@ const getEmployeeOvertime = async (req, res) => {
       });
     }
 
-    const allowedRoles = ["employee", "admin", "hr"];
+    const allowedRoles = ["employee", "admin"];
     if (!allowedRoles.includes(currentUser.role)) {
       return res.status(403).json({
         success: false,

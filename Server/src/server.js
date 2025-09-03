@@ -8,11 +8,14 @@ const connectDB = require("./config/connection.js");
 
 // Import Routes
 const userRoutes = require("./routes/userRoutes.js");
-const employeeLeaveRoutes = require("./routes/employee/employeeLeaveRoutes.js");
-const employeeAttendanceRoutes = require("./routes/employee/employeeRoutes.js");
-const employeeOvertimeRoutes = require("./routes/employee/overtimeRoutes.js");
-// const testRoutes = require("./routes/admin&hr/testRoutes.js"); // Commented out, not for production
 
+const testRoutes = require("./routes/admin&hr/testRoutes.js");
+
+const employeeLeave = require("./routes/employee/employeeLeaveRoutes.js");
+
+const employeeAttendance = require("./routes/employee/employeeRoutes.js");
+
+const EmployeeOvertimeRoutes = require("./routes/employee/overtimeRoutes.js");
 // Initialize the Express app
 const app = express();
 const port = process.env.PORT || 5000; // Use a default port if not specified
@@ -47,11 +50,16 @@ app.get("/", (req, res) => {
 
 // Mount the API routes under the /api prefix
 app.use("/api", userRoutes);
-app.use("/api/attendance", employeeAttendanceRoutes);
-app.use("/api/leave", employeeLeaveRoutes);
-app.use("/api/overtime", employeeOvertimeRoutes);
-app.use("/api/test", testRoutes);
 
+app.use("/api/attendanceRoutes", testRoutes);
+
+//employeeRoutes
+
+app.use("/api/employeeAttendance", employeeAttendance);
+
+app.use("/api/employeeLeave", employeeLeave);
+
+app.use("/api/overtime", EmployeeOvertimeRoutes);
 // =======================
 //   ERROR HANDLING
 // =======================

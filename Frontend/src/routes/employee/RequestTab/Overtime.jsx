@@ -107,6 +107,7 @@ const OvertimeUI = () => {
         description: message,
         status: "error",
         duration: 5000,
+        position: "top",
         isClosable: true,
       });
     },
@@ -191,6 +192,7 @@ const OvertimeUI = () => {
         description: "Please fill in all required fields",
         status: "warning",
         duration: 3000,
+        position: "top",
         isClosable: true,
       });
       return false;
@@ -203,6 +205,7 @@ const OvertimeUI = () => {
         description: "Hours must be between 1 and 24",
         status: "warning",
         duration: 3000,
+        position: "top",
         isClosable: true,
       });
       return false;
@@ -244,6 +247,7 @@ const OvertimeUI = () => {
         status: "success",
         duration: 3000,
         isClosable: true,
+        position: "top",
       });
 
       handleCloseModal();
@@ -277,6 +281,7 @@ const OvertimeUI = () => {
         })`,
         status: "info",
         duration: 4000,
+        position: "top",
         isClosable: true,
       });
     },
@@ -292,6 +297,7 @@ const OvertimeUI = () => {
           description: "Only pending overtime requests can be edited",
           status: "warning",
           duration: 3000,
+          position: "top",
           isClosable: true,
         });
         return;
@@ -320,6 +326,7 @@ const OvertimeUI = () => {
           description: "Only pending overtime requests can be deleted",
           status: "warning",
           duration: 3000,
+          position: "top",
           isClosable: true,
         });
         return;
@@ -342,6 +349,7 @@ const OvertimeUI = () => {
           description: "Overtime request deleted successfully",
           status: "success",
           duration: 3000,
+          position: "top",
           isClosable: true,
         });
       } catch (error) {

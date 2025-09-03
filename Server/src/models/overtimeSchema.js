@@ -3,7 +3,7 @@ const OverTimeScheme = new mongoose.Schema(
   {
     employee: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Employee",
+      ref: "user",
       required: true,
     },
     date: { type: Date, required: true },
