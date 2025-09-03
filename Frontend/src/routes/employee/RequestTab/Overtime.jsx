@@ -41,6 +41,7 @@ import {
   StatLabel,
   StatNumber,
   StatHelpText,
+  FormHelperText,
 } from "@chakra-ui/react";
 import {
   FiMoreVertical,
@@ -84,14 +85,22 @@ const INITIAL_FORM_DATA = {
   reason: "",
   overtimeType: "regular",
 };
-
-// Main Overtime Component
 const OvertimeUI = () => {
+  // Updated initial form data with date range
+  const INITIAL_FORM_DATA = {
+    id: "",
+    dateFrom: "",
+    dateTo: "",
+    hours: "",
+    reason: "",
+    overtimeType: "regular",
+  };
+
   // State management
   const [overtimes, setOvertimes] = useState([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [sortBy, setSortBy] = useState("date");
+  const [sortBy, setSortBy] = useState("dateFrom");
   const [statusFilter, setStatusFilter] = useState("");
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
 
@@ -133,6 +142,21 @@ const OvertimeUI = () => {
     loadOvertimeData();
   }, [loadOvertimeData]);
 
+  // Helper function to format date range
+  const formatDateRange = useCallback((dateFrom, dateTo) => {
+    const from = new Date(dateFrom).toLocaleDateString();
+    const to = new Date(dateTo).toLocaleDateString();
+    return from === to ? from : `${from} - ${to}`;
+  }, []);
+
+  // Helper function to calculate days between dates
+  const calculateDays = useCallback((dateFrom, dateTo) => {
+    const start = new Date(dateFrom);
+    const end = new Date(dateTo);
+    const timeDiff = end - start;
+    return Math.ceil(timeDiff / (1000 * 60 * 60 * 24)) + 1;
+  }, []);
+
   // Memoized filtered and sorted data
   const processedOvertimes = useMemo(() => {
     let filtered = statusFilter
@@ -141,19 +165,23 @@ const OvertimeUI = () => {
 
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
-        case "date":
-          return new Date(b.date) - new Date(a.date);
+        case "dateFrom":
+          return new Date(b.dateFrom) - new Date(a.dateFrom);
         case "hours":
           return parseFloat(b.hours) - parseFloat(a.hours);
         case "status":
           return a.status.localeCompare(b.status);
+        case "days":
+          const aDays = calculateDays(a.dateFrom, a.dateTo);
+          const bDays = calculateDays(b.dateFrom, b.dateTo);
+          return bDays - aDays;
         default:
           return 0;
       }
     });
 
     return sorted;
-  }, [overtimes, statusFilter, sortBy]);
+  }, [overtimes, statusFilter, sortBy, calculateDays]);
 
   // Memoized statistics
   const statistics = useMemo(() => {
@@ -186,10 +214,30 @@ const OvertimeUI = () => {
 
   // Validation helper
   const validateForm = useCallback(() => {
-    if (!formData.date || !formData.hours || !formData.reason) {
+    if (
+      !formData.dateFrom ||
+      !formData.dateTo ||
+      !formData.hours ||
+      !formData.reason
+    ) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields",
+        status: "warning",
+        duration: 3000,
+        position: "top",
+        isClosable: true,
+      });
+      return false;
+    }
+
+    const startDate = new Date(formData.dateFrom);
+    const endDate = new Date(formData.dateTo);
+
+    if (startDate > endDate) {
+      toast({
+        title: "Invalid Date Range",
+        description: "Date from cannot be later than date to",
         status: "warning",
         duration: 3000,
         position: "top",
@@ -222,7 +270,8 @@ const OvertimeUI = () => {
 
     try {
       const submitData = {
-        date: formData.date,
+        dateFrom: formData.dateFrom,
+        dateTo: formData.dateTo,
         hours: parseFloat(formData.hours),
         reason: formData.reason,
         overtimeType: formData.overtimeType,
@@ -272,20 +321,21 @@ const OvertimeUI = () => {
   // Handle view overtime details
   const handleView = useCallback(
     (overtime) => {
-      const formatDate = (date) => new Date(date).toLocaleDateString();
+      const dateRange = formatDateRange(overtime.dateFrom, overtime.dateTo);
+      const days = calculateDays(overtime.dateFrom, overtime.dateTo);
 
       toast({
         title: "Overtime Details",
-        description: `${formatDate(overtime.date)} - ${overtime.hours} hours (${
-          overtime.status
-        })`,
+        description: `${dateRange} - ${overtime.hours} hours over ${days} day${
+          days > 1 ? "s" : ""
+        } (${overtime.status})`,
         status: "info",
         duration: 4000,
         position: "top",
         isClosable: true,
       });
     },
-    [toast]
+    [toast, formatDateRange, calculateDays]
   );
 
   // Handle edit overtime
@@ -305,7 +355,8 @@ const OvertimeUI = () => {
 
       setFormData({
         id: overtime._id,
-        date: overtime.date.split("T")[0],
+        dateFrom: overtime.dateFrom.split("T")[0],
+        dateTo: overtime.dateTo.split("T")[0],
         hours: overtime.hours.toString(),
         reason: overtime.reason,
         overtimeType: overtime.overtimeType || "regular",
@@ -470,8 +521,9 @@ const OvertimeUI = () => {
             maxW="200px"
             bg="white"
           >
-            <option value="date">Sort by Date</option>
+            <option value="dateFrom">Sort by Date</option>
             <option value="hours">Sort by Hours</option>
+            <option value="days">Sort by Days</option>
             <option value="status">Sort by Status</option>
           </Select>
 
@@ -520,7 +572,8 @@ const OvertimeUI = () => {
             <Table variant="simple">
               <Thead bg={useColorModeValue("gray.50", "gray.700")}>
                 <Tr>
-                  <Th>Date</Th>
+                  <Th>Date Range</Th>
+                  <Th>Days</Th>
                   <Th>Hours</Th>
                   <Th>Type</Th>
                   <Th>Reason</Th>
@@ -532,12 +585,25 @@ const OvertimeUI = () => {
                 {processedOvertimes.map((overtime) => (
                   <Tr key={overtime._id} _hover={{ bg: "gray.50" }}>
                     <Td>
-                      <HStack>
-                        <Icon as={FiCalendar} color="gray.400" />
-                        <Text>
-                          {new Date(overtime.date).toLocaleDateString()}
-                        </Text>
-                      </HStack>
+                      <VStack align="start" spacing={1}>
+                        <HStack>
+                          <Icon as={FiCalendar} color="gray.400" />
+                          <Text fontSize="sm" fontWeight="medium">
+                            {formatDateRange(
+                              overtime.dateFrom,
+                              overtime.dateTo
+                            )}
+                          </Text>
+                        </HStack>
+                      </VStack>
+                    </Td>
+                    <Td>
+                      <Badge variant="outline" colorScheme="gray">
+                        {calculateDays(overtime.dateFrom, overtime.dateTo)} day
+                        {calculateDays(overtime.dateFrom, overtime.dateTo) > 1
+                          ? "s"
+                          : ""}
+                      </Badge>
                     </Td>
                     <Td>
                       <HStack>
@@ -621,7 +687,7 @@ const OvertimeUI = () => {
         )}
       </VStack>
 
-      {/* Form Modal */}
+      {/* Form Modal - Updated with date range */}
       <Modal isOpen={isOpen} onClose={handleCloseModal} isCentered size="lg">
         <ModalOverlay />
         <ModalContent>
@@ -633,18 +699,32 @@ const OvertimeUI = () => {
             <VStack spacing={4}>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
                 <FormControl isRequired>
-                  <FormLabel>Date</FormLabel>
+                  <FormLabel>Date From</FormLabel>
                   <Input
                     type="date"
-                    name="date"
-                    value={formData.date}
+                    name="dateFrom"
+                    value={formData.dateFrom}
                     onChange={handleInputChange}
                     isDisabled={isSubmitting}
                   />
                 </FormControl>
 
                 <FormControl isRequired>
-                  <FormLabel>Hours</FormLabel>
+                  <FormLabel>Date To</FormLabel>
+                  <Input
+                    type="date"
+                    name="dateTo"
+                    value={formData.dateTo}
+                    onChange={handleInputChange}
+                    min={formData.dateFrom}
+                    isDisabled={isSubmitting}
+                  />
+                </FormControl>
+              </SimpleGrid>
+
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
+                <FormControl isRequired>
+                  <FormLabel>Hours Per Day</FormLabel>
                   <Input
                     type="number"
                     step="0.5"
@@ -656,24 +736,57 @@ const OvertimeUI = () => {
                     onChange={handleInputChange}
                     isDisabled={isSubmitting}
                   />
+                  <FormHelperText fontSize="xs" color="gray.500">
+                    Total hours per day during the overtime period
+                  </FormHelperText>
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Overtime Type</FormLabel>
+                  <Select
+                    name="overtimeType"
+                    value={formData.overtimeType}
+                    onChange={handleInputChange}
+                    isDisabled={isSubmitting}
+                  >
+                    {OVERTIME_TYPES.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </Select>
                 </FormControl>
               </SimpleGrid>
 
-              <FormControl>
-                <FormLabel>Overtime Type</FormLabel>
-                <Select
-                  name="overtimeType"
-                  value={formData.overtimeType}
-                  onChange={handleInputChange}
-                  isDisabled={isSubmitting}
+              {/* Show calculated total information */}
+              {formData.dateFrom && formData.dateTo && formData.hours && (
+                <Box
+                  w="full"
+                  p={3}
+                  bg="blue.50"
+                  borderRadius="md"
+                  border="1px"
+                  borderColor="blue.200"
                 >
-                  {OVERTIME_TYPES.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </Select>
-              </FormControl>
+                  <HStack justify="space-between">
+                    <Text fontSize="sm" fontWeight="medium" color="blue.700">
+                      Period Summary:
+                    </Text>
+                    <Badge colorScheme="blue">
+                      {calculateDays(formData.dateFrom, formData.dateTo)} day
+                      {calculateDays(formData.dateFrom, formData.dateTo) > 1
+                        ? "s"
+                        : ""}{" "}
+                      × {formData.hours} hrs ={" "}
+                      {(
+                        calculateDays(formData.dateFrom, formData.dateTo) *
+                        parseFloat(formData.hours || 0)
+                      ).toFixed(1)}{" "}
+                      total hours
+                    </Badge>
+                  </HStack>
+                </Box>
+              )}
 
               <FormControl isRequired>
                 <FormLabel>Reason</FormLabel>
@@ -704,7 +817,12 @@ const OvertimeUI = () => {
               onClick={handleSubmit}
               isLoading={isSubmitting}
               loadingText={formData.id ? "Updating..." : "Submitting..."}
-              isDisabled={!formData.date || !formData.hours || !formData.reason}
+              isDisabled={
+                !formData.dateFrom ||
+                !formData.dateTo ||
+                !formData.hours ||
+                !formData.reason
+              }
             >
               {formData.id ? "Update Request" : "Submit Request"}
             </Button>
