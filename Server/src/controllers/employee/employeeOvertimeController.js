@@ -1,15 +1,33 @@
 const overtime = require("../../models/overtimeSchema");
+const leave = require("../../models/LeaveSchema/leaveSchema");
 
 const addOvertime = async (req, res) => {
   try {
-    const { date, hours, reason, overtimeType = "regular" } = req.body;
+    const {
+      dateFrom,
+      dateTo,
+      hours,
+      reason,
+      overtimeType = "regular",
+    } = req.body;
     const employeeId = req.user._id;
 
     // Validation
-    if (!date || !hours || !reason) {
+    if (!dateFrom || !dateTo || !hours || !reason) {
       return res.status(400).json({
         success: false,
-        message: "Date, hours, and reason are required.",
+        message: "Date from, date to, hours, and reason are required.",
+      });
+    }
+
+    const startDate = new Date(dateFrom);
+    const endDate = new Date(dateTo);
+
+    // Validate date range
+    if (startDate > endDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Date from cannot be later than date to.",
       });
     }
 
@@ -20,28 +38,116 @@ const addOvertime = async (req, res) => {
       });
     }
 
-    // Check for duplicate overtime on the same date
+    // Normalize dates to midnight for accurate comparison
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+
+    // Check for overlapping overtime requests
     const existingOvertime = await overtime.findOne({
       employee: employeeId,
-      date: new Date(date),
       status: { $ne: "rejected" },
+      $or: [
+        // New request starts within existing period
+        {
+          dateFrom: { $lte: startDate },
+          dateTo: { $gte: startDate },
+        },
+        // New request ends within existing period
+        {
+          dateFrom: { $lte: endDate },
+          dateTo: { $gte: endDate },
+        },
+        // New request completely contains existing period
+        {
+          dateFrom: { $gte: startDate },
+          dateTo: { $lte: endDate },
+        },
+        // Existing request completely contains new period
+        {
+          dateFrom: { $lte: startDate },
+          dateTo: { $gte: endDate },
+        },
+      ],
     });
 
     if (existingOvertime) {
       return res.status(400).json({
         success: false,
-        message: "An overtime request already exists for this date.",
+        message: "An overtime request already exists for overlapping dates.",
       });
     }
 
+    // Check for leave conflicts - any approved leave that overlaps with overtime period
+    const conflictingLeave = await leave.findOne({
+      employee: employeeId,
+      leaveStatus: "approved",
+      $or: [
+        // Leave starts within overtime period
+        {
+          dateFrom: { $gte: startDate, $lte: endDate },
+        },
+        // Leave ends within overtime period
+        {
+          dateTo: { $gte: startDate, $lte: endDate },
+        },
+        // Leave completely contains overtime period
+        {
+          dateFrom: { $lte: startDate },
+          dateTo: { $gte: endDate },
+        },
+        // Overtime completely contains leave period
+        {
+          dateFrom: { $gte: startDate },
+          dateTo: { $lte: endDate },
+        },
+      ],
+    });
+
+    if (conflictingLeave) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot request overtime during approved leave period (${conflictingLeave.dateFrom.toDateString()} to ${conflictingLeave.dateTo.toDateString()}).`,
+      });
+    }
+
+    // Check for pending leave requests that might conflict
+    const pendingLeave = await leave.findOne({
+      employee: employeeId,
+      leaveStatus: "pending",
+      $or: [
+        {
+          dateFrom: { $gte: startDate, $lte: endDate },
+        },
+        {
+          dateTo: { $gte: startDate, $lte: endDate },
+        },
+        {
+          dateFrom: { $lte: startDate },
+          dateTo: { $gte: endDate },
+        },
+      ],
+    });
+
+    if (pendingLeave) {
+      return res.status(400).json({
+        success: false,
+        message: `You have a pending leave request for overlapping dates (${pendingLeave.dateFrom.toDateString()} to ${pendingLeave.dateTo.toDateString()}). Please wait for leave approval or cancel the leave request.`,
+      });
+    }
+
+    // Calculate total overtime days
+    const timeDiff = endDate - startDate;
+    const totalDays = Math.ceil(timeDiff / (1000 * 60 * 60 * 24)) + 1;
+
     const newOvertimeRequest = new overtime({
       employee: employeeId,
-      date: new Date(date),
+      dateFrom: startDate,
+      dateTo: endDate,
+      totalOvertimeDays: totalDays,
       hours: parseFloat(hours),
       status: "pending",
       reason,
       overtimeType,
-      createdAt: new Date(),
     });
 
     await newOvertimeRequest.save();
@@ -57,6 +163,15 @@ const addOvertime = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in addOvertime:", error);
+
+    // Handle duplicate key error (unique index violation)
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "An overtime request for this exact period already exists.",
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: "Failed to submit overtime request",
@@ -76,7 +191,7 @@ const getEmployeeOvertime = async (req, res) => {
       });
     }
 
-    const allowedRoles = ["employee", "admin", "hr"];
+    const allowedRoles = ["employee", "admin"];
     if (!allowedRoles.includes(currentUser.role)) {
       return res.status(403).json({
         success: false,
