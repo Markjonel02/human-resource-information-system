@@ -127,7 +127,9 @@ const OvertimeRow = ({
 }) => {
   const dateRange =
     overtime.dateFrom && overtime.dateTo
-      ? `${new Date(overtime.dateFrom).toLocaleDateString()} - ${new Date(
+      ? `${new Date(overtime.dateFrom)
+          .toLocaleDateString()
+          .substring(0, 15)} - ${new Date(
           overtime.dateTo
         ).toLocaleDateString()}`
       : "-";
@@ -151,7 +153,7 @@ const OvertimeRow = ({
         ) : null}
       </Td>
       <Td>
-        <HStack spacing={3}>
+        <VStack spacing={2} ml={0}>
           <Avatar
             size="sm"
             name={`${overtime.employee?.firstname || ""} ${
@@ -165,12 +167,7 @@ const OvertimeRow = ({
                 overtime.employee?.lastname || ""
               }`}
             >
-              <Text
-                fontWeight="medium"
-                fontSize="sm"
-                isTruncated
-                maxW="80px" // ✅ Set a max width to trigger truncation
-              >
+              <Text fontWeight="medium" fontSize="sm" isTruncated maxW="50px">
                 {`${overtime.employee?.firstname || "Unknown"} ${
                   overtime.employee?.lastname || ""
                 }`}
@@ -180,17 +177,24 @@ const OvertimeRow = ({
             <Text fontSize="xs" color="gray.500">
               {overtime.employee?.employeeId || "ID: N/A"}
             </Text>
-            <Text fontSize="xs" color="gray.500">
-              {overtime.employee?.department || "No Department"}
-            </Text>
+            <Tooltip label={overtime.employee?.department || "No Department"}>
+              <Text fontSize="xs" color="gray.500" isTruncated maxW={10}>
+                {overtime.employee?.department.substring(0, 15) ||
+                  "No Department"}
+              </Text>
+            </Tooltip>
           </VStack>
-        </HStack>
+        </VStack>
       </Td>
 
       <Td>
-        <HStack>
+        <HStack spacing={2}>
           <Icon as={FiCalendar} color="gray.400" />
-          <Text>{dateRange}</Text>
+          <Tooltip label={dateRange}>
+            <Text fontSize="sm" fontWeight={100} isTruncated maxW={20}>
+              {dateRange}
+            </Text>
+          </Tooltip>
         </HStack>
       </Td>
 
@@ -203,20 +207,23 @@ const OvertimeRow = ({
       <Td>
         <HStack>
           <Icon as={FiClock} color="gray.400" />
-          <Text fontWeight="medium">{overtime.hours} hrs</Text>
+          <Text fontWeight="medium" isTruncated>
+            {overtime.hours} hrs
+          </Text>
         </HStack>
       </Td>
 
       <Td>
-        <Badge variant="outline" colorScheme="blue">
-          {OVERTIME_TYPES.find((t) => t.value === overtime.overtimeType)
-            ?.label || overtime.overtimeType}
+        <Badge variant="outline" colorScheme="blue" isTruncated maxW={20}>
+          {OVERTIME_TYPES.find(
+            (t) => t.value === overtime.overtimeType
+          )?.label.substring(0, 8) || overtime.overtimeType.substring(0, 5)}
         </Badge>
       </Td>
 
       <Td maxW="200px">
-        <Text noOfLines={2} fontSize="sm">
-          {overtime.reason}
+        <Text noOfLines={2} fontSize="sm" isTruncated maxW={20}>
+          {overtime.reason.substring(0, 10)}
         </Text>
       </Td>
 
