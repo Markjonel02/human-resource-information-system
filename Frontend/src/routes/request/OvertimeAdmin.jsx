@@ -555,7 +555,7 @@ const OverTimeAdmin = () => {
 
   /* ---------- Render ---------- */
   return (
-    <Box p={6} maxW="1400px" mx="auto">
+    <Box p={6} mx="auto">
       <VStack spacing={6} align="stretch">
         <Flex justify="space-between" align="center" flexWrap="wrap" gap={4}>
           <Heading size="lg" color="gray.800">
@@ -582,7 +582,7 @@ const OverTimeAdmin = () => {
           ) : null}
         </Flex>
 
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 5 }} spacing={4}>
+        <SimpleGrid columns={{ base: 2, md: 2, lg: 5 }} spacing={4}>
           <StatsCard
             label="Total Requests"
             value={statistics.total}
@@ -721,20 +721,22 @@ const OverTimeAdmin = () => {
                       />
                     )}
                   </Th>
-                  {[
-                    "Employee",
-                    "Date Range",
-                    "Days",
-                    "Hours",
-                    "Type",
-                    "Reason",
-                    "Status",
-                  ].map((col) => (
-                    <Th key={col}>{col}</Th>
-                  ))}
+
+                  {/* Always visible */}
+                  <Th>Employee</Th>
+                  <Th display={{ base: "none", md: "table-cell" }}>
+                    Date Range
+                  </Th>
+                  <Th display={{ base: "none", md: "table-cell" }}>Days</Th>
+                  <Th display={{ base: "none", md: "table-cell" }}>Hours</Th>
+                  <Th display={{ base: "none", md: "table-cell" }}>Type</Th>
+                  <Th display={{ base: "none", md: "table-cell" }}>Reason</Th>
+                  <Th>Status</Th>
+
                   <Th textAlign="center">Actions</Th>
                 </Tr>
               </Thead>
+
               <Tbody>
                 {processedOvertimes.map((ot) => (
                   <OvertimeRow

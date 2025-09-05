@@ -86,7 +86,6 @@ const INITIAL_FORM_DATA = {
   overtimeType: "regular",
 };
 const OvertimeUI = () => {
-  // Updated initial form data with date range
   const INITIAL_FORM_DATA = {
     id: "",
     dateFrom: "",
@@ -447,7 +446,7 @@ const OvertimeUI = () => {
         </Flex>
 
         {/* Statistics */}
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4}>
+        <SimpleGrid columns={{ base: 2, md: 2, lg: 4 }} spacing={4}>
           <Stat
             bg="white"
             p={4}
@@ -688,7 +687,12 @@ const OvertimeUI = () => {
       </VStack>
 
       {/* Form Modal - Updated with date range */}
-      <Modal isOpen={isOpen} onClose={handleCloseModal} isCentered size="lg">
+      <Modal
+        isOpen={isOpen}
+        onClose={handleCloseModal}
+        isCentered
+        size={{ base: "sm", md: "lg" }}
+      >
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>
@@ -697,7 +701,7 @@ const OvertimeUI = () => {
           <ModalCloseButton isDisabled={isSubmitting} />
           <ModalBody pb={6}>
             <VStack spacing={4}>
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
+              <SimpleGrid columns={{ base: 2, md: 2 }} spacing={4} w="full">
                 <FormControl isRequired>
                   <FormLabel>Date From</FormLabel>
                   <Input
@@ -722,7 +726,7 @@ const OvertimeUI = () => {
                 </FormControl>
               </SimpleGrid>
 
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
+              <SimpleGrid columns={{ base: 2, md: 2 }} spacing={4} w="full">
                 <FormControl isRequired>
                   <FormLabel>Hours Per Day</FormLabel>
                   <Input
