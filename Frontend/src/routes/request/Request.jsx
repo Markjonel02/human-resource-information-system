@@ -11,8 +11,8 @@ import {
   useColorModeValue,
   Flex,
   Icon,
-  useMediaQuery, // Import useMediaQuery
-  Tooltip, // Import Tooltip
+  useMediaQuery,
+  Tooltip,
 } from "@chakra-ui/react";
 import {
   FaPlaneDeparture,
@@ -21,48 +21,72 @@ import {
   FaUmbrellaBeach,
 } from "react-icons/fa";
 import Leave from "../../routes/request/Leave";
-import Overtime from "../../routes/request/Overtime";
-
-const OfficialBusiness = () => (
-  <Box p={6}>
-    <Heading fontSize="2xl" mb={3}>
-      Official Business
-    </Heading>
-    <Text fontSize="md" color="gray.600">
-      Use this section to request field work or official travel for business
-      purposes.
-    </Text>
-  </Box>
-);
-
-const DayOff = () => (
-  <Box p={6}>
-    <Heading fontSize="2xl" mb={3}>
-      Day Off
-    </Heading>
-    <Text fontSize="md" color="gray.600">
-      Apply for your regular day off or schedule changes in advance.
-    </Text>
-  </Box>
-);
+import Overtime from "./OvertimeAdmin";
 
 const Request = () => {
-  const tabBg = useColorModeValue("gray.100", "gray.700");
+  const [isMobile] = useMediaQuery("(max-width: 48em)");
+
   const activeTabBg = useColorModeValue("teal.50", "teal.900");
   const borderColor = useColorModeValue("gray.200", "gray.600");
 
-  // Use useMediaQuery to check for mobile screen size (e.g., less than 48em which is 'md' breakpoint)
-  const [isMobile] = useMediaQuery("(max-width: 48em)"); // Chakra UI's 'md' breakpoint
+  // Centralized tab config
+  const tabConfig = [
+    {
+      label: "Leave",
+      short: "Leave", // always full label
+      icon: FaPlaneDeparture,
+      component: <Leave />,
+      alwaysFull: true, // force full label even on mobile
+    },
+    {
+      label: "Overtime",
+      short: "OT",
+      icon: FaClock,
+      component: <Overtime />,
+    },
+    {
+      label: "Official Business",
+      short: "OB",
+      icon: FaBuilding,
+      component: (
+        <Box p={6}>
+          <Heading fontSize="2xl" mb={3}>
+            Official Business
+          </Heading>
+          <Text fontSize="md" color="gray.600">
+            Use this section to request field work or official travel for
+            business purposes.
+          </Text>
+        </Box>
+      ),
+    },
+    {
+      label: "Day Off",
+      short: "DO",
+      icon: FaUmbrellaBeach,
+      component: (
+        <Box p={6}>
+          <Heading fontSize="2xl" mb={3}>
+            Day Off
+          </Heading>
+          <Text fontSize="md" color="gray.600">
+            Apply for your regular day off or schedule changes in advance.
+          </Text>
+        </Box>
+      ),
+    },
+  ];
 
-  const renderTabContent = (icon, fullText, mobileText) => (
+  // Render tab label with icon + tooltip logic
+  const renderTabLabel = ({ icon, label, short, alwaysFull }) => (
     <Flex align="center" gap={2}>
       <Icon as={icon} />
-      {isMobile ? (
-        <Tooltip label={fullText} aria-label={fullText} placement="top">
-          <Text>{mobileText}</Text>
+      {isMobile && !alwaysFull ? (
+        <Tooltip label={label} aria-label={label} placement="top">
+          <Text>{short}</Text>
         </Tooltip>
       ) : (
-        <Text>{fullText}</Text>
+        <Text>{label}</Text>
       )}
     </Flex>
   );
@@ -70,78 +94,31 @@ const Request = () => {
   return (
     <Box mt={10} bg="white" rounded="2xl" shadow="xl">
       <Tabs variant="unstyled" isFitted colorScheme="teal">
+        {/* Tabs */}
         <TabList borderBottom="1px solid" borderColor={borderColor} mb={4}>
-          <Tab
-            _selected={{
-              color: "teal.600",
-              bg: activeTabBg,
-              fontWeight: "bold",
-              borderBottom: "2px solid",
-              borderColor: "teal.400",
-            }}
-            py={4}
-            transition="all 0.3s"
-          >
-            {/* Leave tab - no truncation */}
-            <Flex align="center" gap={2}>
-              <Icon as={FaPlaneDeparture} />
-              <Text>Leave</Text>
-            </Flex>
-          </Tab>
-          <Tab
-            _selected={{
-              color: "teal.600",
-              bg: activeTabBg,
-              fontWeight: "bold",
-              borderBottom: "2px solid",
-              borderColor: "teal.400",
-            }}
-            py={4}
-            transition="all 0.3s"
-          >
-            {renderTabContent(FaClock, "Overtime", "OT")}
-          </Tab>
-          <Tab
-            _selected={{
-              color: "teal.600",
-              bg: activeTabBg,
-              fontWeight: "bold",
-              borderBottom: "2px solid",
-              borderColor: "teal.400",
-            }}
-            py={4}
-            transition="all 0.3s"
-          >
-            {renderTabContent(FaBuilding, "Official Business", "OB")}
-          </Tab>
-          <Tab
-            _selected={{
-              color: "teal.600",
-              bg: activeTabBg,
-              fontWeight: "bold",
-              borderBottom: "2px solid",
-              borderColor: "teal.400",
-            }}
-            py={4}
-            transition="all 0.3s"
-          >
-            {renderTabContent(FaUmbrellaBeach, "Day Off", "DO")}
-          </Tab>
+          {tabConfig.map((tab, idx) => (
+            <Tab
+              key={idx}
+              _selected={{
+                color: "teal.600",
+                bg: activeTabBg,
+                fontWeight: "bold",
+                borderBottom: "2px solid",
+                borderColor: "teal.400",
+              }}
+              py={4}
+              transition="all 0.3s"
+            >
+              {renderTabLabel(tab)}
+            </Tab>
+          ))}
         </TabList>
 
+        {/* Tab Panels */}
         <TabPanels>
-          <TabPanel>
-            <Leave />
-          </TabPanel>
-          <TabPanel>
-            <Overtime />
-          </TabPanel>
-          <TabPanel>
-            <OfficialBusiness />
-          </TabPanel>
-          <TabPanel>
-            <DayOff />
-          </TabPanel>
+          {tabConfig.map((tab, idx) => (
+            <TabPanel key={idx}>{tab.component}</TabPanel>
+          ))}
         </TabPanels>
       </Tabs>
     </Box>
