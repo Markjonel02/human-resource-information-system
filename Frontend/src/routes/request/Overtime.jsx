@@ -66,7 +66,7 @@ import {
   FiUsers,
 } from "react-icons/fi";
 import { CheckIcon, CloseIcon } from "@chakra-ui/icons";
-import axiosInstance from "../../../lib/axiosInstance";
+import axiosInstance from "../../lib/axiosInstance";
 
 // Constants
 const OVERTIME_TYPES = [
@@ -135,9 +135,11 @@ const OverTimeAdmin = () => {
       if (statusFilter) params.append("status", statusFilter);
       if (departmentFilter) params.append("department", departmentFilter);
 
+      const queryString = params.toString(); // ✅ Convert to query string
       const response = await axiosInstance.get(
-        `/overtime/admin/getAllOvertimeRequests?${params}`
+        `/overtime/getEmployeeOvertime${queryString ? `?${queryString}` : ""}`
       );
+
       const data = Array.isArray(response.data.data) ? response.data.data : [];
       setOvertimes(data);
     } catch (error) {

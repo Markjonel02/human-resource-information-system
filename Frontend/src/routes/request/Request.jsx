@@ -21,17 +21,7 @@ import {
   FaUmbrellaBeach,
 } from "react-icons/fa";
 import Leave from "../../routes/request/Leave";
-
-const Overtime = () => (
-  <Box p={6}>
-    <Heading fontSize="2xl" mb={3}>
-      Overtime Request
-    </Heading>
-    <Text fontSize="md" color="gray.600">
-      Request to log extra hours worked beyond your regular schedule.
-    </Text>
-  </Box>
-);
+import Overtime from "../../routes/request/Overtime";
 
 const OfficialBusiness = () => (
   <Box p={6}>

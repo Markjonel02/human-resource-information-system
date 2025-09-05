@@ -8,14 +8,12 @@ const connectDB = require("./config/connection.js");
 
 // Import Routes
 const userRoutes = require("./routes/userRoutes.js");
-
 const testRoutes = require("./routes/admin&hr/testRoutes.js");
-
 const employeeLeave = require("./routes/employee/employeeLeaveRoutes.js");
-
 const employeeAttendance = require("./routes/employee/employeeRoutes.js");
-
 const EmployeeOvertimeRoutes = require("./routes/employee/overtimeRoutes.js");
+const adminOvertimeRoute = require("./routes/admin&hr/adminovertimeRoutes.js");
+
 // Initialize the Express app
 const app = express();
 const port = process.env.PORT || 5000; // Use a default port if not specified
@@ -60,6 +58,9 @@ app.use("/api/employeeAttendance", employeeAttendance);
 app.use("/api/employeeLeave", employeeLeave);
 
 app.use("/api/overtime", EmployeeOvertimeRoutes);
+
+app.use("/api/admin/overtime", adminOvertimeRoute);
+
 // =======================
 //   ERROR HANDLING
 // =======================
