@@ -147,10 +147,4 @@ router.post(
   testAttendance.rejectLeaveBulk
 );
 
-router.post(
-  "/approve-overtime/:id",
-  authorizeRoles("admin"),
-  testAttendance.approveOvertime
-);
-
 module.exports = router;

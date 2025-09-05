@@ -199,16 +199,23 @@ const getEmployeeOvertime = async (req, res) => {
       });
     }
 
-    // Build query based on role
+    // Base query
     const query =
       currentUser.role === "employee" ? { employee: currentUser._id } : {};
+
+    // Apply filters
+    if (req.query.status) {
+      query.status = req.query.status;
+    }
+    if (req.query.department) {
+      query["employee.department"] = req.query.department; // Only works if department is embedded
+    }
 
     const overtimeRecords = await overtime
       .find(query)
       .sort({ createdAt: -1 })
       .populate("employee", "firstname lastname employeeId department");
 
-    // Return empty array instead of 404 when no records found
     res.status(200).json({
       success: true,
       data: overtimeRecords || [],

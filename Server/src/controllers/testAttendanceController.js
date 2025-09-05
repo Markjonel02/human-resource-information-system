@@ -1419,9 +1419,8 @@ const getLeaveBreakdown = async (req, res) => {
   }
 };
 
-
 // Get all overtime requests for admin view
-/* const getAllOvertimeRequests = async (req, res) => {
+const getAllOvertimeRequests = async (req, res) => {
   try {
     const { status, department, page = 1, limit = 50 } = req.query;
 
@@ -1497,9 +1496,10 @@ const approveOvertimeRequest = async (req, res) => {
     const adminId = req.user._id;
 
     // Find the overtime request
-    const overtimeRequest = await overtime
-      .findById(id)
-      .populate("employee", "firstname lastname employeeId email");
+    const overtimeRequest = await Overtime.findById(id).populate(
+      "employee",
+      "firstname lastname employeeId email"
+    );
 
     if (!overtimeRequest) {
       return res.status(404).json({
@@ -1842,7 +1842,7 @@ const bulkApproveOvertimeRequests = async (req, res) => {
       error: error.message,
     });
   }
-}; */
+};
 
 module.exports = {
   addAttendance,
@@ -1858,13 +1858,11 @@ module.exports = {
   rejectLeaveBulk,
   getAllEmployeeLeave,
   getLeaveBreakdown,
-  approveOvertime,
 
-  //
-  getAllOvertimeRequests,
+  /* getAllOvertimeRequests,
   approveOvertimeRequest,
   rejectOvertimeRequest,
   getOvertimeStatistics,
   getOvertimeRequestDetails,
-  bulkApproveOvertimeRequests,
+  bulkApproveOvertimeRequests, */
 };
