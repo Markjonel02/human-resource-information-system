@@ -63,14 +63,6 @@ import {
   FiXCircle,
 } from "react-icons/fi";
 import axiosInstance from "../../lib/axiosInstance";
-
-/*
-  Notes:
-  - This file consolidates hooks at top-level and avoids conditional hooks.
-  - Endpoints use axiosInstance with same paths used elsewhere (/overtime/*).
-  - If your axiosInstance baseURL is not "/api", update the URLs accordingly.
-*/
-
 /* ---------- Constants ---------- */
 const OVERTIME_TYPES = [
   { value: "regular", label: "Regular Overtime" },
@@ -362,6 +354,7 @@ const OverTimeAdmin = () => {
           status: "success",
           duration: 3000,
           isClosable: true,
+          position: "top",
         });
       } catch (err) {
         console.error("approve error:", err);
@@ -371,6 +364,7 @@ const OverTimeAdmin = () => {
           status: "error",
           duration: 4000,
           isClosable: true,
+          position: "top",
         });
       } finally {
         setIsSubmitting(false);
@@ -393,6 +387,7 @@ const OverTimeAdmin = () => {
           status: "success",
           duration: 3000,
           isClosable: true,
+          position: "top",
         });
       } catch (err) {
         console.error("reject error:", err);
@@ -410,25 +405,58 @@ const OverTimeAdmin = () => {
     [fetchOvertimes, toast]
   );
 
+  
   const bulkApprove = useCallback(async () => {
     if (!selectedOvertimes.length) return;
     setIsSubmitting(true);
+
     try {
-      await Promise.all(
+      // Call single-approve endpoint in parallel for each selected id.
+      // This avoids depending on a separate bulk route and surfaces per-id errors.
+      const results = await Promise.allSettled(
         selectedOvertimes.map((id) =>
-          axiosInstance.put(`/overtime/updateStatus/${id}`, {
+          axiosInstance.put(`/admin/overtime/adminApprove/${id}`, {
             status: "approved",
           })
         )
       );
-      setSelectedOvertimes([]);
+
+      const approved = [];
+      const failed = [];
+
+      results.forEach((r, idx) => {
+        const id = selectedOvertimes[idx];
+        if (r.status === "fulfilled" && r.value?.data?.success) {
+          approved.push(id);
+        } else {
+          const errMsg =
+            r.status === "rejected"
+              ? r.reason?.response?.data?.message || r.reason?.message
+              : r.value?.data?.message || "Unknown error";
+          failed.push({ id, message: errMsg });
+        }
+      });
+
+      // Refresh list
       await fetchOvertimes();
+
+      // Clear only the successfully approved ids from selection
+      setSelectedOvertimes((prev) =>
+        prev.filter((id) => !approved.includes(id))
+      );
+
+      // Show toast summary
       toast({
-        title: "Bulk approved",
-        status: "success",
-        duration: 3000,
+        title: "Bulk approve result",
+        description: `${approved.length} approved, ${failed.length} failed.`,
+        status: failed.length === 0 ? "success" : "warning",
+        duration: 5000,
         isClosable: true,
       });
+
+      if (failed.length > 0) {
+        console.error("Bulk approve failures:", failed);
+      }
     } catch (err) {
       console.error("bulk approve error:", err);
       toast({
@@ -443,6 +471,7 @@ const OverTimeAdmin = () => {
       bulkApproveDialog.onClose();
     }
   }, [selectedOvertimes, fetchOvertimes, toast, bulkApproveDialog]);
+ 
 
   /* --- Effects --- */
   useEffect(() => {
@@ -537,6 +566,7 @@ const OverTimeAdmin = () => {
       } — ${overtime.hours} hrs`,
       status: "info",
       duration: 5000,
+      position: "top",
       isClosable: true,
     });
   };

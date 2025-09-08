@@ -222,8 +222,20 @@ const rejectOvertimeRequest = async (req, res) => {
 // Bulk approve overtime requests
 const bulkApproveOvertimeRequests = async (req, res) => {
   try {
-    const { overtimeIds } = req.body;
-    const adminId = req.user._id;
+    // Accept multiple possible field names and formats
+    let overtimeIds =
+      req.body?.overtimeIds ??
+      req.body?.ids ??
+      req.body?.overtime ??
+      req.body?.overtimes;
+
+    // If a comma-separated string was sent, convert to array
+    if (typeof overtimeIds === "string") {
+      overtimeIds = overtimeIds
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
 
     if (!Array.isArray(overtimeIds) || overtimeIds.length === 0) {
       return res.status(400).json({
@@ -232,9 +244,29 @@ const bulkApproveOvertimeRequests = async (req, res) => {
       });
     }
 
-    // Find all pending overtime requests
+    // Validate ObjectId values and separate invalid ones
+    const { validIds, invalidIds } = overtimeIds.reduce(
+      (acc, id) => {
+        if (mongoose.Types.ObjectId.isValid(id)) acc.validIds.push(id);
+        else acc.invalidIds.push(id);
+        return acc;
+      },
+      { validIds: [], invalidIds: [] }
+    );
+
+    if (validIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid overtime IDs provided",
+        invalidIds,
+      });
+    }
+
+    const adminId = req.user?._id;
+
+    // Find pending overtime requests that match the valid ids
     const overtimeRequests = await OverTime.find({
-      _id: { $in: overtimeIds },
+      _id: { $in: validIds },
       status: "pending",
     }).populate("employee", "firstname lastname employeeId");
 
@@ -242,13 +274,14 @@ const bulkApproveOvertimeRequests = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "No pending overtime requests found for the provided IDs",
+        invalidIds,
       });
     }
 
-    // Check for leave conflicts for each request
     const conflictingRequests = [];
-    const validRequests = [];
+    const approvableIds = [];
 
+    // Check leave conflicts per request
     for (const request of overtimeRequests) {
       const conflictingLeave = await Leave.findOne({
         employee: request.employee._id,
@@ -274,29 +307,33 @@ const bulkApproveOvertimeRequests = async (req, res) => {
           conflict: `Leave from ${conflictingLeave.dateFrom.toDateString()} to ${conflictingLeave.dateTo.toDateString()}`,
         });
       } else {
-        validRequests.push(request);
+        approvableIds.push(request._id);
       }
     }
 
-    // Update valid requests
-    if (validRequests.length > 0) {
-      await OverTime.updateMany(
-        { _id: { $in: validRequests.map((r) => r._id) } },
+    // Update all approvable requests in one operation
+    let updatedCount = 0;
+    if (approvableIds.length > 0) {
+      const updateRes = await OverTime.updateMany(
+        { _id: { $in: approvableIds } },
         {
           status: "approved",
           approvedBy: adminId,
           approvedAt: new Date(),
         }
       );
+      updatedCount =
+        updateRes.modifiedCount ?? updateRes.nModified ?? approvableIds.length;
     }
 
     res.status(200).json({
       success: true,
-      message: `${validRequests.length} overtime requests approved successfully`,
+      message: `${updatedCount} overtime requests approved successfully`,
       data: {
-        approved: validRequests.length,
+        approved: updatedCount,
         conflicts: conflictingRequests.length,
         conflictingRequests,
+        invalidIds,
       },
     });
   } catch (error) {
