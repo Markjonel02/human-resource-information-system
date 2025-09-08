@@ -26,7 +26,7 @@ router.delete(
 
 router.get(
   "/getEmployeeOvertime",
-  authorizeRoles("employee", "admin"),
+  authorizeRoles("employee", "admin", "hr"),
   OvertimeController.getEmployeeOvertime
 );
 

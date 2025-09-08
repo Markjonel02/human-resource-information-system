@@ -4,6 +4,12 @@ const Leave = require("../../models/LeaveSchema/leaveSchema");
 
 // Get all overtime requests for admin view
 const getAllOvertimeRequests = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res.status(403).json({
+      success: false,
+      message: "Access denied. Admins and HR only.",
+    });
+  }
   try {
     const { status, department, page = 1, limit = 50 } = req.query;
 
