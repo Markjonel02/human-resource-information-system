@@ -160,7 +160,7 @@ const getEmployeeLeave = async (req, res) => {
     }
 
     // Step 2: Validate role access
-    const allowedRoles = ["employee", "admin"];
+    const allowedRoles = ["employee", "admin", "hr"];
     if (!allowedRoles.includes(currentUser.role)) {
       return res
         .status(403)

@@ -99,7 +99,7 @@ const getRecordChanges = (oldRecord, newRecord) => {
 // Single Leave Approval Controller
 const approveLeave = async (req, res) => {
   // 1. Authorization: Only allow admins to approve leave requests.
-  if (req.user.role !== "admin") {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res.status(403).json({
       message: "Access denied. Only Admin users can approve leave requests.",
     });
@@ -250,7 +250,7 @@ const approveLeave = async (req, res) => {
 
 // Bulk Leave Approval Controller
 const approveLeaveBulk = async (req, res) => {
-  if (req.user.role !== "admin") {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res.status(403).json({
       message: "Access denied. Only Admin users can approve leave requests.",
     });
@@ -381,9 +381,10 @@ const approveLeaveBulk = async (req, res) => {
 
 // Reject Leave Controller
 const rejectLeave = async (req, res) => {
-  if (req.user.role !== "admin") {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res.status(403).json({
-      message: "Access denied. Only Admin users can reject leave requests.",
+      message:
+        "Access denied. Only Admin and HR users can reject leave requests.",
     });
   }
 
@@ -440,9 +441,10 @@ const rejectLeave = async (req, res) => {
 
 // Bulk Reject Leave Controller
 const rejectLeaveBulk = async (req, res) => {
-  if (req.user.role !== "admin") {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res.status(403).json({
-      message: "Access denied. Only Admin users can reject leave requests.",
+      message:
+        "Access denied. Only Admin and HR users can reject leave requests.",
     });
   }
 
@@ -1342,6 +1344,12 @@ const getRecentAttendanceLogs = async (req, res) => {
 
 // A new controller function to get all leave requests
 const getAllEmployeeLeave = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res.status(403).json({
+      message:
+        "Access denied. Only Admin and HR users can view leave requests.",
+    });
+  }
   try {
     const currentUser = req.user;
 
@@ -1386,6 +1394,12 @@ const getAllEmployeeLeave = async (req, res) => {
 };
 
 const getLeaveBreakdown = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res.status(403).json({
+      message:
+        "Access denied. Only Admin and HR users can view leave breakdown.",
+    });
+  }
   try {
     // Define all valid leave types
     const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "CL"];
@@ -1421,6 +1435,12 @@ const getLeaveBreakdown = async (req, res) => {
 
 // Get all overtime requests for admin view
 const getAllOvertimeRequests = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res.status(403).json({
+      message:
+        "Access denied. Only Admin and HR users can view overtime requests.",
+    });
+  }
   try {
     const { status, department, page = 1, limit = 50 } = req.query;
 
@@ -1491,6 +1511,12 @@ const getAllOvertimeRequests = async (req, res) => {
 
 // Approve overtime request
 const approveOvertimeRequest = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res.status(403).json({
+      message:
+        "Access denied. Only Admin and HR users can approve overtime requests.",
+    });
+  }
   try {
     const { id } = req.params;
     const adminId = req.user._id;
@@ -1576,6 +1602,12 @@ const approveOvertimeRequest = async (req, res) => {
 
 // Reject overtime request
 const rejectOvertimeRequest = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res.status(403).json({
+      message:
+        "Access denied. Only Admin and HR users can reject overtime requests.",
+    });
+  }
   try {
     const { id } = req.params;
     const { rejectionReason } = req.body;
@@ -1638,6 +1670,12 @@ const rejectOvertimeRequest = async (req, res) => {
 
 // Get overtime statistics for admin dashboard
 const getOvertimeStatistics = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res.status(403).json({
+      message:
+        "Access denied. Only Admin and HR users can view overtime statistics.",
+    });
+  }
   try {
     const { department, startDate, endDate } = req.query;
 
@@ -1720,6 +1758,12 @@ const getOvertimeStatistics = async (req, res) => {
 
 // Get overtime request details
 const getOvertimeRequestDetails = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res.status(403).json({
+      message:
+        "Access denied. Only Admin and HR users can view overtime request details.",
+    });
+  }
   try {
     const { id } = req.params;
 
@@ -1754,6 +1798,12 @@ const getOvertimeRequestDetails = async (req, res) => {
 
 // Bulk approve overtime requests
 const bulkApproveOvertimeRequests = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res.status(403).json({
+      message:
+        "Access denied. Only Admin and HR users can approve overtime requests.",
+    });
+  }
   try {
     const { overtimeIds } = req.body;
     const adminId = req.user._id;
@@ -1858,11 +1908,4 @@ module.exports = {
   rejectLeaveBulk,
   getAllEmployeeLeave,
   getLeaveBreakdown,
-
-  /* getAllOvertimeRequests,
-  approveOvertimeRequest,
-  rejectOvertimeRequest,
-  getOvertimeStatistics,
-  getOvertimeRequestDetails,
-  bulkApproveOvertimeRequests, */
 };
