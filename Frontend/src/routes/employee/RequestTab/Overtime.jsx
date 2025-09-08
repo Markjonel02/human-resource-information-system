@@ -57,27 +57,13 @@ import {
 } from "react-icons/fi";
 import { AddIcon } from "@chakra-ui/icons";
 import axiosInstance from "../../../lib/axiosInstance";
+import {
+  OVERTIME_TYPES,
+  STATUS_ICONS,
+  STATUS_COLORS,
+} from "../../../constants/EmployeeOvertimeConstants";
 
 // Constants
-const OVERTIME_TYPES = [
-  { value: "regular", label: "Regular Overtime" },
-  { value: "holiday", label: "Holiday Overtime" },
-  { value: "weekend", label: "Weekend Overtime" },
-  { value: "other", label: "Other" },
-];
-
-const STATUS_COLORS = {
-  pending: "orange",
-  approved: "green",
-  rejected: "red",
-};
-
-const STATUS_ICONS = {
-  pending: FiAlertCircle,
-  approved: FiCheckCircle,
-  rejected: FiXCircle,
-};
-
 const INITIAL_FORM_DATA = {
   id: null,
   date: new Date().toISOString().split("T")[0],
