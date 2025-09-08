@@ -353,7 +353,7 @@ const OverTimeAdmin = () => {
     async (id) => {
       setIsSubmitting(true);
       try {
-        await axiosInstance.put(`/overtime/updateStatus/${id}`, {
+        await axiosInstance.put(`/admin/overtime/adminApprove/${id}`, {
           status: "approved",
         });
         await fetchOvertimes();

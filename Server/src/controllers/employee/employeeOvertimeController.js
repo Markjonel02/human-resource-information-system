@@ -205,10 +205,10 @@ const getEmployeeOvertime = async (req, res) => {
 
     // Apply filters
     if (req.query.status) {
-      query.status = req.query.status;
+      query.status = new RegExp(`^${req.query.status}$`, "i"); // ✅ Fix
     }
     if (req.query.department) {
-      query["employee.department"] = req.query.department; // Only works if department is embedded
+      query["employee.department"] = req.query.department;
     }
 
     const overtimeRecords = await overtime
