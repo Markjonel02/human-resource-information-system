@@ -234,7 +234,7 @@ const OvertimeRow = ({
             <Text textTransform="capitalize">{overtime.status}</Text>
           </HStack>
         </Badge>
-        {overtime.status !== "pending" && overtime.approvedBy && (
+        {overtime.status !== "pending" && overtime.approvedBy?.firstname && (
           <Text fontSize="xs" color="gray.500" mt={1}>
             by {overtime.approvedBy.firstname} {overtime.approvedBy.lastname}
           </Text>
@@ -345,12 +345,23 @@ const OverTimeAdmin = () => {
     async (id) => {
       setIsSubmitting(true);
       try {
-        await axiosInstance.put(`/admin/overtime/adminApprove/${id}`, {
-          status: "approved",
-        });
+        const response = await axiosInstance.put(
+          `/admin/overtime/adminApprove/${id}`,
+          {
+            status: "approved",
+          }
+        );
+
+        const approver = response.data?.data?.approvedBy;
+        const approverName = approver
+          ? `${approver.firstname} ${approver.lastname}`
+          : "Admin";
+
         await fetchOvertimes();
+
         toast({
           title: "Approved",
+          description: `Approved by ${approverName}`, // ✅ now shows approver
           status: "success",
           duration: 3000,
           isClosable: true,
@@ -377,9 +388,9 @@ const OverTimeAdmin = () => {
     async (id, reason) => {
       setIsSubmitting(true);
       try {
-        await axiosInstance.put(`/overtime/updateStatus/${id}`, {
+        await axiosInstance.put(`/admin/overtime/rejectOvertime/${id}`, {
           status: "rejected",
-          reason,
+          rejectionReason: reason,
         });
         await fetchOvertimes();
         toast({
@@ -405,7 +416,6 @@ const OverTimeAdmin = () => {
     [fetchOvertimes, toast]
   );
 
-  
   const bulkApprove = useCallback(async () => {
     if (!selectedOvertimes.length) return;
     setIsSubmitting(true);
@@ -451,6 +461,7 @@ const OverTimeAdmin = () => {
         description: `${approved.length} approved, ${failed.length} failed.`,
         status: failed.length === 0 ? "success" : "warning",
         duration: 5000,
+        position: "top",
         isClosable: true,
       });
 
@@ -464,6 +475,7 @@ const OverTimeAdmin = () => {
         description: err.response?.data?.message || "An error occurred",
         status: "error",
         duration: 4000,
+        position: "top",
         isClosable: true,
       });
     } finally {
@@ -471,7 +483,6 @@ const OverTimeAdmin = () => {
       bulkApproveDialog.onClose();
     }
   }, [selectedOvertimes, fetchOvertimes, toast, bulkApproveDialog]);
- 
 
   /* --- Effects --- */
   useEffect(() => {

@@ -77,11 +77,10 @@ const approveOvertimeRequest = async (req, res) => {
     const { id } = req.params;
     const adminId = req.user._id;
 
-    // Find the overtime request
-    const overtimeRequest = await OverTime.findById(id).populate(
-      "employee",
-      "firstname lastname employeeId email"
-    );
+    // Find the overtime request with employee populated
+    const overtimeRequest = await OverTime.findById(id)
+      .populate("employee", "firstname lastname employeeId email")
+      .populate("approvedBy", "firstname lastname employeeId");
 
     if (!overtimeRequest) {
       return res.status(404).json({
@@ -97,7 +96,7 @@ const approveOvertimeRequest = async (req, res) => {
       });
     }
 
-    // Check if employee has conflicting approved leave during overtime period
+    // Check conflicting approved leave
     const conflictingLeave = await Leave.findOne({
       employee: overtimeRequest.employee._id,
       leaveStatus: "approved",
@@ -135,15 +134,15 @@ const approveOvertimeRequest = async (req, res) => {
 
     await overtimeRequest.save();
 
-    // Populate the approvedBy field for response
+    // Populate approver info for response
     await overtimeRequest.populate(
       "approvedBy",
-      "firstname lastname employeeId"
+      "firstname lastname employeeId email"
     );
 
     res.status(200).json({
       success: true,
-      message: "Overtime request approved successfully",
+      message: `Overtime request approved by ${overtimeRequest.approvedBy.firstname} ${overtimeRequest.approvedBy.lastname}`,
       data: overtimeRequest,
     });
   } catch (error) {
