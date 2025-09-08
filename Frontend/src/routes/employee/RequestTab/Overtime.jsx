@@ -622,24 +622,43 @@ const OvertimeUI = () => {
                         {overtime.reason}
                       </Text>
                     </Td>
-                    <Td>
+                    <Td
+                      display="flex"
+                      flexDirection="column"
+                      alignItems="start"
+                    >
                       <Badge
                         colorScheme={STATUS_COLORS[overtime.status]}
                         variant="subtle"
                         px={2}
                         py={1}
                       >
-                        <HStack spacing={1}>
+                        <HStack spacing={1} align="start" rounded="md">
                           <Icon
                             as={STATUS_ICONS[overtime.status]}
                             boxSize={3}
+                            mt={1}
                           />
-                          <Text textTransform="capitalize">
-                            {overtime.status}
-                          </Text>
+
+                          {/* Status + approver stacked vertically */}
+                          <Box>
+                            {/* Status always visible */}
+                            <Text fontSize="xxs" color="gray.600">
+                              {overtime.status}
+                            </Text>
+                          </Box>
                         </HStack>
                       </Badge>
+
+                      {/* Approver name only when approved/rejected */}
+                      {overtime.status !== "pending" &&
+                        overtime.approvedBy?.firstname && (
+                          <Text as="span" fontSize="12px" color="gray.500">
+                            by {overtime.approvedBy.firstname}
+                          </Text>
+                        )}
                     </Td>
+
                     <Td textAlign="center">
                       <Menu>
                         <MenuButton

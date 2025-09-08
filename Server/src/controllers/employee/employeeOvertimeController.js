@@ -205,20 +205,26 @@ const getEmployeeOvertime = async (req, res) => {
 
     // Apply filters
     if (req.query.status) {
-      query.status = req.query.status;
-    }
-    if (req.query.department) {
-      query["employee.department"] = req.query.department; // Only works if department is embedded
+      query.status = new RegExp(`^${req.query.status}$`, "i");
     }
 
-    const overtimeRecords = await overtime
+    // Fetch overtime records
+    let overtimeRecords = await overtime
       .find(query)
       .sort({ createdAt: -1 })
-      .populate("employee", "firstname lastname employeeId department");
+      .populate("employee", "firstname lastname employeeId department")
+      .populate("approvedBy", "firstname lastname employeeId"); // ✅ includes approver
+
+    // If department filter exists, filter after population
+    if (req.query.department) {
+      overtimeRecords = overtimeRecords.filter(
+        (rec) => rec.employee?.department === req.query.department
+      );
+    }
 
     res.status(200).json({
       success: true,
-      data: overtimeRecords || [],
+      data: overtimeRecords,
       count: overtimeRecords.length,
     });
   } catch (error) {
