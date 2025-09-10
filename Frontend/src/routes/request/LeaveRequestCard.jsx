@@ -197,9 +197,12 @@ export const LeaveRequestCard = ({
         <HStack spacing={2} ml={5}>
           <Button
             colorScheme="green"
-            size="sm"
+            size="x-sm"
+            px={{ base: 3, md: 2 }}
+            py={{ base: 1.5, md: 1 }}
             onClick={onApprove}
-            leftIcon={<CheckIcon />}
+            leftIcon={<CheckIcon boxSize={{ base: 2, md: 2.5 }} />}
+            fontSize={{ base: "xs", md: "sm" }}
             isDisabled={status !== "Pending"}
             boxShadow="sm"
             _hover={{ bg: "green.600", transform: "scale(1.05)" }}
@@ -208,12 +211,16 @@ export const LeaveRequestCard = ({
             Approve
           </Button>
           <Button
-            size="sm"
+            colorScheme="red"
+            size="x-sm"
+            fontSize={{ base: "xs", md: "sm" }}
+            px={{ base: 3, md: 2 }}
+            py={{ base: 1.5, md: 1 }}
             onClick={onReject}
-            leftIcon={<CloseIcon />}
+            leftIcon={<CloseIcon boxSize={{ base: 2, md: 2.5 }} />}
             isDisabled={status !== "Pending"}
             boxShadow="sm"
-            _hover={{ bg: "red.50", transform: "scale(1.05)" }}
+            _hover={{ bg: "red.50", transform: "scale(0.95)" }}
             _active={{ bg: "red.700", transform: "scale(0.95)" }}
           >
             Reject

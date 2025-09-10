@@ -38,7 +38,7 @@ const LeaveSchema = new Schema(
 
     approvedBy: {
       type: Schema.Types.ObjectId,
-      ref: "user", // Link to the admin/manager who approved/rejected
+      ref: "user",
       default: null,
     },
     approvedAt: {

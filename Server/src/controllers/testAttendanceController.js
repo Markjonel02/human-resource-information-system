@@ -390,9 +390,7 @@ const rejectLeave = async (req, res) => {
 
   try {
     const { id } = req.params;
-    const leaveRecord = await Leave.findById(id).populate(
-      "employee firstname lastname"
-    );
+    const leaveRecord = await Leave.findById(id).populate("employee");
 
     if (!leaveRecord) {
       return res.status(404).json({ message: "Leave record not found" });
@@ -407,8 +405,9 @@ const rejectLeave = async (req, res) => {
     leaveRecord.leaveStatus = "rejected";
     leaveRecord.rejectedBy = req.user._id;
     leaveRecord.rejectedAt = new Date();
-    await leaveRecord.populate("approvedBy", "firstname lastname employeeId");
+
     await leaveRecord.save();
+    await leaveRecord.populate("rejectedBy", "firstname lastname employeeId");
     // Log rejection in attendance
     /*   await createAttendanceLog({
       employeeId: leaveRecord.employee._id,
