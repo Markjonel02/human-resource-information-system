@@ -46,8 +46,9 @@ import {
 import axiosInstance from "../../lib/axiosInstance";
 import { theme } from "../../constants/themeConstants";
 import { LeaveRequestCard } from "./LeaveRequestCard";
-
+import { useAuth } from "../../context/AuthContext";
 const Leave = () => {
+  const { currUser: user } = useAuth();
   const [filterStatus, setFilterStatus] = useState("All");
   const [selectedRequestIds, setSelectedRequestIds] = useState([]);
   const [isSelectAllChecked, setIsSelectAllChecked] = useState(false);
@@ -143,16 +144,6 @@ const Leave = () => {
       );
     } catch (err) {
       console.error("Error fetching leave requests:", err);
-      toast({
-        title: "Error",
-        description:
-          err.response?.data?.message ||
-          "Failed to fetch leave requests from server.",
-        status: "error",
-        duration: 3000,
-        position: "top",
-        isClosable: true,
-      });
     }
   }, [toast]);
 
@@ -219,15 +210,23 @@ const Leave = () => {
 
   const handleReject = async (id) => {
     try {
-      await axiosInstance.post(`/attendanceRoutes/reject-leave/${id}`);
+      const response = await axiosInstance.post(
+        `/attendanceRoutes/reject-leave/${id}`
+      );
+      const rejectedBy = response.data?.leaveRecord?.approvedBy;
+
       toast({
         title: "Leave Rejected",
+        description: rejectedBy
+          ? `Rejected by ${rejectedBy.firstname} ${rejectedBy.lastname}`
+          : "Leave has been rejected.",
         status: "info",
         position: "top",
         duration: 3000,
         isClosable: true,
       });
-      fetchLeaveRequests();
+
+      fetchLeaveRequests(); // Refresh the list
     } catch (err) {
       console.error("Error rejecting leave:", err);
       setLeaveRequests((prevRequests) =>

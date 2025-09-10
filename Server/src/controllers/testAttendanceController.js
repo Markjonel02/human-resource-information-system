@@ -181,7 +181,7 @@ const approveLeave = async (req, res) => {
 
     // 15. Log the approval action for audit trail purposes.
     const rejectLeave = async (req, res) => {
-      if (req.user.role !== "admin") {
+      if (req.user.role !== "admin" && req.user.role !== "hr") {
         return res.status(403).json({
           message: "Access denied. Only Admin users can reject leave requests.",
         });
@@ -390,7 +390,9 @@ const rejectLeave = async (req, res) => {
 
   try {
     const { id } = req.params;
-    const leaveRecord = await Leave.findById(id).populate("employee");
+    const leaveRecord = await Leave.findById(id).populate(
+      "employee firstname lastname"
+    );
 
     if (!leaveRecord) {
       return res.status(404).json({ message: "Leave record not found" });
@@ -405,9 +407,10 @@ const rejectLeave = async (req, res) => {
     leaveRecord.leaveStatus = "rejected";
     leaveRecord.rejectedBy = req.user._id;
     leaveRecord.rejectedAt = new Date();
+    await leaveRecord.populate("approvedBy", "firstname lastname employeeId");
     await leaveRecord.save();
     // Log rejection in attendance
-    await createAttendanceLog({
+    /*   await createAttendanceLog({
       employeeId: leaveRecord.employee._id,
       attendanceId: leaveRecord._id,
       action: "LEAVE_REJECTED",
@@ -423,9 +426,10 @@ const rejectLeave = async (req, res) => {
         dateFrom: leaveRecord.dateFrom || "",
         dateTo: leaveRecord.dateTo || "",
       },
-    });
+    }); */
 
     res.json({
+      success: true,
       message: "Leave rejected successfully.",
       leaveRecord,
     });
