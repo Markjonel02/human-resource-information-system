@@ -367,6 +367,12 @@ const EmployeeLeave = () => {
                         {item.leaveStatus || "Pending"}
                       </Tag>
                     </Td>
+                    {item.leaveStatus !== "pending" &&
+                      item.approvedBy?.firstname && (
+                        <Text as="span" fontSize="12px" color="gray.500">
+                          by {item.approvedBy.firstname}
+                        </Text>
+                      )}
                     <Td>
                       <IconButton
                         icon={<FiEdit />}

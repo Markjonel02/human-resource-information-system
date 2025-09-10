@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const verifyJWT = require("../../middlewares/verifyJWT");
-const employeeLeave = require("../../controllers/employee/employeeLeaveController");
+const employeeLeave = require("../../controllers/employee/requests_tab/employeeLeaveController");
 const authorizeRoles = require("../../middlewares/authorizeRole");
 
 router.use(verifyJWT);

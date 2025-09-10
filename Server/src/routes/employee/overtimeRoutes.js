@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const OvertimeController = require("../../controllers/employee/employeeOvertimeController");
+const OvertimeController = require("../../controllers/employee/requests_tab/employeeOvertimeController");
 const verifyJWT = require("../../middlewares/verifyJWT");
 const authorizeRoles = require("../../middlewares/authorizeRole"); // Renamed for consistency
 

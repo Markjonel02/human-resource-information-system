@@ -1,5 +1,5 @@
-const overtime = require("../../models/overtimeSchema");
-const leave = require("../../models/LeaveSchema/leaveSchema");
+const overtime = require("../../../models/overtimeSchema");
+const leave = require("../../../models/LeaveSchema/leaveSchema");
 
 const addOvertime = async (req, res) => {
   try {

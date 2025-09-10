@@ -1,10 +1,10 @@
 // Employee: Edit/cancel own leave (optional)
 // Add new leave request for employee
 
-const LeaveCredits = require("../../models/LeaveSchema/leaveCreditsSchema");
-const Leave = require("../../models/LeaveSchema/leaveSchema");
-const Attendances = require("../../models/Attendance");
-const LeaveLogs = require("../../models/Logs/leaveSchemaLogs");
+const LeaveCredits = require("../../../models/LeaveSchema/leaveCreditsSchema");
+const Leave = require("../../../models/LeaveSchema/leaveSchema");
+const Attendances = require("../../../models/Attendance");
+const LeaveLogs = require("../../../models/Logs/leaveSchemaLogs");
 // Create date range for attendance check
 function normalizeDateRange(dateFrom, dateTo) {
   const start = new Date(dateFrom);
