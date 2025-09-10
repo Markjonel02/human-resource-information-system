@@ -142,7 +142,7 @@ router.post(
 );
 
 router.post(
-  "/reject-leave-bulk/:id",
+  "/reject-leave-bulk",
   authorizeRoles("admin", "hr"),
   testAttendance.rejectLeaveBulk
 );
