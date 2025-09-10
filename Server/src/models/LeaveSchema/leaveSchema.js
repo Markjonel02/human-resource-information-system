@@ -45,6 +45,16 @@ const LeaveSchema = new Schema(
       type: Date,
       default: null,
     },
+    rejectedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "user",
+      default: null,
+    },
+    rejectedAt: {
+      type: Date,
+      default: null,
+    },
+
     rejectionReason: {
       type: String,
       trim: true,

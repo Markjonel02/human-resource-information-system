@@ -403,23 +403,22 @@ const rejectLeave = async (req, res) => {
     }
 
     leaveRecord.leaveStatus = "rejected";
+    leaveRecord.rejectedBy = req.user._id;
+    leaveRecord.rejectedAt = new Date();
     await leaveRecord.save();
+    // Log rejection in attendance
     await createAttendanceLog({
-      employeeId: employee._id,
+      employeeId: leaveRecord.employee._id,
       attendanceId: leaveRecord._id,
-      action: "LEAVE_APPROVED",
-      description: `Leave approved by admin (${req.user.firstname} ${req.user.lastname})`,
+      action: "LEAVE_REJECTED",
+      description: `Leave rejected by ${req.user.firstname} ${req.user.lastname}`,
       performedBy: req.user._id,
       changes: {
-        leaveStatus: { from: "pending", to: "approved" },
-        leaveCredits: {
-          leaveType: leaveRecord.leaveType,
-          daysDeducted: daysToDeduct,
-        },
+        leaveStatus: { from: "pending", to: "rejected" },
       },
       metadata: {
-        approvedBy: req.user.firstname + " " + req.user.lastname,
-        date: leaveRecord.date,
+        rejectedBy: req.user.firstname + " " + req.user.lastname,
+        date: new Date(),
         leaveType: leaveRecord.leaveType,
         dateFrom: leaveRecord.dateFrom || "",
         dateTo: leaveRecord.dateTo || "",
