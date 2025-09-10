@@ -252,7 +252,8 @@ const approveLeave = async (req, res) => {
 const approveLeaveBulk = async (req, res) => {
   if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res.status(403).json({
-      message: "Access denied. Only Admin users can approve leave requests.",
+      message:
+        "Access denied. Only Admin and HR users can approve leave requests.",
     });
   }
 
@@ -268,37 +269,37 @@ const approveLeaveBulk = async (req, res) => {
     const approvedLeaves = [];
     const errors = [];
 
-    // Process each leave request
     for (const id of ids) {
       try {
-        // Find the leave record and populate the employee
-        const leaveRecord = await Leave.findById(id).populate("employee");
+        const leaveRecord = await Leave.findById(id).populate(
+          "employee",
+          "firstname lastname employeeId"
+        );
+
         if (!leaveRecord) {
           errors.push({ id, error: "Leave record not found" });
           continue;
         }
 
-        // Check if the leave request is pending
         if (leaveRecord.leaveStatus !== "pending") {
           errors.push({ id, error: "Leave request already processed" });
           continue;
         }
 
-        // Calculate days to deduct
-        let daysToDeduct = 0;
-        if (leaveRecord.totalLeaveDays) {
-          daysToDeduct = leaveRecord.totalLeaveDays;
-        } else if (leaveRecord.dateFrom && leaveRecord.dateTo) {
+        // Calculate leave days
+        let daysToDeduct = leaveRecord.totalLeaveDays;
+        if (!daysToDeduct && leaveRecord.dateFrom && leaveRecord.dateTo) {
           const dateFrom = new Date(leaveRecord.dateFrom);
           const dateTo = new Date(leaveRecord.dateTo);
           daysToDeduct =
             Math.ceil((dateTo - dateFrom) / (1000 * 60 * 60 * 24)) + 1;
-        } else {
-          errors.push({ id, error: "Cannot determine leave days" });
+        }
+
+        if (!daysToDeduct || daysToDeduct <= 0) {
+          errors.push({ id, error: "Invalid leave duration" });
           continue;
         }
 
-        // Find employee's leave credits
         const employee = leaveRecord.employee;
         const leaveCredit = await LeaveCredits.findOne({
           employee: employee._id,
@@ -312,8 +313,8 @@ const approveLeaveBulk = async (req, res) => {
           continue;
         }
 
-        // Check leave type and credits
-        if (!leaveCredit.credits.has(leaveRecord.leaveType)) {
+        const creditEntry = leaveCredit.credits[leaveRecord.leaveType];
+        if (!creditEntry) {
           errors.push({
             id,
             error: "Leave type not found in employee's credits",
@@ -321,51 +322,37 @@ const approveLeaveBulk = async (req, res) => {
           continue;
         }
 
-        const currentCredit = leaveCredit.credits.get(leaveRecord.leaveType);
-        if (currentCredit.remaining < daysToDeduct) {
+        if (creditEntry.remaining < daysToDeduct) {
           errors.push({ id, error: "Not enough leave credits" });
           continue;
         }
 
-        // Update credits and leave status
-        leaveCredit.credits.get(leaveRecord.leaveType).remaining -=
-          daysToDeduct;
+        // Deduct credits
+        creditEntry.remaining -= daysToDeduct;
         await leaveCredit.save();
 
+        // Update leave record
         leaveRecord.leaveStatus = "approved";
-        leaveRecord.status = "on_leave";
+        leaveRecord.approvedBy = req.user._id;
+        leaveRecord.approvedAt = new Date();
         await leaveRecord.save();
-
-        // Log the action
-        await createAttendanceLog({
-          employeeId: employee._id,
-          attendanceId: leaveRecord._id,
-          action: "LEAVE_APPROVED_BULK",
-          description: `Leave bulk approved by admin (${req.user.firstname} ${req.user.lastname})`,
-          performedBy: req.user._id,
-          changes: {
-            leaveStatus: { from: "pending", to: "approved" },
-            leaveCredits: {
-              leaveType: leaveRecord.leaveType,
-              daysDeducted: daysToDeduct,
-            },
-          },
-          metadata: {
-            approvedBy: req.user.firstname + " " + req.user.lastname,
-            bulkOperation: true,
-          },
-        });
+        await leaveRecord.populate(
+          "approvedBy",
+          "firstname lastname employeeId"
+        );
 
         approvedLeaves.push({
           id,
           employeeName: `${employee.firstname} ${employee.lastname}`,
+          approvedBy: `${leaveRecord.approvedBy.firstname} ${leaveRecord.approvedBy.lastname}`,
         });
       } catch (error) {
         errors.push({ id, error: error.message });
       }
     }
 
-    res.json({
+    res.status(200).json({
+      success: true,
       message: `Bulk approval completed. ${approvedLeaves.length} approved, ${errors.length} failed.`,
       approved: approvedLeaves,
       errors: errors,
@@ -373,6 +360,7 @@ const approveLeaveBulk = async (req, res) => {
   } catch (error) {
     console.error("Error bulk approving leaves:", error);
     res.status(500).json({
+      success: false,
       message: "Internal server error",
       error: error.message,
     });
@@ -479,13 +467,16 @@ const rejectLeaveBulk = async (req, res) => {
         // Update status
         leaveRecord.leaveStatus = "rejected";
         leaveRecord.status = "present";
+        leaveRecord.rejectedBy = req.user._id;
+        leaveRecord.rejectedAt = new Date();
         if (reason) {
           leaveRecord.rejectionReason = reason;
         }
         await leaveRecord.save();
+        await LeaveRecord.populate("rejectedBy firstname lastname employeeId");
 
         // Log the action
-        await createAttendanceLog({
+        /*   await createAttendanceLog({
           employeeId: leaveRecord.employee._id,
           attendanceId: leaveRecord._id,
           action: "LEAVE_REJECTED_BULK",
@@ -499,7 +490,7 @@ const rejectLeaveBulk = async (req, res) => {
             bulkOperation: true,
             rejectionReason: reason || "No reason provided",
           },
-        });
+        }); */
 
         rejectedLeaves.push({
           id,

@@ -378,19 +378,28 @@ const Leave = () => {
   // Bulk approve selected leaves (calls backend)
   const handleApproveSelected = async () => {
     try {
-      await axiosInstance.post(`/attendanceRoutes/approve-leave-bulk`, {
-        ids: selectedRequestIds,
-      });
+      const response = await axiosInstance.post(
+        `/attendanceRoutes/approve-leave-bulk`,
+        {
+          ids: selectedRequestIds,
+        }
+      );
+
+      const approved = response.data?.approved || [];
+      const errors = response.data?.errors || [];
+
       toast({
-        title: "Selected Leaves Approved",
+        title: "Bulk Approval Completed",
+        description: `${approved.length} approved, ${errors.length} failed.`,
         status: "success",
         position: "top",
-        duration: 3000,
+        duration: 4000,
         isClosable: true,
       });
+
       setSelectedRequestIds([]);
       setIsSelectAllChecked(false);
-      fetchLeaveRequests(); // Refresh the list after approval
+      fetchLeaveRequests(); // Refresh the list
     } catch (err) {
       console.error("Error bulk approving leaves:", err);
       toast({
@@ -423,13 +432,13 @@ const Leave = () => {
     } catch (err) {
       console.error("Error bulk rejecting leaves:", err);
       // If no bulk reject endpoint exists, update locally
-      setLeaveRequests((prevRequests) =>
+      /*     setLeaveRequests((prevRequests) =>
         prevRequests.map((req) =>
           selectedRequestIds.includes(req.id)
             ? { ...req, status: "Rejected" }
             : req
         )
-      );
+      ); */
       setSelectedRequestIds([]);
       setIsSelectAllChecked(false);
       toast({
