@@ -23,6 +23,24 @@ const addofficialBusiness = async (req, res) => {
   }
 };
 
+const getOfficialBusiness = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const getOB = await OfiicialBusiness.findById(id)
+      .sort({ createdAt: -1 })
+      .populate("employee", "username role");
+
+    if (!getOB) {
+      return res.status(404).json({ message: "No Official Business found." });
+    }
+
+    res.status(200).json(getOB);
+  } catch (error) {
+    console.error("Error fetching Official Business:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 module.exports = {
   addofficialBusiness,
+  getOfficialBusiness,
 };
