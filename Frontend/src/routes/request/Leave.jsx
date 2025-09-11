@@ -48,7 +48,9 @@ import { theme } from "../../constants/themeConstants";
 import { LeaveRequestCard } from "./LeaveRequestCard";
 import { useAuth } from "../../context/AuthContext";
 const Leave = () => {
-  const { currUser: user } = useAuth();
+  const { authState } = useAuth();
+  const currentUser = authState?.user;
+
   const [filterStatus, setFilterStatus] = useState("All");
   const [selectedRequestIds, setSelectedRequestIds] = useState([]);
   const [isSelectAllChecked, setIsSelectAllChecked] = useState(false);
@@ -480,6 +482,7 @@ const Leave = () => {
               borderRadius="md"
               boxShadow="md"
               _hover={{ transform: "translateY(-2px)", boxShadow: "lg" }}
+              isDisabled={currentUser?.role !== "admin"}
             >
               Add Leave
             </Button>
