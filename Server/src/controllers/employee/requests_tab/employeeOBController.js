@@ -1,14 +1,15 @@
 const officialBusinessSchema = require("../../../models/officialbusinessSchema/officialBusinessSchema");
 const OfiicialBusiness = require("../../../models/officialbusinessSchema/officialBusinessSchema");
 
-const addofficialBusiness = async (req, res) => {
+const addOfficialBusiness = async (req, res) => {
   try {
     const { reason, dateFrom, dateTo } = req.body;
+
     if (!reason || !dateFrom || !dateTo) {
       return res.status(400).json({ message: "All fields are required!" });
     }
 
-    official_B = new OfiicialBusiness({
+    const official_B = new OfficialBusiness({
       employee: req.user.id,
       reason,
       dateFrom,
@@ -16,7 +17,10 @@ const addofficialBusiness = async (req, res) => {
     });
 
     await official_B.save();
-    res.status(200).json({ message: "successfully created OfficialBusiness!" });
+
+    res
+      .status(200)
+      .json({ message: "Successfully created Official Business request!" });
   } catch (error) {
     console.error("Error creating OfficialBusiness:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -28,7 +32,7 @@ const getOfficialBusiness = async (req, res) => {
     const { id } = req.params;
     const getOB = await OfiicialBusiness.findById(id)
       .sort({ createdAt: -1 })
-      .populate("employee", "username role");
+      .populate("employee", "employeeId firstname");
 
     if (!getOB) {
       return res.status(404).json({ message: "No Official Business found." });
@@ -41,6 +45,6 @@ const getOfficialBusiness = async (req, res) => {
   }
 };
 module.exports = {
-  addofficialBusiness,
+  addOfficialBusiness,
   getOfficialBusiness,
 };

@@ -1,4 +1,4 @@
-import React from "react";
+import { useState } from "react";
 import {
   Modal,
   ModalOverlay,
@@ -14,24 +14,41 @@ import {
   Textarea,
   SimpleGrid,
   useBreakpointValue,
+  useToast,
 } from "@chakra-ui/react";
-
+import axiosInstance from "../lib/axiosInstance";
 const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const newOB = {
-      name: formData.get("name"),
-      dateFrom: formData.get("dateFrom"),
-      dateTo: formData.get("dateTo"),
-      reason: formData.get("reason"),
-    };
-    onSubmit(newOB);
-    onClose();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [] = useState([]);
+  const toast = useToast();
+
+  const handleAddOfficialBusiness = async (newOB) => {
+    try {
+      const res = await axiosInstance.post("/officialBusiness/add_OB", newOB, {
+        withCredentials: true,
+      });
+
+      const savedOB = res.data.data; // comes with populated employee
+
+      setOfficialBusinessData((prev) => [
+        ...prev,
+        {
+          id: savedOB._id,
+          name: savedOB.employee.name, // ✅ show employee name
+          dateFrom: savedOB.dateFrom,
+          dateTo: savedOB.dateTo,
+          reason: savedOB.reason,
+          status: "Pending",
+          by: "",
+        },
+      ]);
+    } catch (error) {
+      console.error("Error adding Official Business:", error);
+    }
   };
 
   // Responsive: on mobile, switch to 1 column
-  const columns = useBreakpointValue({ base: 1, md: 2 });
+  const columns = useBreakpointValue({ base: 1, md: "none" });
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} isCentered size="lg">
@@ -40,7 +57,7 @@ const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
         borderRadius="xl"
         shadow="2xl"
         as="form"
-        onSubmit={handleSubmit}
+        onSubmit={handleAddOfficialBusiness}
       >
         <ModalHeader>Add Official Business</ModalHeader>
         <ModalCloseButton />
@@ -49,6 +66,11 @@ const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
             <FormControl>
               <FormLabel>Employee Name</FormLabel>
               <Input name="name" placeholder="Enter employee name" required />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Department</FormLabel>
+              <Input name="name" placeholder="Enter employee name" readOnly />
             </FormControl>
 
             <FormControl>
