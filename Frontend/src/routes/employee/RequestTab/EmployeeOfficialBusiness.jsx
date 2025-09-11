@@ -138,14 +138,14 @@ const EmployeeOfficialBusiness = () => {
         bg={useColorModeValue("white", "gray.700")}
       >
         <Table variant="simple">
-          <Thead bg={useColorModeValue("blue.500", "blue.400")}>
+          <Thead bg={useColorModeValue("blue.50", "blue.400")}>
             <Tr>
-              <Th color="white">Employee Name</Th>
-              <Th color="white">Date From</Th>
-              <Th color="white">Date To</Th>
-              <Th color="white">Reason</Th>
-              <Th color="white">Status</Th>
-              <Th color="white" textAlign="center">
+              <Th color="black">Employee Name</Th>
+              <Th color="black">Date From</Th>
+              <Th color="black">Date To</Th>
+              <Th color="black">Reason</Th>
+              <Th color="black">Status</Th>
+              <Th color="black" textAlign="center">
                 Actions
               </Th>
             </Tr>
@@ -165,16 +165,16 @@ const EmployeeOfficialBusiness = () => {
                     colorScheme={getStatusColor(item.status)}
                     px={3}
                     py={1}
-                    borderRadius="full"
+                    borderRadius="md"
                   >
                     {item.status}
                   </Badge>
                   {item.by && (
                     <Text fontSize="xs" color="gray.500" mt={1}>
                       {item.status === "Approved"
-                        ? `Approved by ${item.by}`
+                        ? `by ${item.by}`
                         : item.status === "Rejected"
-                        ? `Rejected by ${item.by}`
+                        ? ` by ${item.by}`
                         : ""}
                     </Text>
                   )}

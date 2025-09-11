@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const addofficialBusiness = require("../../controllers/employee/requests_tab/employeeOBController");
+const addofficialBusiness = require("../../controllers/employee/requests_tab/employeeOBController.js");
 
-router.post("/add_OB", addofficialBusiness.addofficialBusiness);
+router.post("/add_OB", addofficialBusiness.addOfficialBusiness);
 router.get("/get_OB", addofficialBusiness.getOfficialBusiness);
 
 module.exports = router;
