@@ -1,6 +1,74 @@
 const officialBusinessSchema = require("../../../models/officialbusinessSchema/officialBusinessSchema");
-const OfiicialBusiness = require("../../../models/officialbusinessSchema/officialBusinessSchema");
+const OfficialBusiness = require("../../../models/officialbusinessSchema/officialBusinessSchema");
+const mongoose = require("mongoose");
+// Get ALL official business records for the current user (for table display)
+const getAllOfficialBusiness = async (req, res) => {
+  try {
+    console.log("Getting all OB for user:", req.user.id);
 
+    const officialBusinessList = await OfficialBusiness.find({
+      employee: req.user.id,
+    })
+      .sort({ createdAt: -1 })
+      .populate("employee", "employeeId firstname lastname");
+
+    console.log("Found OB records:", officialBusinessList.length);
+
+    res.status(200).json({
+      success: true,
+      data: officialBusinessList,
+      count: officialBusinessList.length,
+    });
+  } catch (error) {
+    console.error("Error fetching all Official Business:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+// Get a SINGLE official business record by ID
+
+// If you still need to get a single OB by ID, create a separate controller:
+const getOfficialBusinessById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid ID format",
+      });
+    }
+
+    const getOB = await OfficialBusiness.findOne({
+      _id: id,
+      employee: req.user.id, // Ensure user can only access their own records
+    }).populate("employee", "employeeId firstname lastname");
+
+    if (!getOB) {
+      return res.status(404).json({
+        success: false,
+        message: "Official Business not found.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: getOB,
+    });
+  } catch (error) {
+    console.error("Error fetching Official Business:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+// Add official business
 const addOfficialBusiness = async (req, res) => {
   try {
     const { reason, dateFrom, dateTo } = req.body;
@@ -16,35 +84,63 @@ const addOfficialBusiness = async (req, res) => {
       dateTo,
     });
 
-    await official_B.save();
+    const savedOB = await official_B.save();
 
-    res
-      .status(200)
-      .json({ message: "Successfully created Official Business request!" });
+    // Populate the employee data before sending response
+    await savedOB.populate("employee", "employeeId firstname lastname");
+
+    res.status(200).json({
+      message: "Successfully created Official Business request!",
+      data: savedOB,
+    });
   } catch (error) {
     console.error("Error creating OfficialBusiness:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
-const getOfficialBusiness = async (req, res) => {
+// Delete official business
+const deleteOfficialBusiness = async (req, res) => {
   try {
     const { id } = req.params;
-    const getOB = await OfiicialBusiness.findById(id)
-      .sort({ createdAt: -1 })
-      .populate("employee", "employeeId firstname");
 
-    if (!getOB) {
-      return res.status(404).json({ message: "No Official Business found." });
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid ID format",
+      });
     }
 
-    res.status(200).json(getOB);
+    const deletedOB = await OfficialBusiness.findOneAndDelete({
+      _id: id,
+      employee: req.user.id, // Ensure user can only delete their own records
+    });
+
+    if (!deletedOB) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Official Business not found or you don't have permission to delete it.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Official Business deleted successfully",
+    });
   } catch (error) {
-    console.error("Error fetching Official Business:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Error deleting Official Business:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };
+
 module.exports = {
+  getAllOfficialBusiness,
+  getOfficialBusinessById,
   addOfficialBusiness,
-  getOfficialBusiness,
+  deleteOfficialBusiness,
 };
