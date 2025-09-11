@@ -29,7 +29,7 @@ import {
 import { AddIcon, SearchIcon } from "@chakra-ui/icons";
 import { FiMoreVertical, FiEye, FiEdit2, FiTrash2 } from "react-icons/fi";
 import AddOfficialBusinessModal from "../../../components/AddOfficialBusinessModal";
-import axiosInstance from "../../../lib/axiosInstance"; // Adjust the path as needed
+import axiosInstance from "../../../lib/axiosInstance"; // Adjust path as needed
 
 const EmployeeOfficialBusiness = () => {
   const [search, setSearch] = useState("");
@@ -39,6 +39,7 @@ const EmployeeOfficialBusiness = () => {
   const [error, setError] = useState(null);
   const toast = useToast();
 
+  // Modal control
   const {
     isOpen: isAddOpen,
     onOpen: onAddOpen,
@@ -55,18 +56,16 @@ const EmployeeOfficialBusiness = () => {
         withCredentials: true,
       });
 
-      // Handle the new response format
       const data = response.data.data || response.data;
 
-      // Transform the data to match your table structure
       const transformedData = data.map((item) => ({
         id: item._id,
         name:
           `${item.employee?.firstname || ""} ${
             item.employee?.lastname || ""
           }`.trim() || "N/A",
-        dateFrom: new Date(item.dateFrom).toISOString().split("T")[0], // Format date
-        dateTo: new Date(item.dateTo).toISOString().split("T")[0], // Format date
+        dateFrom: new Date(item.dateFrom).toISOString().split("T")[0],
+        dateTo: new Date(item.dateTo).toISOString().split("T")[0],
         reason: item.reason,
         status: item.status || "Pending",
         by: item.approvedBy
@@ -74,7 +73,7 @@ const EmployeeOfficialBusiness = () => {
           : item.rejectedBy
           ? `${item.rejectedBy.firstname} ${item.rejectedBy.lastname}`
           : "",
-        originalData: item, // Keep original data for reference
+        originalData: item,
       }));
 
       setOfficialBusinessData(transformedData);
@@ -94,7 +93,6 @@ const EmployeeOfficialBusiness = () => {
     }
   };
 
-  // Fetch data on component mount
   useEffect(() => {
     fetchOfficialBusinessData();
   }, []);
@@ -110,21 +108,18 @@ const EmployeeOfficialBusiness = () => {
     }
   };
 
-  // Handle successful addition of new official business
+  // ✅ Called when new OB is added
   const handleAddOfficialBusiness = () => {
-    // Refresh the data after adding
     fetchOfficialBusinessData();
     onAddClose();
   };
 
-  // Handle delete action
   const handleDelete = async (id) => {
     try {
-      await axiosInstance.delete(`/officialBusiness/${id}`, {
+      await axiosInstance.delete(`/delete_OB/${id}`, {
         withCredentials: true,
       });
 
-      // Remove from local state
       setOfficialBusinessData((prev) => prev.filter((item) => item.id !== id));
 
       toast({
@@ -146,7 +141,6 @@ const EmployeeOfficialBusiness = () => {
     }
   };
 
-  // Filter and sort data
   const filteredAndSortedData = officialBusinessData
     .filter(
       (item) =>
@@ -337,7 +331,7 @@ const EmployeeOfficialBusiness = () => {
         </Table>
       </Box>
 
-      {/* Add Official Business Modal */}
+      {/* ✅ Add Official Business Modal */}
       <AddOfficialBusinessModal
         isOpen={isAddOpen}
         onClose={onAddClose}
