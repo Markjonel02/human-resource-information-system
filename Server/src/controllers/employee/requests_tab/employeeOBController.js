@@ -1,5 +1,5 @@
 const officialBusinessSchema = require("../../../models/officialbusinessSchema/officialBusinessSchema");
-const OfiicialBusiness = require("../../../models/officialbusinessSchema/officialBusinessSchema");
+const OfficialBusiness = require("../../../models/officialbusinessSchema/officialBusinessSchema");
 
 const addOfficialBusiness = async (req, res) => {
   try {
@@ -27,23 +27,65 @@ const addOfficialBusiness = async (req, res) => {
   }
 };
 
+// Get ALL official business records for the current user
+const getAllOfficialBusiness = async (req, res) => {
+  try {
+    // Get all official business records for the current user
+    const officialBusinessList = await OfficialBusiness.find({ 
+      employee: req.user.id 
+    })
+      .sort({ createdAt: -1 })
+      .populate("employee", "employeeId firstname lastname")
+      .populate("approvedBy", "firstname lastname") // If you have approval tracking
+      .populate("rejectedBy", "firstname lastname"); // If you have rejection tracking
+
+    res.status(200).json({
+      success: true,
+      data: officialBusinessList,
+      count: officialBusinessList.length
+    });
+  } catch (error) {
+    console.error("Error fetching Official Business:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Internal server error" 
+    });
+  }
+};
+
+// Get a SINGLE official business record by ID
 const getOfficialBusiness = async (req, res) => {
   try {
     const { id } = req.params;
-    const getOB = await OfiicialBusiness.findById(id)
-      .sort({ createdAt: -1 })
-      .populate("employee", "employeeId firstname");
+    const getOB = await OfficialBusiness.findOne({
+      _id: id,
+      employee: req.user.id // Ensure user can only access their own records
+    })
+      .populate("employee", "employeeId firstname lastname")
+      .populate("approvedBy", "firstname lastname")
+      .populate("rejectedBy", "firstname lastname");
 
     if (!getOB) {
-      return res.status(404).json({ message: "No Official Business found." });
+      return res.status(404).json({ 
+        success: false,
+        message: "Official Business not found or you don't have permission to access it." 
+      });
     }
 
-    res.status(200).json(getOB);
+    res.status(200).json({
+      success: true,
+      data: getOB
+    });
   } catch (error) {
     console.error("Error fetching Official Business:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ 
+      success: false,
+      message: "Internal server error" 
+    });
   }
 };
+
+
 module.exports = {
   addOfficialBusiness,
   getOfficialBusiness,

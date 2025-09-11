@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Flex,
@@ -21,40 +21,83 @@ import {
   MenuList,
   MenuItem,
   useDisclosure,
+  Spinner,
+  Alert,
+  AlertIcon,
+  useToast,
 } from "@chakra-ui/react";
 import { AddIcon, SearchIcon } from "@chakra-ui/icons";
 import { FiMoreVertical, FiEye, FiEdit2, FiTrash2 } from "react-icons/fi";
 import AddOfficialBusinessModal from "../../../components/AddOfficialBusinessModal";
+import axiosInstance from "../../../lib/axiosInstance"; // Adjust the path as needed
 
 const EmployeeOfficialBusiness = () => {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("date");
-  const [officialBusinessData, setOfficialBusinessData] = useState([
-    {
-      id: 1,
-      name: "John Doe",
-      dateFrom: "2025-09-10",
-      dateTo: "2025-09-12",
-      reason: "Client Meeting",
-      status: "Approved",
-      by: "HR Manager",
-    },
-    {
-      id: 2,
-      name: "Jane Smith",
-      dateFrom: "2025-09-15",
-      dateTo: "2025-09-16",
-      reason: "Conference",
-      status: "Rejected",
-      by: "Admin",
-    },
-  ]);
+  const [officialBusinessData, setOfficialBusinessData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const toast = useToast();
 
   const {
     isOpen: isAddOpen,
     onOpen: onAddOpen,
     onClose: onAddClose,
   } = useDisclosure();
+
+  // Fetch official business data
+  const fetchOfficialBusinessData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await axiosInstance.get("/officialBusiness/get_OB", {
+        withCredentials: true,
+      });
+
+      // Handle the new response format
+      const data = response.data.data || response.data;
+
+      // Transform the data to match your table structure
+      const transformedData = data.map((item) => ({
+        id: item._id,
+        name:
+          `${item.employee?.firstname || ""} ${
+            item.employee?.lastname || ""
+          }`.trim() || "N/A",
+        dateFrom: new Date(item.dateFrom).toISOString().split("T")[0], // Format date
+        dateTo: new Date(item.dateTo).toISOString().split("T")[0], // Format date
+        reason: item.reason,
+        status: item.status || "Pending",
+        by: item.approvedBy
+          ? `${item.approvedBy.firstname} ${item.approvedBy.lastname}`
+          : item.rejectedBy
+          ? `${item.rejectedBy.firstname} ${item.rejectedBy.lastname}`
+          : "",
+        originalData: item, // Keep original data for reference
+      }));
+
+      setOfficialBusinessData(transformedData);
+    } catch (error) {
+      console.error("Error fetching official business data:", error);
+      setError("Failed to fetch official business data");
+
+      toast({
+        title: "Error",
+        description: "Failed to fetch official business data",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchOfficialBusinessData();
+  }, []);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -67,12 +110,88 @@ const EmployeeOfficialBusiness = () => {
     }
   };
 
-  const handleAddOfficialBusiness = (newOB) => {
-    setOfficialBusinessData((prev) => [
-      ...prev,
-      { id: prev.length + 1, status: "Pending", by: "", ...newOB },
-    ]);
+  // Handle successful addition of new official business
+  const handleAddOfficialBusiness = () => {
+    // Refresh the data after adding
+    fetchOfficialBusinessData();
+    onAddClose();
   };
+
+  // Handle delete action
+  const handleDelete = async (id) => {
+    try {
+      await axiosInstance.delete(`/officialBusiness/${id}`, {
+        withCredentials: true,
+      });
+
+      // Remove from local state
+      setOfficialBusinessData((prev) => prev.filter((item) => item.id !== id));
+
+      toast({
+        title: "Success",
+        description: "Official business request deleted successfully",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error("Error deleting official business:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete official business request",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // Filter and sort data
+  const filteredAndSortedData = officialBusinessData
+    .filter(
+      (item) =>
+        item.name.toLowerCase().includes(search.toLowerCase()) ||
+        item.reason.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "name":
+          return a.name.localeCompare(b.name);
+        case "status":
+          return a.status.localeCompare(b.status);
+        case "date":
+        default:
+          return new Date(b.dateFrom) - new Date(a.dateFrom);
+      }
+    });
+
+  if (isLoading) {
+    return (
+      <Box
+        p={6}
+        minH="100vh"
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+      >
+        <Spinner size="xl" color="blue.500" />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box p={6} minH="100vh">
+        <Alert status="error">
+          <AlertIcon />
+          {error}
+        </Alert>
+        <Button mt={4} onClick={fetchOfficialBusinessData}>
+          Try Again
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <Box p={6} minH="100vh">
@@ -107,7 +226,7 @@ const EmployeeOfficialBusiness = () => {
           >
             <Icon as={SearchIcon} color="blue.400" />
             <Input
-              placeholder="Search employee..."
+              placeholder="Search employee or reason..."
               variant="unstyled"
               ml={2}
               value={search}
@@ -151,55 +270,69 @@ const EmployeeOfficialBusiness = () => {
             </Tr>
           </Thead>
           <Tbody>
-            {officialBusinessData.map((item) => (
-              <Tr
-                key={item.id}
-                _hover={{ bg: useColorModeValue("blue.50", "gray.600") }}
-              >
-                <Td fontWeight="medium">{item.name}</Td>
-                <Td>{item.dateFrom}</Td>
-                <Td>{item.dateTo}</Td>
-                <Td>{item.reason}</Td>
-                <Td>
-                  <Badge
-                    colorScheme={getStatusColor(item.status)}
-                    px={3}
-                    py={1}
-                    borderRadius="md"
-                  >
-                    {item.status}
-                  </Badge>
-                  {item.by && (
-                    <Text fontSize="xs" color="gray.500" mt={1}>
-                      {item.status === "Approved"
-                        ? `by ${item.by}`
-                        : item.status === "Rejected"
-                        ? ` by ${item.by}`
-                        : ""}
-                    </Text>
-                  )}
-                </Td>
-                <Td textAlign="center">
-                  <Menu>
-                    <MenuButton
-                      as={Button}
-                      variant="ghost"
-                      size="sm"
-                      rounded="full"
-                    >
-                      <FiMoreVertical />
-                    </MenuButton>
-                    <MenuList>
-                      <MenuItem icon={<FiEye />}>View</MenuItem>
-                      <MenuItem icon={<FiEdit2 />}>Edit</MenuItem>
-                      <MenuItem icon={<FiTrash2 />} color="red.500">
-                        Delete
-                      </MenuItem>
-                    </MenuList>
-                  </Menu>
+            {filteredAndSortedData.length === 0 ? (
+              <Tr>
+                <Td colSpan={6} textAlign="center" py={8}>
+                  <Text color="gray.500">
+                    No official business requests found
+                  </Text>
                 </Td>
               </Tr>
-            ))}
+            ) : (
+              filteredAndSortedData.map((item) => (
+                <Tr
+                  key={item.id}
+                  _hover={{ bg: useColorModeValue("blue.50", "gray.600") }}
+                >
+                  <Td fontWeight="medium">{item.name}</Td>
+                  <Td>{item.dateFrom}</Td>
+                  <Td>{item.dateTo}</Td>
+                  <Td>{item.reason}</Td>
+                  <Td>
+                    <Badge
+                      colorScheme={getStatusColor(item.status)}
+                      px={3}
+                      py={1}
+                      borderRadius="md"
+                    >
+                      {item.status}
+                    </Badge>
+                    {item.by && (
+                      <Text fontSize="xs" color="gray.500" mt={1}>
+                        {item.status === "Approved"
+                          ? `by ${item.by}`
+                          : item.status === "Rejected"
+                          ? ` by ${item.by}`
+                          : ""}
+                      </Text>
+                    )}
+                  </Td>
+                  <Td textAlign="center">
+                    <Menu>
+                      <MenuButton
+                        as={Button}
+                        variant="ghost"
+                        size="sm"
+                        rounded="full"
+                      >
+                        <FiMoreVertical />
+                      </MenuButton>
+                      <MenuList>
+                        <MenuItem icon={<FiEye />}>View</MenuItem>
+                        <MenuItem icon={<FiEdit2 />}>Edit</MenuItem>
+                        <MenuItem
+                          icon={<FiTrash2 />}
+                          color="red.500"
+                          onClick={() => handleDelete(item.id)}
+                        >
+                          Delete
+                        </MenuItem>
+                      </MenuList>
+                    </Menu>
+                  </Td>
+                </Tr>
+              ))
+            )}
           </Tbody>
         </Table>
       </Box>
