@@ -52,7 +52,7 @@ const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
 
     try {
       const res = await axiosInstance.post(
-        "/officialBusiness/add_OB",
+        "/officialBusiness/addOfficialBusiness",
         formData,
         {
           withCredentials: true,
@@ -65,6 +65,7 @@ const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
           res.data.message || "Official Business request created successfully!",
         status: "success",
         duration: 3000,
+        position: "top",
         isClosable: true,
       });
 

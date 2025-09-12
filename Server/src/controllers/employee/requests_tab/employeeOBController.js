@@ -1,4 +1,3 @@
-const officialBusinessSchema = require("../../../models/officialbusinessSchema/officialBusinessSchema");
 const OfficialBusiness = require("../../../models/officialbusinessSchema/officialBusinessSchema");
 const mongoose = require("mongoose");
 // Get ALL official business records for the current user (for table display)
@@ -54,6 +53,28 @@ const getOfficialBusinessById = async (req, res) => {
         message: "Official Business not found.",
       });
     }
+
+    res.status(200).json({
+      success: true,
+      data: getOB,
+    });
+  } catch (error) {
+    console.error("Error fetching Official Business:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+// GET /officialBusiness/getOB
+const getAllOfficialBusinesss = async (req, res) => {
+  try {
+    const query = req.user.role === "employee" ? { employee: req.user.id } : {}; // Admin/HR can see all
+
+    const getOB = await OfficialBusiness.find(query)
+      .populate("employee", "employeeId firstname lastname")
+      .populate("approvedBy", "firstname ")
+      .populate("rejectedBy", "firstname ");
 
     res.status(200).json({
       success: true,
@@ -139,8 +160,9 @@ const deleteOfficialBusiness = async (req, res) => {
 };
 
 module.exports = {
-  getAllOfficialBusiness,
+  getAllOfficialBusinesss,
   getOfficialBusinessById,
   addOfficialBusiness,
+
   deleteOfficialBusiness,
 };

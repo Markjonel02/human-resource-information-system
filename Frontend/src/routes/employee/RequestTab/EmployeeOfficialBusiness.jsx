@@ -52,11 +52,14 @@ const EmployeeOfficialBusiness = () => {
       setIsLoading(true);
       setError(null);
 
-      const response = await axiosInstance.get("/officialBusiness/get_OB", {
-        withCredentials: true,
-      });
+      const response = await axiosInstance.get(
+        "/officialBusiness/getOfficialBusiness",
+        {
+          withCredentials: true,
+        }
+      );
 
-      const data = response.data.data || response.data;
+      const data = response.data.data || [];
 
       const transformedData = data.map((item) => ({
         id: item._id,
