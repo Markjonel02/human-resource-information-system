@@ -45,7 +45,7 @@ import {
 } from "react-icons/fi";
 import AddOfficialBusinessModal from "../../../components/AddOfficialBusinessModal";
 import axiosInstance from "../../../lib/axiosInstance";
-
+import useDebounce from "../../../hooks/useDebounce";
 const STATUS_COLORS = {
   approved: "green",
   pending: "orange",
@@ -162,13 +162,16 @@ const EmployeeOfficialBusiness = () => {
       });
     }
   };
-
+  const debouncedSearchTerm = useDebounce(search, 500);
   const filteredAndSortedData = officialBusinessData
     .filter(
       (item) =>
-        item.name.toLowerCase().includes(search.toLowerCase()) ||
-        item.reason.toLowerCase().includes(search.toLowerCase()) ||
-        item.employeeId.toLowerCase().includes(search.toLowerCase())
+        item.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        item.reason.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        item.employeeId
+          .toLowerCase()
+          .includes(debouncedSearchTerm.toLowerCase()) ||
+        item.status.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
     )
     .sort((a, b) => {
       switch (sortBy) {
@@ -310,22 +313,42 @@ const EmployeeOfficialBusiness = () => {
                       <Text>Employee</Text>
                     </HStack>
                   </Th>
-                  <Th color="gray.700" fontSize="sm" fontWeight="bold">
+                  <Th
+                    color="gray.700"
+                    fontSize="sm"
+                    fontWeight="bold"
+                    display={{ base: "none", md: "table-cell" }}
+                  >
                     <HStack>
                       <Icon as={FiCalendar} />
                       <Text>Date From</Text>
                     </HStack>
                   </Th>
-                  <Th color="gray.700" fontSize="sm" fontWeight="bold">
+                  <Th
+                    color="gray.700"
+                    fontSize="sm"
+                    fontWeight="bold"
+                    display={{ base: "none", md: "table-cell" }}
+                  >
                     <HStack>
                       <Icon as={FiCalendar} />
                       <Text>Date To</Text>
                     </HStack>
                   </Th>
-                  <Th color="gray.700" fontSize="sm" fontWeight="bold">
+                  <Th
+                    color="gray.700"
+                    fontSize="sm"
+                    fontWeight="bold"
+                    display={{ base: "none", md: "table-cell" }}
+                  >
                     Reason
                   </Th>
-                  <Th color="gray.700" fontSize="sm" fontWeight="bold">
+                  <Th
+                    color="gray.700"
+                    fontSize="sm"
+                    fontWeight="bold"
+                    display={{ base: "none", md: "table-cell" }}
+                  >
                     Status
                   </Th>
                   <Th
@@ -381,7 +404,7 @@ const EmployeeOfficialBusiness = () => {
                           </Text>
                         </VStack>
                       </Td>
-                      <Td>
+                      <Td display={{ base: "none", md: "table-cell" }}>
                         <Badge
                           colorScheme="blue"
                           variant="subtle"
@@ -392,7 +415,7 @@ const EmployeeOfficialBusiness = () => {
                           {item.dateFrom}
                         </Badge>
                       </Td>
-                      <Td>
+                      <Td display={{ base: "none", md: "table-cell" }}>
                         <Badge
                           colorScheme="purple"
                           variant="subtle"
@@ -403,18 +426,28 @@ const EmployeeOfficialBusiness = () => {
                           {item.dateTo}
                         </Badge>
                       </Td>
-                      <Td maxW="200px">
-                        <Text noOfLines={2} fontSize="sm">
-                          {item.reason}
-                        </Text>
+                      <Td
+                        maxW="200px"
+                        display={{ base: "none", md: "table-cell" }}
+                      >
+                        <Tooltip label={item.reason}>
+                          <Text
+                            noOfLines={2}
+                            fontSize="sm"
+                            isTruncated
+                            maxW="100px"
+                          >
+                            {item.reason}
+                          </Text>
+                        </Tooltip>
                       </Td>
-                      <Td>
+                      <Td display={{ base: "none", md: "table-cell" }}>
                         <VStack align="start" spacing={2}>
                           <Badge
                             colorScheme={getStatusColor(item.status)}
                             px={3}
                             py={1}
-                            borderRadius="full"
+                            borderRadius="md"
                             fontSize="xs"
                             fontWeight="bold"
                             textTransform="capitalize"
