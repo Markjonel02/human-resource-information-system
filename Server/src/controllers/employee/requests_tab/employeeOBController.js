@@ -91,6 +91,9 @@ const getAllOfficialBusinesss = async (req, res) => {
 
 // Add official business
 const addOfficialBusiness = async (req, res) => {
+  if (req.user.role !== "employee") {
+    return res.status(401).json({ message: "Sorry " });
+  }
   try {
     const { reason, dateFrom, dateTo } = req.body;
 
@@ -152,6 +155,47 @@ const addOfficialBusiness = async (req, res) => {
   }
 };
 
+const updateOfficialBusiness = async (req, res) => {
+  if (req.user.role !== "employee") {
+    return res
+      .status(401)
+      .json({ message: "Unauthorized, you cannot edit these data" });
+  }
+
+  try {
+    const { id } = req.params;
+    const { reason, dateFrom, dateTo } = req.body;
+
+    if (!reason || !dateFrom || !dateTo) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const update_OB = await OfficialBusiness.findByIdAndUpdate(
+      id, // ✅ use id directly
+      { reason, dateFrom, dateTo }, // ✅ update object
+      { new: true, runValidators: true }
+    );
+
+    if (!update_OB) {
+      return res
+        .status(404)
+        .json({ message: "Error update, Id cannot be found" });
+    }
+
+    res
+      .status(200)
+      .json({
+        message: "Official business successfully updated!",
+        data: update_OB,
+      });
+  } catch (error) {
+    console.error("Error updating official business:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
 // Delete official business
 const deleteOfficialBusiness = async (req, res) => {
   try {
@@ -195,6 +239,6 @@ module.exports = {
   getAllOfficialBusinesss,
   getOfficialBusinessById,
   addOfficialBusiness,
-
+  updateOfficialBusiness,
   deleteOfficialBusiness,
 };

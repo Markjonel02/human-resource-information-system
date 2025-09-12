@@ -35,4 +35,10 @@ router.delete(
   obController.deleteOfficialBusiness
 );
 
+router.put(
+  "/edit_OB/:id",
+  authorizeRoles("employee"),
+  obController.updateOfficialBusiness
+);
+
 module.exports = router;
