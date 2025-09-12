@@ -52,7 +52,9 @@ const STATUS_COLORS = {
   rejected: "red",
 };
 import EmployeeOfficialBusinessDeleteModal from "../../../components/EmployeeOffiicialBusinessDeleteModal";
+import EditOfficialBusinessModal from "../../../components/EmployeeEditOfficialBusinessModal";
 const EmployeeOfficialBusiness = () => {
+  const [editItem, setEditItem] = useState(null);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("date");
   const [selectedItem, setSelectedItem] = useState(null);
@@ -80,6 +82,11 @@ const EmployeeOfficialBusiness = () => {
     isOpen: isAddOpen,
     onOpen: onAddOpen,
     onClose: onAddClose,
+  } = useDisclosure();
+  const {
+    isOpen: isEditOpen,
+    onOpen: onEditOpen,
+    onClose: onEditClose,
   } = useDisclosure();
 
   const fetchOfficialBusinessData = async () => {
@@ -172,7 +179,10 @@ const EmployeeOfficialBusiness = () => {
       setDeleteLoading(false);
     }
   };
-
+  const handleEditClick = (item) => {
+    setEditItem(item);
+    onEditOpen();
+  };
   const debouncedSearchTerm = useDebounce(search, 500);
   const filteredAndSortedData = officialBusinessData
     .filter(
@@ -497,6 +507,7 @@ const EmployeeOfficialBusiness = () => {
                             <MenuItem
                               icon={<FiEdit2 />}
                               _hover={{ bg: "yellow.50" }}
+                              onClick={() => handleEditClick(item)}
                             >
                               Edit Request
                             </MenuItem>
@@ -532,6 +543,12 @@ const EmployeeOfficialBusiness = () => {
           itemName={`${selectedItem?.name} (${selectedItem?.dateFrom} to ${selectedItem?.dateTo})`}
           itemType="request"
           isLoading={deleteLoading}
+        />
+        <EditOfficialBusinessModal
+          isOpen={isEditOpen}
+          onClose={onEditClose}
+          item={editItem}
+          onSubmit={fetchOfficialBusinessData}
         />
       </Container>
     </Box>
