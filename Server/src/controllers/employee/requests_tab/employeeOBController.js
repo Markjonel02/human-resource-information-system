@@ -98,20 +98,52 @@ const addOfficialBusiness = async (req, res) => {
       return res.status(400).json({ message: "All fields are required!" });
     }
 
+    // Convert to Date objects
+    const start = new Date(dateFrom);
+    const end = new Date(dateTo);
+
+    if (start > end) {
+      return res
+        .status(400)
+        .json({ message: "dateFrom cannot be after dateTo!" });
+    }
+
+    // ✅ Validation: check for overlapping requests
+    const overlappingOB = await OfficialBusiness.findOne({
+      employee: req.user.id,
+      $or: [
+        {
+          dateFrom: { $lte: end },
+          dateTo: { $gte: start },
+        },
+      ],
+    });
+
+    if (overlappingOB) {
+      return res.status(400).json({
+        message:
+          "You already have an Official Business request within this date range!",
+        conflict: overlappingOB,
+      });
+    }
+
+    // Create new Official Business request
     const official_B = new OfficialBusiness({
       employee: req.user.id,
       reason,
-      dateFrom,
-      dateTo,
+      dateFrom: start,
+      dateTo: end,
+      rejectedBy: null,
     });
 
     const savedOB = await official_B.save();
 
-    // Populate the employee data before sending response
+    // Populate employee info
     await savedOB.populate("employee", "employeeId firstname lastname");
 
     res.status(200).json({
       message: "Successfully created Official Business request!",
+      createdBy: savedOB.employee,
       data: savedOB,
     });
   } catch (error) {

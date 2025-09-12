@@ -89,6 +89,7 @@ const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
         status: "error",
         duration: 5000,
         isClosable: true,
+        position: "top",
       });
     } finally {
       setIsSubmitting(false);
