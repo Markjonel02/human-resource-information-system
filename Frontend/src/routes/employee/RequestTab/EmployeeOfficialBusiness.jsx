@@ -45,20 +45,29 @@ import {
 } from "react-icons/fi";
 import AddOfficialBusinessModal from "../../../components/AddOfficialBusinessModal";
 import axiosInstance from "../../../lib/axiosInstance";
-
+import useDebounce from "../../../hooks/useDebounce";
 const STATUS_COLORS = {
   approved: "green",
   pending: "orange",
   rejected: "red",
 };
-
+import EmployeeOfficialBusinessDeleteModal from "../../../components/EmployeeOffiicialBusinessDeleteModal";
 const EmployeeOfficialBusiness = () => {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("date");
+  const [selectedItem, setSelectedItem] = useState(null);
   const [officialBusinessData, setOfficialBusinessData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const toast = useToast();
+  /* state for deletemodal */
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const { isOpen, onOpen, onClose } = useDisclosure();
+
+  const handleDeleteClick = (item) => {
+    setSelectedItem(item);
+    onOpen();
+  };
 
   const bgColor = useColorModeValue("white");
   const cardBg = useColorModeValue("white", "gray.50");
@@ -136,39 +145,44 @@ const EmployeeOfficialBusiness = () => {
     onAddClose();
   };
 
-  const handleDelete = async (id) => {
+  const handleConfirmDelete = async (id) => {
     try {
-      await axiosInstance.delete(`/delete_OB/${id}`, {
-        withCredentials: true,
-      });
-
-      setOfficialBusinessData((prev) => prev.filter((item) => item.id !== id));
-
+      setDeleteLoading(true);
+      await axiosInstance.delete(`/officialBusiness/delete_OB/${id}`);
       toast({
-        title: "Success",
-        description: "Official business request deleted successfully",
+        title: "Deleted",
+        description: "Official business request has been deleted.",
         status: "success",
+        position: "top",
         duration: 3000,
         isClosable: true,
       });
-    } catch (error) {
-      console.error("Error deleting official business:", error);
+      fetchOfficialBusinessData(); // Refresh table
+      onClose(); // ✅ Fixed typo
+    } catch (err) {
+      console.error("Error deleting request:", err);
       toast({
         title: "Error",
         description: "Failed to delete official business request",
         status: "error",
-        duration: 5000,
+        duration: 3000,
         isClosable: true,
       });
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
+  const debouncedSearchTerm = useDebounce(search, 500);
   const filteredAndSortedData = officialBusinessData
     .filter(
       (item) =>
-        item.name.toLowerCase().includes(search.toLowerCase()) ||
-        item.reason.toLowerCase().includes(search.toLowerCase()) ||
-        item.employeeId.toLowerCase().includes(search.toLowerCase())
+        item.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        item.reason.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        item.employeeId
+          .toLowerCase()
+          .includes(debouncedSearchTerm.toLowerCase()) ||
+        item.status.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
     )
     .sort((a, b) => {
       switch (sortBy) {
@@ -297,9 +311,8 @@ const EmployeeOfficialBusiness = () => {
             </Flex>
           </CardBody>
         </Card>
-
         {/* Table */}
-        <Card shadow="md" borderRadius="xl" overflow="hidden" bg={cardBg}>
+        <Card shadow="md" borderRadius="xl" bg={cardBg}>
           <Box overflowX="auto">
             <Table variant="simple" size="lg">
               <Thead bg="linear(to-r, blue.50, purple.50)">
@@ -310,22 +323,42 @@ const EmployeeOfficialBusiness = () => {
                       <Text>Employee</Text>
                     </HStack>
                   </Th>
-                  <Th color="gray.700" fontSize="sm" fontWeight="bold">
+                  <Th
+                    color="gray.700"
+                    fontSize="sm"
+                    fontWeight="bold"
+                    display={{ base: "none", md: "table-cell" }}
+                  >
                     <HStack>
                       <Icon as={FiCalendar} />
                       <Text>Date From</Text>
                     </HStack>
                   </Th>
-                  <Th color="gray.700" fontSize="sm" fontWeight="bold">
+                  <Th
+                    color="gray.700"
+                    fontSize="sm"
+                    fontWeight="bold"
+                    display={{ base: "none", md: "table-cell" }}
+                  >
                     <HStack>
                       <Icon as={FiCalendar} />
                       <Text>Date To</Text>
                     </HStack>
                   </Th>
-                  <Th color="gray.700" fontSize="sm" fontWeight="bold">
+                  <Th
+                    color="gray.700"
+                    fontSize="sm"
+                    fontWeight="bold"
+                    display={{ base: "none", md: "table-cell" }}
+                  >
                     Reason
                   </Th>
-                  <Th color="gray.700" fontSize="sm" fontWeight="bold">
+                  <Th
+                    color="gray.700"
+                    fontSize="sm"
+                    fontWeight="bold"
+                    display={{ base: "none", md: "table-cell" }}
+                  >
                     Status
                   </Th>
                   <Th
@@ -381,7 +414,7 @@ const EmployeeOfficialBusiness = () => {
                           </Text>
                         </VStack>
                       </Td>
-                      <Td>
+                      <Td display={{ base: "none", md: "table-cell" }}>
                         <Badge
                           colorScheme="blue"
                           variant="subtle"
@@ -392,7 +425,7 @@ const EmployeeOfficialBusiness = () => {
                           {item.dateFrom}
                         </Badge>
                       </Td>
-                      <Td>
+                      <Td display={{ base: "none", md: "table-cell" }}>
                         <Badge
                           colorScheme="purple"
                           variant="subtle"
@@ -403,18 +436,28 @@ const EmployeeOfficialBusiness = () => {
                           {item.dateTo}
                         </Badge>
                       </Td>
-                      <Td maxW="200px">
-                        <Text noOfLines={2} fontSize="sm">
-                          {item.reason}
-                        </Text>
+                      <Td
+                        maxW="200px"
+                        display={{ base: "none", md: "table-cell" }}
+                      >
+                        <Tooltip label={item.reason}>
+                          <Text
+                            noOfLines={2}
+                            fontSize="sm"
+                            isTruncated
+                            maxW="100px"
+                          >
+                            {item.reason}
+                          </Text>
+                        </Tooltip>
                       </Td>
-                      <Td>
+                      <Td display={{ base: "none", md: "table-cell" }}>
                         <VStack align="start" spacing={2}>
                           <Badge
                             colorScheme={getStatusColor(item.status)}
                             px={3}
                             py={1}
-                            borderRadius="full"
+                            borderRadius="md"
                             fontSize="xs"
                             fontWeight="bold"
                             textTransform="capitalize"
@@ -460,8 +503,7 @@ const EmployeeOfficialBusiness = () => {
                             <MenuItem
                               icon={<FiTrash2 />}
                               color="red.500"
-                              _hover={{ bg: "red.50" }}
-                              onClick={() => handleDelete(item.id)}
+                              onClick={() => handleDeleteClick(item)}
                             >
                               Delete Request
                             </MenuItem>
@@ -475,12 +517,21 @@ const EmployeeOfficialBusiness = () => {
             </Table>
           </Box>
         </Card>
-
         {/* Add Official Business Modal */}
         <AddOfficialBusinessModal
           isOpen={isAddOpen}
           onClose={onAddClose}
           onSubmit={handleAddOfficialBusiness}
+        />
+        {/* delete Business modal */}
+        <EmployeeOfficialBusinessDeleteModal
+          isOpen={isOpen}
+          onClose={onClose}
+          onConfirm={handleConfirmDelete}
+          itemId={selectedItem?.id}
+          itemName={`${selectedItem?.name} (${selectedItem?.dateFrom} to ${selectedItem?.dateTo})`}
+          itemType="request"
+          isLoading={deleteLoading}
         />
       </Container>
     </Box>
