@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const OfficialBusinessSchema = new mongoose.Schema({
   employee: {
-    ref: "Employee",
+    ref: "user",
     type: mongoose.Schema.Types.ObjectId,
   },
   dateFrom: {
@@ -29,11 +29,12 @@ const OfficialBusinessSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
-  rejectBy: {
+  rejectedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "user",
+    default: "null",
   },
-  rejectAt: {
+  rejectedAt: {
     type: Date,
     default: null,
   },

@@ -1,4 +1,3 @@
-const officialBusinessSchema = require("../../../models/officialbusinessSchema/officialBusinessSchema");
 const OfficialBusiness = require("../../../models/officialbusinessSchema/officialBusinessSchema");
 const mongoose = require("mongoose");
 // Get ALL official business records for the current user (for table display)
@@ -67,6 +66,28 @@ const getOfficialBusinessById = async (req, res) => {
     });
   }
 };
+// GET /officialBusiness/getOB
+const getAllOfficialBusinesss = async (req, res) => {
+  try {
+    const query = req.user.role === "employee" ? { employee: req.user.id } : {}; // Admin/HR can see all
+
+    const getOB = await OfficialBusiness.find(query)
+      .populate("employee", "employeeId firstname lastname")
+      .populate("approvedBy", "firstname ")
+      .populate("rejectedBy", "firstname ");
+
+    res.status(200).json({
+      success: true,
+      data: getOB,
+    });
+  } catch (error) {
+    console.error("Error fetching Official Business:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
 
 // Add official business
 const addOfficialBusiness = async (req, res) => {
@@ -77,20 +98,52 @@ const addOfficialBusiness = async (req, res) => {
       return res.status(400).json({ message: "All fields are required!" });
     }
 
+    // Convert to Date objects
+    const start = new Date(dateFrom);
+    const end = new Date(dateTo);
+
+    if (start > end) {
+      return res
+        .status(400)
+        .json({ message: "dateFrom cannot be after dateTo!" });
+    }
+
+    // ✅ Validation: check for overlapping requests
+    const overlappingOB = await OfficialBusiness.findOne({
+      employee: req.user.id,
+      $or: [
+        {
+          dateFrom: { $lte: end },
+          dateTo: { $gte: start },
+        },
+      ],
+    });
+
+    if (overlappingOB) {
+      return res.status(400).json({
+        message:
+          "You already have an Official Business request within this date range!",
+        conflict: overlappingOB,
+      });
+    }
+
+    // Create new Official Business request
     const official_B = new OfficialBusiness({
       employee: req.user.id,
       reason,
-      dateFrom,
-      dateTo,
+      dateFrom: start,
+      dateTo: end,
+      rejectedBy: null,
     });
 
     const savedOB = await official_B.save();
 
-    // Populate the employee data before sending response
+    // Populate employee info
     await savedOB.populate("employee", "employeeId firstname lastname");
 
     res.status(200).json({
       message: "Successfully created Official Business request!",
+      createdBy: savedOB.employee,
       data: savedOB,
     });
   } catch (error) {
@@ -139,8 +192,9 @@ const deleteOfficialBusiness = async (req, res) => {
 };
 
 module.exports = {
-  getAllOfficialBusiness,
+  getAllOfficialBusinesss,
   getOfficialBusinessById,
   addOfficialBusiness,
+
   deleteOfficialBusiness,
 };
