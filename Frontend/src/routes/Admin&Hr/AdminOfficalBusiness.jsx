@@ -75,9 +75,10 @@ const STATUS_COLORS = {
   pending: "orange",
   rejected: "red",
 };
+import EditOfficialBusinessModal from "../../components/Admin_components/EditAdminOfficialBusiness";
 /* 
 import EmployeeOfficialBusinessDeleteModal from "../../../components/EmployeeOffiicialBusinessDeleteModal";
-import EditOfficialBusinessModal from "../../../components/EmployeeEditOfficialBusinessModal";
+
 import OfficialBusinessDetailModal from "../../../components/EmployeeOfficialBusinessDetailsModal"; */
 
 const AdminOfficialBusiness = () => {
@@ -148,7 +149,7 @@ const AdminOfficialBusiness = () => {
       setError(null);
 
       const response = await axiosInstance.get(
-        "/officialBusiness/getOfficialBusiness",
+        "/adminOfficialBusiness/getAll_OB",
         {
           withCredentials: true,
         }
@@ -532,7 +533,6 @@ const AdminOfficialBusiness = () => {
             </Card>
           </SimpleGrid>
         </VStack>
-
         {/* Controls */}
         <Card
           mb={6}
@@ -631,17 +631,15 @@ const AdminOfficialBusiness = () => {
                         variant="unstyled"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        minW="250px"
+                        minW="100px"
                         fontSize="sm"
                       />
                     </HStack>
                   </Box>
-
-                  {/* Status Filter */}
                   <Select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    w="160px"
+                    w="100px"
                     borderRadius="xl"
                     shadow="md"
                     focusBorderColor="blue.400"
@@ -665,16 +663,18 @@ const AdminOfficialBusiness = () => {
                     bg={useColorModeValue("white", "gray.700")}
                     fontSize="sm"
                   >
+                    <option value="all">All Status</option>
                     <option value="date">Sort by Date</option>
-                    <option value="name">Sort by Name</option>
                     <option value="status">Sort by Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
                   </Select>
                 </HStack>
               </Flex>
             </VStack>
           </CardBody>
         </Card>
-
         {/* Table */}
         <Card
           shadow="xl"
@@ -775,7 +775,6 @@ const AdminOfficialBusiness = () => {
                       key={item.id}
                       _hover={{
                         bg: useColorModeValue("blue.50", "gray.600"),
-                        transform: "scale(1.01)",
                       }}
                       transition="all 0.2s"
                       bg={
@@ -922,14 +921,19 @@ const AdminOfficialBusiness = () => {
             </Table>
           </Box>
         </Card>
-
         {/* Modals */}
         <AddOfficialBusinessModal
           isOpen={isAddOpen}
           onClose={onAddClose}
           onSubmit={handleAddOfficialBusiness}
+        />{" "}
+        <EditOfficialBusinessModal
+          isOpen={isEditOpen}
+          onClose={onEditClose}
+          item={editItem}
+          onSubmit={fetchOfficialBusinessData}
         />
-
+        {/*  
         <EmployeeOfficialBusinessDeleteModal
           isOpen={isOpen}
           onClose={onClose}
@@ -940,19 +944,13 @@ const AdminOfficialBusiness = () => {
           isLoading={deleteLoading}
         />
 
-        <EditOfficialBusinessModal
-          isOpen={isEditOpen}
-          onClose={onEditClose}
-          item={editItem}
-          onSubmit={fetchOfficialBusinessData}
-        />
+       
 
         <OfficialBusinessDetailModal
           isOpen={isDetailOpen}
           onClose={onDetailClose}
           officialBusiness={selectedItem}
-        />
-
+        /> */}
         {/* Bulk Action Confirmation Modal */}
         <Modal isOpen={isBulkOpen} onClose={onBulkClose} size="lg">
           <ModalOverlay backdropFilter="blur(4px)" />

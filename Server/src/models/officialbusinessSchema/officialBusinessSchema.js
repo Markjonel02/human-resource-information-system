@@ -32,7 +32,7 @@ const OfficialBusinessSchema = new mongoose.Schema({
   rejectedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "user",
-    default: "null",
+    default: null,
   },
   rejectedAt: {
     type: Date,
