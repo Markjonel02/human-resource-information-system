@@ -17,7 +17,7 @@ import {
   useToast,
   Box,
 } from "@chakra-ui/react";
-import axiosInstance from "../lib/axiosInstance";
+import axiosInstance from "../../lib/axiosInstance";
 
 const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
