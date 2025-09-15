@@ -223,8 +223,63 @@ const searchEmployeesAlternative = async (req, res) => {
     });
   }
 };
+
+const editAdminOfficialBusiness = async (req, res) => {
+  try {
+    // 1. Authorization: only Admin or HR can edit
+    if (req.user.role !== "admin" && req.user.role !== "hr") {
+      return res.status(401).json({
+        message: "Unauthorized! You cannot access this resource.",
+      });
+    }
+
+    const { id } = req.params; // OB record ID
+    const { employeeId, dateFrom, dateTo, reason } = req.body;
+    const performedBy = req.user ? req.user._id : null;
+
+    // 2. Validate required fields
+    if (!employeeId || !reason || !dateFrom || !dateTo) {
+      return res.status(400).json({ message: "All fields are required!" });
+    }
+
+    // 3. Check if employee exists
+    const employee = await User.findById(employeeId);
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found." });
+    }
+
+    // 4. Check if Official Business record exists
+    const existingOB = await OfficialBusiness.findById(id);
+    if (!existingOB) {
+      return res
+        .status(404)
+        .json({ message: "Official Business record not found." });
+    }
+
+    // 5. Update fields
+    existingOB.reason = reason;
+    existingOB.dateFrom = dateFrom;
+    existingOB.dateTo = dateTo;
+    existingOB.employeeId = employeeId;
+    existingOB.performedBy = performedBy;
+
+    // 6. Save updated record
+    const updatedOB = await existingOB.save();
+
+    return res.status(200).json({
+      message: "Official Business record successfully updated.",
+      data: updatedOB,
+    });
+  } catch (err) {
+    console.error("Error editing Official Business:", err);
+    return res.status(500).json({ message: "Internal Server Error!" });
+  }
+};
+
+
 module.exports = {
   getAllOfficialBusinesss,
   addAdminOfficialBusiness,
   searchEmployees,
+  editAdminOfficialBusiness,
 };

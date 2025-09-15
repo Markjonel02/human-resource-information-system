@@ -16,5 +16,14 @@ router.post(
   authorizeRoles("admin", "hr"),
   officialBusiness.addAdminOfficialBusiness
 );
-router.get("/searchEmployees", officialBusiness.searchEmployees);
+router.get(
+  "/searchEmployees",
+  authorizeRoles("admin", "hr"),
+  officialBusiness.searchEmployees
+);
+router.get(
+  "/adminedit_OB",
+  authorizeRoles("admin", "hr"),
+  officialBusiness.editAdminOfficialBusiness
+);
 module.exports = router;

@@ -75,9 +75,10 @@ const STATUS_COLORS = {
   pending: "orange",
   rejected: "red",
 };
+import EditOfficialBusinessModal from "../../components/Admin_components/EditAdminOfficialBusiness";
 /* 
 import EmployeeOfficialBusinessDeleteModal from "../../../components/EmployeeOffiicialBusinessDeleteModal";
-import EditOfficialBusinessModal from "../../../components/EmployeeEditOfficialBusinessModal";
+
 import OfficialBusinessDetailModal from "../../../components/EmployeeOfficialBusinessDetailsModal"; */
 
 const AdminOfficialBusiness = () => {
@@ -532,7 +533,6 @@ const AdminOfficialBusiness = () => {
             </Card>
           </SimpleGrid>
         </VStack>
-
         {/* Controls */}
         <Card
           mb={6}
@@ -675,7 +675,6 @@ const AdminOfficialBusiness = () => {
             </VStack>
           </CardBody>
         </Card>
-
         {/* Table */}
         <Card
           shadow="xl"
@@ -922,12 +921,17 @@ const AdminOfficialBusiness = () => {
             </Table>
           </Box>
         </Card>
-
         {/* Modals */}
         <AddOfficialBusinessModal
           isOpen={isAddOpen}
           onClose={onAddClose}
           onSubmit={handleAddOfficialBusiness}
+        />{" "}
+        <EditOfficialBusinessModal
+          isOpen={isEditOpen}
+          onClose={onEditClose}
+          item={editItem}
+          onSubmit={fetchOfficialBusinessData}
         />
         {/*  
         <EmployeeOfficialBusinessDeleteModal
@@ -940,19 +944,13 @@ const AdminOfficialBusiness = () => {
           isLoading={deleteLoading}
         />
 
-        <EditOfficialBusinessModal
-          isOpen={isEditOpen}
-          onClose={onEditClose}
-          item={editItem}
-          onSubmit={fetchOfficialBusinessData}
-        />
+       
 
         <OfficialBusinessDetailModal
           isOpen={isDetailOpen}
           onClose={onDetailClose}
           officialBusiness={selectedItem}
         /> */}
-
         {/* Bulk Action Confirmation Modal */}
         <Modal isOpen={isBulkOpen} onClose={onBulkClose} size="lg">
           <ModalOverlay backdropFilter="blur(4px)" />
