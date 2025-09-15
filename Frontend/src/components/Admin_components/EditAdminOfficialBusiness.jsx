@@ -18,7 +18,7 @@ import {
   VStack,
   useColorModeValue,
 } from "@chakra-ui/react";
-import axiosInstance from "../lib/axiosInstance";
+import axiosInstance from "../../lib/axiosInstance";
 
 const EditOfficialBusinessModal = ({ isOpen, onClose, item, onSubmit }) => {
   const toast = useToast();
