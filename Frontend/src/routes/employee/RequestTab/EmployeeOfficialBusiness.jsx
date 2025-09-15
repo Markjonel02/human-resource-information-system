@@ -53,6 +53,7 @@ const STATUS_COLORS = {
 };
 import EmployeeOfficialBusinessDeleteModal from "../../../components/EmployeeOffiicialBusinessDeleteModal";
 import EditOfficialBusinessModal from "../../../components/EmployeeEditOfficialBusinessModal";
+import OfficialBusinessDetailModal from "../../../components/EmployeeOfficialBusinessDetailsModal";
 const EmployeeOfficialBusiness = () => {
   const [editItem, setEditItem] = useState(null);
   const [search, setSearch] = useState("");
@@ -88,7 +89,11 @@ const EmployeeOfficialBusiness = () => {
     onOpen: onEditOpen,
     onClose: onEditClose,
   } = useDisclosure();
-
+  const {
+    isOpen: isDetailOpen,
+    onOpen: onDetailOpen,
+    onClose: onDetailClose,
+  } = useDisclosure();
   const fetchOfficialBusinessData = async () => {
     try {
       setIsLoading(true);
@@ -501,9 +506,14 @@ const EmployeeOfficialBusiness = () => {
                             <MenuItem
                               icon={<FiEye />}
                               _hover={{ bg: "blue.50" }}
+                              onClick={() => {
+                                setSelectedItem(item);
+                                onDetailOpen();
+                              }}
                             >
                               View Details
                             </MenuItem>
+
                             <MenuItem
                               icon={<FiEdit2 />}
                               _hover={{ bg: "yellow.50" }}
@@ -549,6 +559,11 @@ const EmployeeOfficialBusiness = () => {
           onClose={onEditClose}
           item={editItem}
           onSubmit={fetchOfficialBusinessData}
+        />
+        <OfficialBusinessDetailModal
+          isOpen={isDetailOpen}
+          onClose={onDetailClose}
+          officialBusiness={selectedItem}
         />
       </Container>
     </Box>
