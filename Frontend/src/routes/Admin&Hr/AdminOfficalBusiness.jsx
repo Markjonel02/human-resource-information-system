@@ -776,7 +776,6 @@ const AdminOfficialBusiness = () => {
                       key={item.id}
                       _hover={{
                         bg: useColorModeValue("blue.50", "gray.600"),
-                        transform: "scale(1.01)",
                       }}
                       transition="all 0.2s"
                       bg={
@@ -925,12 +924,12 @@ const AdminOfficialBusiness = () => {
         </Card>
 
         {/* Modals */}
-        {/*  <AddOfficialBusinessModal
+        <AddOfficialBusinessModal
           isOpen={isAddOpen}
           onClose={onAddClose}
           onSubmit={handleAddOfficialBusiness}
         />
-
+        {/*  
         <EmployeeOfficialBusinessDeleteModal
           isOpen={isOpen}
           onClose={onClose}

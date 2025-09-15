@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Modal,
   ModalOverlay,
@@ -16,16 +16,25 @@ import {
   useBreakpointValue,
   useToast,
   Box,
+  List,
+  ListItem,
+  Spinner,
+  Text,
 } from "@chakra-ui/react";
 import axiosInstance from "../../lib/axiosInstance";
 
 const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
+    employeeId: "",
+    searchTerm: "", // Changed from 'firstname' to 'searchTerm'
     reason: "",
     dateFrom: "",
     dateTo: "",
   });
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
   const toast = useToast();
 
   // Handle input changes
@@ -37,27 +46,108 @@ const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
     }));
   };
 
+  // Enhanced employee search that handles both name and ID
+  const handleSearchChange = async (e) => {
+    const query = e.target.value;
+    setFormData((prev) => ({
+      ...prev,
+      searchTerm: query,
+      employeeId: "", // Clear employee ID when typing
+    }));
+
+    if (!query.trim()) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+
+    try {
+      setIsSearching(true);
+      setShowResults(true);
+      // Updated API call to handle both name and ID search
+      const { data } = await axiosInstance.get(
+        `/adminOfficialBusiness/searchEmployees?q=${encodeURIComponent(query)}`
+      );
+      setSearchResults(data || []);
+    } catch (error) {
+      console.error("Error searching employees:", error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Select employee from search result
+  const handleSelectEmployee = (employee) => {
+    setFormData((prev) => ({
+      ...prev,
+      employeeId: employee._id,
+      searchTerm: `${employee.firstname} ${employee.lastname || ""}`.trim(), // Display full name
+    }));
+    setSearchResults([]);
+    setShowResults(false);
+  };
+
+  // Handle input focus to show results if they exist
+  const handleInputFocus = () => {
+    if (
+      searchResults.length > 0 &&
+      formData.searchTerm &&
+      !formData.employeeId
+    ) {
+      setShowResults(true);
+    }
+  };
+
+  // Handle input blur to hide results (with delay to allow clicks)
+  const handleInputBlur = () => {
+    setTimeout(() => {
+      setShowResults(false);
+    }, 200);
+  };
+
   // Reset form when modal closes
   const handleClose = () => {
     setFormData({
+      employeeId: "",
+      searchTerm: "",
       reason: "",
       dateFrom: "",
       dateTo: "",
     });
+    setSearchResults([]);
+    setShowResults(false);
     onClose();
   };
 
   const handleAddOfficialBusiness = async (e) => {
     e.preventDefault();
+
+    // Validate that an employee is selected
+    if (!formData.employeeId) {
+      toast({
+        title: "Error",
+        description: "Please select a valid employee from the search results",
+        status: "error",
+        duration: 3000,
+        position: "top",
+        isClosable: true,
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const res = await axiosInstance.post(
-        "/officialBusiness/addOfficialBusiness",
-        formData,
+        "/adminOfficialBusiness/addEmp_OB",
         {
-          withCredentials: true,
-        }
+          employeeId: formData.employeeId,
+          reason: formData.reason,
+          dateFrom: formData.dateFrom,
+          dateTo: formData.dateTo,
+        },
+        { withCredentials: true }
       );
 
       toast({
@@ -70,16 +160,10 @@ const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
         isClosable: true,
       });
 
-      // Call the parent's onSubmit callback if provided
-      if (onSubmit) {
-        onSubmit(res.data);
-      }
-
-      // Reset form and close modal
+      if (onSubmit) onSubmit(res.data);
       handleClose();
     } catch (error) {
       console.error("Error adding Official Business:", error);
-
       const errorMessage =
         error.response?.data?.message ||
         "Failed to create Official Business request";
@@ -97,7 +181,6 @@ const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
     }
   };
 
-  // Responsive: on mobile, switch to 1 column
   const columns = useBreakpointValue({ base: 1, md: 2 });
 
   return (
@@ -112,6 +195,101 @@ const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
         <ModalHeader>Add Official Business</ModalHeader>
         <ModalCloseButton />
         <ModalBody pb={6}>
+          {/* Employee Search */}
+          <FormControl mb={4} position="relative">
+            <FormLabel>
+              Employee{" "}
+              <Box as="span" color="red.200">
+                *
+              </Box>
+            </FormLabel>
+            <Input
+              name="searchTerm"
+              placeholder="Search by employee name or ID"
+              value={formData.searchTerm}
+              onChange={handleSearchChange}
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
+              required
+              autoComplete="off"
+            />
+            {isSearching && <Spinner size="sm" mt={2} />}
+
+            {/* Search Results Dropdown */}
+            {showResults && searchResults.length > 0 && (
+              <Box
+                position="absolute"
+                top="100%"
+                left="0"
+                right="0"
+                mt={1}
+                border="1px solid"
+                borderColor="gray.200"
+                borderRadius="md"
+                maxH="200px"
+                overflowY="auto"
+                bg="white"
+                zIndex={1000}
+                boxShadow="lg"
+              >
+                <List spacing={0}>
+                  {searchResults.map((emp) => (
+                    <ListItem
+                      key={emp._id}
+                      px={3}
+                      py={2}
+                      _hover={{ bg: "blue.50", cursor: "pointer" }}
+                      onClick={() => handleSelectEmployee(emp)}
+                      borderBottom="1px solid"
+                      borderBottomColor="gray.100"
+                      _last={{ borderBottom: "none" }}
+                    >
+                      <Box>
+                        <Box fontWeight="medium">
+                          {emp.firstname} {emp.lastname || ""}
+                        </Box>
+                        <Text fontSize="sm" color="gray.500">
+                          ID: {emp.employeeId || emp._id}
+                        </Text>
+                        {emp.department && (
+                          <Text fontSize="xs" color="gray.400">
+                            {emp.department}
+                          </Text>
+                        )}
+                      </Box>
+                    </ListItem>
+                  ))}
+                </List>
+              </Box>
+            )}
+
+            {/* Show no results message */}
+            {showResults &&
+              !isSearching &&
+              searchResults.length === 0 &&
+              formData.searchTerm && (
+                <Box
+                  position="absolute"
+                  top="100%"
+                  left="0"
+                  right="0"
+                  mt={1}
+                  border="1px solid"
+                  borderColor="gray.200"
+                  borderRadius="md"
+                  bg="white"
+                  zIndex={1000}
+                  boxShadow="lg"
+                  px={3}
+                  py={2}
+                  color="gray.500"
+                  fontSize="sm"
+                >
+                  No employees found matching "{formData.searchTerm}"
+                </Box>
+              )}
+          </FormControl>
+
           <SimpleGrid columns={columns} spacing={4}>
             <FormControl>
               <FormLabel>
