@@ -90,7 +90,7 @@ const AdminOfficialBusiness = () => {
   const [error, setError] = useState(null);
   const [selectedItems, setSelectedItems] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
-  /*   const [statusFilter, setStatusFilter] = useState("all"); */
+  const [statusFilter, setStatusFilter] = useState("all");
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const toast = useToast();
 
@@ -346,7 +346,8 @@ const AdminOfficialBusiness = () => {
           .includes(debouncedSearchTerm.toLowerCase()) ||
         item.status.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
 
-      const matchesStatus = sortBy === "all" || item.status === sortBy;
+      const matchesStatus =
+        statusFilter === "all" || item.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     })
@@ -630,11 +631,26 @@ const AdminOfficialBusiness = () => {
                         variant="unstyled"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        minW="250px"
+                        minW="100px"
                         fontSize="sm"
                       />
                     </HStack>
                   </Box>
+                  <Select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    w="100px"
+                    borderRadius="xl"
+                    shadow="md"
+                    focusBorderColor="blue.400"
+                    bg={useColorModeValue("white", "gray.700")}
+                    fontSize="sm"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                  </Select>
 
                   {/* Sort */}
                   <Select
@@ -649,8 +665,6 @@ const AdminOfficialBusiness = () => {
                   >
                     <option value="all">All Status</option>
                     <option value="date">Sort by Date</option>
-                    <option value="name">Sort by Name</option>
-                    <option value="status">Sort by Status</option>
                     <option value="status">Sort by Status</option>
                     <option value="pending">Pending</option>
                     <option value="approved">Approved</option>

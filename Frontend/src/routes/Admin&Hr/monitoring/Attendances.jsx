@@ -84,7 +84,7 @@ import {
   FaHistory,
   FaExclamationTriangle,
 } from "react-icons/fa";
-import axiosInstance from "../../lib/axiosInstance";
+import axiosInstance from "../../../lib/axiosInstance";
 
 // Helper function to parse time
 const parseTimeToMinutes = (timeStr) => {

@@ -13,7 +13,9 @@ const TopNavigations = lazy(() => import("./components/TopNavigations"));
 // Route Components
 const Dashboard = lazy(() => import("./routes/Dashboard"));
 const Employees = lazy(() => import("./routes/Employees"));
-const Attendances = lazy(() => import("./routes/monitoring/Attendances"));
+const Attendances = lazy(() =>
+  import("./routes/Admin&Hr/monitoring/Attendances")
+);
 const Calendar = lazy(() => import("./routes/Calendar"));
 const Request = lazy(() => import("./routes/request/Request"));
 const Payroll = lazy(() => import("./routes/payroll/Payroll"));
