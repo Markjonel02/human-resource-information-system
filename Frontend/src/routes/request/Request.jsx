@@ -22,7 +22,7 @@ import {
 } from "react-icons/fa";
 import Leave from "../../routes/request/Leave";
 import Overtime from "./OvertimeAdmin";
-
+import AdminOfficialBusiness from "../Admin&Hr/AdminOfficalBusiness";
 const Request = () => {
   const [isMobile] = useMediaQuery("(max-width: 48em)");
 
@@ -48,17 +48,7 @@ const Request = () => {
       label: "Official Business",
       short: "OB",
       icon: FaBuilding,
-      component: (
-        <Box p={6}>
-          <Heading fontSize="2xl" mb={3}>
-            Official Business
-          </Heading>
-          <Text fontSize="md" color="gray.600">
-            Use this section to request field work or official travel for
-            business purposes.
-          </Text>
-        </Box>
-      ),
+      component: <AdminOfficialBusiness />,
     },
     {
       label: "Day Off",

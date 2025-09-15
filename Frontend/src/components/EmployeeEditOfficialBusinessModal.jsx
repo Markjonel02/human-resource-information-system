@@ -8,6 +8,7 @@ import {
   ModalBody,
   ModalCloseButton,
   Button,
+  Box,
   FormControl,
   FormLabel,
   Input,
@@ -102,7 +103,12 @@ const EditOfficialBusinessModal = ({ isOpen, onClose, item, onSubmit }) => {
           <VStack spacing={4} align="stretch">
             <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
               <FormControl>
-                <FormLabel>Date From</FormLabel>
+                <FormLabel>
+                  Date From{" "}
+                  <Box as="span" color="red.200">
+                    *
+                  </Box>
+                </FormLabel>
                 <Input
                   type="date"
                   name="dateFrom"
@@ -112,7 +118,12 @@ const EditOfficialBusinessModal = ({ isOpen, onClose, item, onSubmit }) => {
                 />
               </FormControl>
               <FormControl>
-                <FormLabel>Date To</FormLabel>
+                <FormLabel>
+                  Date To{" "}
+                  <Box as="span" color="red.200">
+                    *
+                  </Box>
+                </FormLabel>
                 <Input
                   type="date"
                   name="dateTo"
@@ -124,7 +135,12 @@ const EditOfficialBusinessModal = ({ isOpen, onClose, item, onSubmit }) => {
             </SimpleGrid>
 
             <FormControl>
-              <FormLabel>Reason</FormLabel>
+              <FormLabel>
+                Reason{" "}
+                <Box as="span" color="red.200">
+                  *
+                </Box>
+              </FormLabel>
               <Textarea
                 name="reason"
                 value={formData.reason}
