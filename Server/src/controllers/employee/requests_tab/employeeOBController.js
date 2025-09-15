@@ -182,12 +182,10 @@ const updateOfficialBusiness = async (req, res) => {
         .json({ message: "Error update, Id cannot be found" });
     }
 
-    res
-      .status(200)
-      .json({
-        message: "Official business successfully updated!",
-        data: update_OB,
-      });
+    res.status(200).json({
+      message: "Official business successfully updated!",
+      data: update_OB,
+    });
   } catch (error) {
     console.error("Error updating official business:", error);
     return res.status(500).json({

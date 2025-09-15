@@ -90,7 +90,7 @@ const AdminOfficialBusiness = () => {
   const [error, setError] = useState(null);
   const [selectedItems, setSelectedItems] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("all");
+  /*   const [statusFilter, setStatusFilter] = useState("all"); */
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const toast = useToast();
 
@@ -148,7 +148,7 @@ const AdminOfficialBusiness = () => {
       setError(null);
 
       const response = await axiosInstance.get(
-        "/officialBusiness/getOfficialBusiness",
+        "/adminOfficialBusiness/getAll_OB",
         {
           withCredentials: true,
         }
@@ -346,8 +346,7 @@ const AdminOfficialBusiness = () => {
           .includes(debouncedSearchTerm.toLowerCase()) ||
         item.status.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
 
-      const matchesStatus =
-        statusFilter === "all" || item.status === statusFilter;
+      const matchesStatus = sortBy === "all" || item.status === sortBy;
 
       return matchesSearch && matchesStatus;
     })
@@ -637,23 +636,6 @@ const AdminOfficialBusiness = () => {
                     </HStack>
                   </Box>
 
-                  {/* Status Filter */}
-                  <Select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    w="160px"
-                    borderRadius="xl"
-                    shadow="md"
-                    focusBorderColor="blue.400"
-                    bg={useColorModeValue("white", "gray.700")}
-                    fontSize="sm"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="rejected">Rejected</option>
-                  </Select>
-
                   {/* Sort */}
                   <Select
                     value={sortBy}
@@ -665,9 +647,14 @@ const AdminOfficialBusiness = () => {
                     bg={useColorModeValue("white", "gray.700")}
                     fontSize="sm"
                   >
+                    <option value="all">All Status</option>
                     <option value="date">Sort by Date</option>
                     <option value="name">Sort by Name</option>
                     <option value="status">Sort by Status</option>
+                    <option value="status">Sort by Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
                   </Select>
                 </HStack>
               </Flex>
@@ -924,7 +911,7 @@ const AdminOfficialBusiness = () => {
         </Card>
 
         {/* Modals */}
-        <AddOfficialBusinessModal
+        {/*  <AddOfficialBusinessModal
           isOpen={isAddOpen}
           onClose={onAddClose}
           onSubmit={handleAddOfficialBusiness}
@@ -951,7 +938,7 @@ const AdminOfficialBusiness = () => {
           isOpen={isDetailOpen}
           onClose={onDetailClose}
           officialBusiness={selectedItem}
-        />
+        /> */}
 
         {/* Bulk Action Confirmation Modal */}
         <Modal isOpen={isBulkOpen} onClose={onBulkClose} size="lg">

@@ -14,6 +14,7 @@ const employeeAttendance = require("./routes/employee/employeeRoutes.js");
 const EmployeeOvertimeRoutes = require("./routes/employee/overtimeRoutes.js");
 const adminOvertimeRoute = require("./routes/admin&hr/adminovertimeRoutes.js");
 const Obroutes = require("./routes/employee/employeeOfiicialBusinessRoutes.js");
+const adminObroutes = require("./routes/admin&hr/OfficialBusinessRoutes");
 // Initialize the Express app
 const app = express();
 const port = process.env.PORT || 5000; // Use a default port if not specified
@@ -54,13 +55,11 @@ app.use("/api/attendanceRoutes", testRoutes);
 //employeeRoutes
 
 app.use("/api/employeeAttendance", employeeAttendance);
-
 app.use("/api/employeeLeave", employeeLeave);
-
 app.use("/api/overtime", EmployeeOvertimeRoutes);
-
 app.use("/api/admin/overtime", adminOvertimeRoute);
 app.use("/api/officialBusiness", Obroutes);
+app.use("/api/adminOfficialBusiness", adminObroutes);
 
 // =======================
 //   ERROR HANDLING
