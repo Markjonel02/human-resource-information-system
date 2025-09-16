@@ -26,4 +26,5 @@ router.put(
   authorizeRoles("admin", "hr"),
   officialBusiness.editAdminOfficialBusiness
 );
+
 module.exports = router;

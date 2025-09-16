@@ -1,6 +1,9 @@
 const OfficialBusiness = require("../../models/officialbusinessSchema/officialBusinessSchema");
 const User = require("../../models/user");
 const Leave = require("../../models/LeaveSchema/leaveSchema");
+const {
+  validateOfficialBusiness,
+} = require("../../utils/officialbusinessValidator");
 
 const getAllOfficialBusinesss = async (req, res) => {
   try {
@@ -26,6 +29,7 @@ const getAllOfficialBusinesss = async (req, res) => {
 };
 
 // Controller: Add Official Business (Admin/HR only)
+
 const addAdminOfficialBusiness = async (req, res) => {
   try {
     // 1. Authorization check: only Admin & HR can add official business
@@ -59,20 +63,17 @@ const addAdminOfficialBusiness = async (req, res) => {
       });
     }
 
-    // 5. Check for conflicting leave requests (pending or approved) for the same employee
-    const conflictingLeave = await Leave.findOne({
-      employee: employeeId,
-      leaveStatus: { $in: ["pending", "approved"] },
-      dateFrom: { $lte: toDate },
-      dateTo: { $gte: fromDate },
-    });
-
-    if (conflictingLeave) {
+    // 5. Reuse validation utility
+    const validation = await validateOfficialBusiness(
+      employeeId,
+      fromDate,
+      toDate
+    );
+    if (!validation.valid) {
       return res.status(400).json({
         success: false,
-        message: ` ${
-          conflictingLeave.leaveStatus
-        } leave request from ${conflictingLeave.dateFrom.toDateString()} to ${conflictingLeave.dateTo.toDateString()}.`,
+        message: validation.message,
+        conflict: validation.conflict,
       });
     }
 
@@ -110,7 +111,6 @@ const addAdminOfficialBusiness = async (req, res) => {
     });
   }
 };
-
 const searchEmployees = async (req, res) => {
   try {
     const { q } = req.query; // q is the search query
@@ -250,61 +250,62 @@ const editAdminOfficialBusiness = async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
-    // Get the OB record first
+    // Get OB record
     const obRecord = await OfficialBusiness.findById(id);
     if (!obRecord) {
-      return res.status(404).json({
-        success: false,
-        message: "Official business record not found",
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Record not found" });
     }
 
-    // Defensive check for required dates
+    // Validate date fields
     if (!updates.dateFrom || !updates.dateTo) {
       return res.status(400).json({
         success: false,
-        message: "dateFrom and dateTo are required for update.",
+        message: "dateFrom and dateTo are required.",
       });
     }
 
-    // Check if employee has ANY leave (pending or approved) overlapping this OB
-    const conflictingLeave = await Leave.findOne({
-      employee: obRecord.employee,
-      leaveStatus: { $in: ["pending", "approved"] }, // block if pending or approved
-      dateFrom: { $lte: updates.dateTo },
-      dateTo: { $gte: updates.dateFrom },
-    });
+    const fromDate = new Date(updates.dateFrom);
+    const toDate = new Date(updates.dateTo);
 
-    if (conflictingLeave) {
+    if (fromDate > toDate) {
       return res.status(400).json({
         success: false,
-        message: `Cannot update Official Business: employee already has a ${
-          conflictingLeave.leaveStatus
-        } leave request from ${conflictingLeave.dateFrom.toDateString()} to ${conflictingLeave.dateTo.toDateString()}.`,
+        message: "dateFrom cannot be later than dateTo.",
       });
     }
 
-    // Proceed with update
-    const updatedOB = await OfficialBusiness.findByIdAndUpdate(
-      id,
-      { $set: updates },
-      { new: true, runValidators: true }
+    // ✅ Use reusable validator with excludeId
+    const validation = await validateOfficialBusiness(
+      obRecord.employee,
+      fromDate,
+      toDate,
+      id
     );
 
-    if (!updatedOB) {
-      return res.status(404).json({
+    if (!validation.valid) {
+      return res.status(400).json({
         success: false,
-        message: "Record not found",
+        message: validation.message,
+        conflict: validation.conflict,
       });
     }
+
+    // Update
+    const updatedOB = await OfficialBusiness.findByIdAndUpdate(
+      id,
+      { $set: { ...updates, dateFrom: fromDate, dateTo: toDate } },
+      { new: true, runValidators: true }
+    ).populate("employee", "firstname lastname employeeId email");
 
     res.status(200).json({
       success: true,
-      message: "Official business request updated successfully",
+      message: "Official Business updated successfully",
       data: updatedOB,
     });
-  } catch (error) {
-    console.error("Update error:", error);
+  } catch (err) {
+    console.error("Update error:", err);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
