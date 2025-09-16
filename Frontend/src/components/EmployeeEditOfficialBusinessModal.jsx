@@ -51,7 +51,28 @@ const EditOfficialBusinessModal = ({ isOpen, onClose, item, onSubmit }) => {
   const handleSubmit = async () => {
     try {
       setLoading(true);
-      await axiosInstance.put(`/officialBusiness/edit_OB/${item.id}`, formData);
+
+      // Defensive check: make sure item and item.id exist
+      if (!item || !item.id) {
+        throw new Error("Missing official business ID");
+      }
+
+      // Optional: log the payload for debugging
+      console.log("Submitting OB update:", {
+        id: item.id,
+        payload: formData,
+      });
+
+      // Send PUT request to backend
+      await axiosInstance.put(
+        `/officialBusiness/edit_OB/${item.id}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       toast({
         title: "Updated",
@@ -62,15 +83,19 @@ const EditOfficialBusinessModal = ({ isOpen, onClose, item, onSubmit }) => {
         isClosable: true,
       });
 
-      onSubmit(); // Refresh table in parent
-      onClose();
+      onSubmit(); // Refresh parent table
+      onClose(); // Close modal
     } catch (err) {
       console.error("Error updating official business:", err);
       toast({
         title: "Error",
-        description: "Failed to update official business request.",
+        description:
+          err.response?.data?.message ||
+          err.message ||
+          "Failed to update official business request.",
         status: "error",
         duration: 3000,
+        position: "top",
         isClosable: true,
       });
     } finally {
