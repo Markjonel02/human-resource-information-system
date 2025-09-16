@@ -76,10 +76,6 @@ const STATUS_COLORS = {
   rejected: "red",
 };
 import EditOfficialBusinessModal from "../../components/Admin_components/EditAdminOfficialBusiness";
-/* 
-import EmployeeOfficialBusinessDeleteModal from "../../../components/EmployeeOffiicialBusinessDeleteModal";
-
-import OfficialBusinessDetailModal from "../../../components/EmployeeOfficialBusinessDetailsModal"; */
 
 const AdminOfficialBusiness = () => {
   const [editItem, setEditItem] = useState(null);
@@ -174,7 +170,9 @@ const AdminOfficialBusiness = () => {
         rejectedBy: item.rejectedBy
           ? `${item.rejectedBy.firstname} ${item.rejectedBy.lastname}`
           : null,
-        originalData: item,
+        originalData: item, // Keep the original data for editing
+        // Add these fields for the modal to work correctly
+        _id: item._id,
       }));
 
       setOfficialBusinessData(transformedData);
@@ -247,7 +245,20 @@ const AdminOfficialBusiness = () => {
   };
 
   const handleEditClick = (item) => {
-    setEditItem(item);
+    // Pass the original data structure that includes _id and proper date formatting
+    const editData = {
+      _id: item._id || item.id, // Ensure _id is available
+      dateFrom: item.originalData?.dateFrom || item.dateFrom, // Use original ISO date
+      dateTo: item.originalData?.dateTo || item.dateTo, // Use original ISO date
+      reason: item.reason,
+      status: item.status,
+      employee: item.originalData?.employee,
+      // Include any other fields the modal might need
+      ...item.originalData,
+    };
+
+    console.log("Passing edit data:", editData); // Debug log
+    setEditItem(editData);
     onEditOpen();
   };
 
@@ -293,7 +304,7 @@ const AdminOfficialBusiness = () => {
       if (bulkAction === "delete") {
         await Promise.all(
           selectedItems.map((id) =>
-            axiosInstance.delete(`/officialBusiness/delete_OB/${id}`)
+            axiosInstance.delete(`/adminOfficialBusiness/delete_OB/${id}`)
           )
         );
         toast({
@@ -306,7 +317,7 @@ const AdminOfficialBusiness = () => {
       } else if (bulkAction === "approve") {
         await Promise.all(
           selectedItems.map((id) =>
-            axiosInstance.patch(`/officialBusiness/approve/${id}`)
+            axiosInstance.patch(`/adminOfficialBusiness/approve/${id}`)
           )
         );
         toast({
@@ -639,7 +650,7 @@ const AdminOfficialBusiness = () => {
                   <Select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    w="100px"
+                    w="140px"
                     borderRadius="xl"
                     shadow="md"
                     focusBorderColor="blue.400"
@@ -663,12 +674,9 @@ const AdminOfficialBusiness = () => {
                     bg={useColorModeValue("white", "gray.700")}
                     fontSize="sm"
                   >
-                    <option value="all">All Status</option>
                     <option value="date">Sort by Date</option>
+                    <option value="name">Sort by Name</option>
                     <option value="status">Sort by Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="rejected">Rejected</option>
                   </Select>
                 </HStack>
               </Flex>
@@ -926,31 +934,15 @@ const AdminOfficialBusiness = () => {
           isOpen={isAddOpen}
           onClose={onAddClose}
           onSubmit={handleAddOfficialBusiness}
-        />{" "}
+        />
+
         <EditOfficialBusinessModal
           isOpen={isEditOpen}
           onClose={onEditClose}
           item={editItem}
           onSubmit={fetchOfficialBusinessData}
         />
-        {/*  
-        <EmployeeOfficialBusinessDeleteModal
-          isOpen={isOpen}
-          onClose={onClose}
-          onConfirm={handleConfirmDelete}
-          itemId={selectedItem?.id}
-          itemName={`${selectedItem?.name} (${selectedItem?.dateFrom} to ${selectedItem?.dateTo})`}
-          itemType="request"
-          isLoading={deleteLoading}
-        />
 
-       
-
-        <OfficialBusinessDetailModal
-          isOpen={isDetailOpen}
-          onClose={onDetailClose}
-          officialBusiness={selectedItem}
-        /> */}
         {/* Bulk Action Confirmation Modal */}
         <Modal isOpen={isBulkOpen} onClose={onBulkClose} size="lg">
           <ModalOverlay backdropFilter="blur(4px)" />

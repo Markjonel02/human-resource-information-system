@@ -24,7 +24,7 @@ router.get(
 router.put(
   "/adminedit_OB/:id",
   authorizeRoles("admin", "hr"),
-  officialBusiness.editAdminOfficialBusiness
+  officialBusiness.editOfficialBusiness
 );
 
 module.exports = router;
