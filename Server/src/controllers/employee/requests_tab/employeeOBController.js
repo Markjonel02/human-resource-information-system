@@ -1,5 +1,6 @@
 const OfficialBusiness = require("../../../models/officialbusinessSchema/officialBusinessSchema");
 const mongoose = require("mongoose");
+const Leave = require("../../../models/LeaveSchema/leaveSchema");
 // Get ALL official business records for the current user (for table display)
 const getAllOfficialBusiness = async (req, res) => {
   try {
@@ -92,8 +93,9 @@ const getAllOfficialBusinesss = async (req, res) => {
 // Add official business
 const addOfficialBusiness = async (req, res) => {
   if (req.user.role !== "employee") {
-    return res.status(401).json({ message: "Sorry " });
+    return res.status(401).json({ message: "Unauthorized access" });
   }
+
   try {
     const { reason, dateFrom, dateTo } = req.body;
 
@@ -101,36 +103,54 @@ const addOfficialBusiness = async (req, res) => {
       return res.status(400).json({ message: "All fields are required!" });
     }
 
-    // Convert to Date objects
+    // Parse dates
     const start = new Date(dateFrom);
     const end = new Date(dateTo);
 
-    if (start > end) {
-      return res
-        .status(400)
-        .json({ message: "dateFrom cannot be after dateTo!" });
+    if (isNaN(start) || isNaN(end)) {
+      return res.status(400).json({ message: "Invalid date format." });
     }
 
-    // ✅ Validation: check for overlapping requests
+    if (start > end) {
+      return res.status(400).json({
+        message: "dateFrom cannot be later than dateTo.",
+      });
+    }
+
+    // 🚫 Block if employee has a pending/approved leave in the range
+    const conflictingLeave = await Leave.findOne({
+      employee: req.user.id, // always use logged-in employee
+      leaveStatus: { $in: ["pending", "approved"] },
+      dateFrom: { $lte: end },
+      dateTo: { $gte: start },
+    });
+
+    if (conflictingLeave) {
+      return res.status(400).json({
+        success: false,
+        message: ` ${
+          conflictingLeave.leaveStatus
+        } leave request from ${conflictingLeave.dateFrom.toDateString()} to ${conflictingLeave.dateTo.toDateString()}.`,
+      });
+    }
+
+    // 🚫 Block if overlapping OB already exists
     const overlappingOB = await OfficialBusiness.findOne({
       employee: req.user.id,
-      $or: [
-        {
-          dateFrom: { $lte: end },
-          dateTo: { $gte: start },
-        },
-      ],
+      dateFrom: { $lte: end },
+      dateTo: { $gte: start },
     });
 
     if (overlappingOB) {
       return res.status(400).json({
+        success: false,
         message:
-          "You already have an Official Business request within this date range!",
+          "You already have an Official Business request within this date range.",
         conflict: overlappingOB,
       });
     }
 
-    // Create new Official Business request
+    // ✅ Create new Official Business request
     const official_B = new OfficialBusiness({
       employee: req.user.id,
       reason,
@@ -141,10 +161,10 @@ const addOfficialBusiness = async (req, res) => {
 
     const savedOB = await official_B.save();
 
-    // Populate employee info
     await savedOB.populate("employee", "employeeId firstname lastname");
 
-    res.status(200).json({
+    res.status(201).json({
+      success: true,
       message: "Successfully created Official Business request!",
       createdBy: savedOB.employee,
       data: savedOB,
