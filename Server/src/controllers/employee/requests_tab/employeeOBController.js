@@ -1,6 +1,9 @@
 const OfficialBusiness = require("../../../models/officialbusinessSchema/officialBusinessSchema");
 const mongoose = require("mongoose");
 const Leave = require("../../../models/LeaveSchema/leaveSchema");
+const {
+  validateOfficialBusiness,
+} = require("../../../utils/officialbusinessValidator");
 // Get ALL official business records for the current user (for table display)
 const getAllOfficialBusiness = async (req, res) => {
   try {
@@ -91,6 +94,7 @@ const getAllOfficialBusinesss = async (req, res) => {
 };
 
 // Add official business
+
 const addOfficialBusiness = async (req, res) => {
   if (req.user.role !== "employee") {
     return res.status(401).json({ message: "Unauthorized access" });
@@ -103,7 +107,6 @@ const addOfficialBusiness = async (req, res) => {
       return res.status(400).json({ message: "All fields are required!" });
     }
 
-    // Parse dates
     const start = new Date(dateFrom);
     const end = new Date(dateTo);
 
@@ -117,36 +120,13 @@ const addOfficialBusiness = async (req, res) => {
       });
     }
 
-    // 🚫 Block if employee has a pending/approved leave in the range
-    const conflictingLeave = await Leave.findOne({
-      employee: req.user.id, // always use logged-in employee
-      leaveStatus: { $in: ["pending", "approved"] },
-      dateFrom: { $lte: end },
-      dateTo: { $gte: start },
-    });
-
-    if (conflictingLeave) {
+    // ✅ Use validator for conflict checks
+    const validation = await validateOfficialBusiness(req.user.id, start, end);
+    if (!validation.valid) {
       return res.status(400).json({
         success: false,
-        message: ` ${
-          conflictingLeave.leaveStatus
-        } leave request from ${conflictingLeave.dateFrom.toDateString()} to ${conflictingLeave.dateTo.toDateString()}.`,
-      });
-    }
-
-    // 🚫 Block if overlapping OB already exists
-    const overlappingOB = await OfficialBusiness.findOne({
-      employee: req.user.id,
-      dateFrom: { $lte: end },
-      dateTo: { $gte: start },
-    });
-
-    if (overlappingOB) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "You already have an Official Business request within this date range.",
-        conflict: overlappingOB,
+        message: validation.message,
+        conflict: validation.conflict || null,
       });
     }
 
@@ -160,7 +140,6 @@ const addOfficialBusiness = async (req, res) => {
     });
 
     const savedOB = await official_B.save();
-
     await savedOB.populate("employee", "employeeId firstname lastname");
 
     res.status(201).json({
@@ -177,32 +156,70 @@ const addOfficialBusiness = async (req, res) => {
 
 const updateOfficialBusiness = async (req, res) => {
   if (req.user.role !== "employee") {
-    return res
-      .status(401)
-      .json({ message: "Unauthorized, you cannot edit these data" });
+    return res.status(401).json({
+      message: "Unauthorized, you cannot edit these data",
+    });
   }
 
   try {
     const { id } = req.params;
     const { reason, dateFrom, dateTo } = req.body;
 
+    // 1. Validate required fields
     if (!reason || !dateFrom || !dateTo) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    const update_OB = await OfficialBusiness.findByIdAndUpdate(
-      id, // ✅ use id directly
-      { reason, dateFrom, dateTo }, // ✅ update object
-      { new: true, runValidators: true }
-    );
+    // 2. Parse and validate dates
+    const start = new Date(dateFrom);
+    const end = new Date(dateTo);
 
-    if (!update_OB) {
-      return res
-        .status(404)
-        .json({ message: "Error update, Id cannot be found" });
+    if (isNaN(start) || isNaN(end)) {
+      return res.status(400).json({ message: "Invalid date format." });
     }
 
+    if (start > end) {
+      return res.status(400).json({
+        message: "dateFrom cannot be later than dateTo.",
+      });
+    }
+
+    // 3. Conflict validation (exclude current OB record)
+    const validation = await validateOfficialBusiness(
+      req.user.id,
+      start,
+      end,
+      id
+    );
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        message: validation.message,
+        conflict: validation.conflict || null,
+      });
+    }
+
+    // 4. Update the OB record
+    const update_OB = await OfficialBusiness.findByIdAndUpdate(
+      id,
+      {
+        reason,
+        dateFrom: start,
+        dateTo: end,
+        updatedAt: new Date(),
+      },
+      { new: true, runValidators: true }
+    ).populate("employee", "employeeId firstname lastname");
+
+    if (!update_OB) {
+      return res.status(404).json({
+        message: "Error update, Id cannot be found",
+      });
+    }
+
+    // 5. Return success response
     res.status(200).json({
+      success: true,
       message: "Official business successfully updated!",
       data: update_OB,
     });
