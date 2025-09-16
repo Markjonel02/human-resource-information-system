@@ -21,8 +21,8 @@ router.get(
   authorizeRoles("admin", "hr"),
   officialBusiness.searchEmployees
 );
-router.get(
-  "/adminedit_OB",
+router.put(
+  "/adminedit_OB/:id",
   authorizeRoles("admin", "hr"),
   officialBusiness.editAdminOfficialBusiness
 );

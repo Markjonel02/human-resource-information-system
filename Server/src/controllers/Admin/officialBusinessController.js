@@ -1,5 +1,7 @@
 const OfficialBusiness = require("../../models/officialbusinessSchema/officialBusinessSchema");
 const User = require("../../models/user");
+const Leave = require("../../models/LeaveSchema/leaveSchema");
+
 const getAllOfficialBusinesss = async (req, res) => {
   try {
     const query =
@@ -28,15 +30,15 @@ const addAdminOfficialBusiness = async (req, res) => {
   try {
     // 1. Authorization check: only Admin & HR can add official business
     if (req.user.role !== "admin" && req.user.role !== "hr") {
-      return res
-        .status(401)
-        .json({ message: "Unauthorized! You cannot access this resource." });
+      return res.status(401).json({
+        message: "Unauthorized! You cannot access this resource.",
+      });
     }
 
+    // 2. Extract and validate required fields from request body
     const { employeeId, dateFrom, dateTo, reason } = req.body;
     const performedBy = req.user ? req.user._id : null;
 
-    // 2. Validate required fields
     if (!employeeId || !reason || !dateFrom || !dateTo) {
       return res.status(400).json({ message: "All fields are required!" });
     }
@@ -47,7 +49,7 @@ const addAdminOfficialBusiness = async (req, res) => {
       return res.status(404).json({ message: "Employee not found." });
     }
 
-    // 4. Validate dates
+    // 4. Validate date range
     const fromDate = new Date(dateFrom);
     const toDate = new Date(dateTo);
 
@@ -57,26 +59,45 @@ const addAdminOfficialBusiness = async (req, res) => {
       });
     }
 
-    // 5. Prepare Official Business payload - FIXED: Use 'employee' field instead of 'employeeId'
+    // 5. Check for conflicting leave requests (pending or approved) for the same employee
+    const conflictingLeave = await Leave.findOne({
+      employee: employeeId,
+      leaveStatus: { $in: ["pending", "approved"] },
+      dateFrom: { $lte: toDate },
+      dateTo: { $gte: fromDate },
+    });
+
+    if (conflictingLeave) {
+      return res.status(400).json({
+        success: false,
+        message: ` ${
+          conflictingLeave.leaveStatus
+        } leave request from ${conflictingLeave.dateFrom.toDateString()} to ${conflictingLeave.dateTo.toDateString()}.`,
+      });
+    }
+
+    // 6. Prepare Official Business payload
     const add_OB = {
-      employee: employeeId, // This should match your schema field name
+      employee: employeeId,
       reason,
       dateFrom: fromDate,
       dateTo: toDate,
-      status: "pending", // Explicitly set default status
+      status: "pending",
+      performedBy,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
-    // 6. Save new official business record
+    // 7. Save the new Official Business record
     const newOb = new OfficialBusiness(add_OB);
     await newOb.save();
 
-    // 7. Populate the employee data for response
+    // 8. Populate employee details for response
     const populatedOB = await OfficialBusiness.findById(newOb._id)
       .populate("employee", "firstname lastname employeeId email")
       .lean();
 
+    // 9. Return success response
     return res.status(201).json({
       message: "Successfully created new Official Business.",
       data: populatedOB,
@@ -226,56 +247,67 @@ const searchEmployeesAlternative = async (req, res) => {
 
 const editAdminOfficialBusiness = async (req, res) => {
   try {
-    // 1. Authorization: only Admin or HR can edit
-    if (req.user.role !== "admin" && req.user.role !== "hr") {
-      return res.status(401).json({
-        message: "Unauthorized! You cannot access this resource.",
+    const { id } = req.params;
+    const updates = req.body;
+
+    // Get the OB record first
+    const obRecord = await OfficialBusiness.findById(id);
+    if (!obRecord) {
+      return res.status(404).json({
+        success: false,
+        message: "Official business record not found",
       });
     }
 
-    const { id } = req.params; // OB record ID
-    const { employeeId, dateFrom, dateTo, reason } = req.body;
-    const performedBy = req.user ? req.user._id : null;
-
-    // 2. Validate required fields
-    if (!employeeId || !reason || !dateFrom || !dateTo) {
-      return res.status(400).json({ message: "All fields are required!" });
+    // Defensive check for required dates
+    if (!updates.dateFrom || !updates.dateTo) {
+      return res.status(400).json({
+        success: false,
+        message: "dateFrom and dateTo are required for update.",
+      });
     }
 
-    // 3. Check if employee exists
-    const employee = await User.findById(employeeId);
-    if (!employee) {
-      return res.status(404).json({ message: "Employee not found." });
+    // Check if employee has ANY leave (pending or approved) overlapping this OB
+    const conflictingLeave = await Leave.findOne({
+      employee: obRecord.employee,
+      leaveStatus: { $in: ["pending", "approved"] }, // block if pending or approved
+      dateFrom: { $lte: updates.dateTo },
+      dateTo: { $gte: updates.dateFrom },
+    });
+
+    if (conflictingLeave) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot update Official Business: employee already has a ${
+          conflictingLeave.leaveStatus
+        } leave request from ${conflictingLeave.dateFrom.toDateString()} to ${conflictingLeave.dateTo.toDateString()}.`,
+      });
     }
 
-    // 4. Check if Official Business record exists
-    const existingOB = await OfficialBusiness.findById(id);
-    if (!existingOB) {
-      return res
-        .status(404)
-        .json({ message: "Official Business record not found." });
+    // Proceed with update
+    const updatedOB = await OfficialBusiness.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedOB) {
+      return res.status(404).json({
+        success: false,
+        message: "Record not found",
+      });
     }
 
-    // 5. Update fields
-    existingOB.reason = reason;
-    existingOB.dateFrom = dateFrom;
-    existingOB.dateTo = dateTo;
-    existingOB.employeeId = employeeId;
-    existingOB.performedBy = performedBy;
-
-    // 6. Save updated record
-    const updatedOB = await existingOB.save();
-
-    return res.status(200).json({
-      message: "Official Business record successfully updated.",
+    res.status(200).json({
+      success: true,
+      message: "Official business request updated successfully",
       data: updatedOB,
     });
-  } catch (err) {
-    console.error("Error editing Official Business:", err);
-    return res.status(500).json({ message: "Internal Server Error!" });
+  } catch (error) {
+    console.error("Update error:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
-
 
 module.exports = {
   getAllOfficialBusinesss,

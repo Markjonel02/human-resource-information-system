@@ -1,10 +1,9 @@
 const mongoose = require("mongoose");
-const { Schema } = mongoose;
 
-const AttendanceSchema = new Schema(
+const AttendanceSchema = new mongoose.Schema(
   {
     employee: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "user", // Link to employee
       required: true,
     },
@@ -35,7 +34,7 @@ const AttendanceSchema = new Schema(
     },
     // Optional: A reference to the leave request that resulted in this 'on_leave' status
     leaveRequest: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Leave",
       default: null,
     },
@@ -48,4 +47,5 @@ const AttendanceSchema = new Schema(
 // This crucial index ensures one attendance record per employee per day.
 AttendanceSchema.index({ employee: 1, date: 1 }, { unique: true });
 
-module.exports = mongoose.model("Attendance", AttendanceSchema);
+module.exports =
+  mongoose.models.Attendance || mongoose.model("Attendance", AttendanceSchema);
