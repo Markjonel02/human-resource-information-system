@@ -224,7 +224,7 @@ const AdminOfficialBusiness = () => {
   const handleConfirmReject = async (id) => {
     try {
       setRejectLoading(true);
-      await axiosInstance.patch(`/adminOfficialBusiness/reject/${id}`);
+      await axiosInstance.patch(`/adminOfficialBusiness/adminreject_OB/${id}`);
       toast({
         title: "Rejected",
         description: "Request has been rejected successfully.",

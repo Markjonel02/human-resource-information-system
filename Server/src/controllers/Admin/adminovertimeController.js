@@ -197,8 +197,8 @@ const rejectOvertimeRequest = async (req, res) => {
 
     // Update overtime request
     overtimeRequest.status = "rejected";
-    overtimeRequest.approvedBy = adminId;
-    overtimeRequest.approvedAt = new Date();
+    overtimeRequest.rejectedBy = adminId;
+    overtimeRequest.rejectedAt = new Date();
     overtimeRequest.rejectionReason = rejectionReason.trim();
 
     await overtimeRequest.save();

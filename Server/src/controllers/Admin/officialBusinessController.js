@@ -113,6 +113,7 @@ const addAdminOfficialBusiness = async (req, res) => {
     });
   }
 };
+
 const searchEmployees = async (req, res) => {
   try {
     const { q } = req.query; // q is the search query
@@ -393,9 +394,50 @@ const editOfficialBusiness = async (req, res) => {
     });
   }
 };
+
+const rejectOfficialBusiness = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res
+      .status(401)
+      .jsong({ message: "Unauthroized, you are forbiden to access this page" });
+  }
+  try {
+    const { id } = req.params;
+    const adminId = req.user._id;
+
+    const Ob_requests = await OfficialBusiness.findById(id).populate(
+      "employee",
+      "firstname lastname employeeId"
+    );
+
+    if (Ob_requests.status !== "pending") {
+      return res
+        .status(400)
+        .json({ message: "Only pending request can be rejected!" });
+    }
+    if (!Ob_requests) {
+      return res
+        .status(400)
+        .json({ message: "Cannot found the OfficialBussiness id" });
+    }
+
+    Ob_requests.rejectedBy = adminId;
+    Ob_requests.rejectedAt = new Date();
+    Ob_requests.status = "rejected";
+
+    Ob_requests.save();
+    await Ob_requests.populate("employee", "employeeId  firstname lastname");
+
+    res.status(200).json({ message: "Official business successfuly rejected" });
+  } catch (err) {
+    console.log("message", err);
+    return res.status(500).json({ message: "Internal Server Error!" });
+  }
+};
 module.exports = {
   getAllOfficialBusinesss,
   addAdminOfficialBusiness,
   searchEmployees,
   editOfficialBusiness,
+  rejectOfficialBusiness,
 };

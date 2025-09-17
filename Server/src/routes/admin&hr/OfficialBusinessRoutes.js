@@ -26,5 +26,10 @@ router.put(
   authorizeRoles("admin", "hr"),
   officialBusiness.editOfficialBusiness
 );
+router.put(
+  "/adminreject_OB/:id",
+  authorizeRoles("admin", "hr"),
+  officialBusiness.rejectOfficialBusiness
+);
 
 module.exports = router;
