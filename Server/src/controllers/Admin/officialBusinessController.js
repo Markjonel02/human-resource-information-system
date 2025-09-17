@@ -13,8 +13,10 @@ const getAllOfficialBusinesss = async (req, res) => {
         : {}; // Admin/HR can see all
     const getOB = await OfficialBusiness.find(query)
       .populate("employee", "employeeId firstname lastname")
-      .populate("approvedBy", "firstname ")
-      .populate("rejectedBy", "firstname ");
+      .populate("approvedBy", "firstname lastname")
+      .populate("rejectedBy", "firstname lastname")
+      .sort({ createdAt: -1 });
+
     res.status(200).json({
       success: true,
       data: getOB,

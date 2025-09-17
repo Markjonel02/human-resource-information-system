@@ -76,7 +76,7 @@ const STATUS_COLORS = {
   rejected: "red",
 };
 import EditOfficialBusinessModal from "../../components/Admin_components/EditAdminOfficialBusiness";
-
+import AdminOfficialBusinessDetailModal from "../../components/Admin_components/AdminOfficialBusinessDetailModal";
 const AdminOfficialBusiness = () => {
   const [editItem, setEditItem] = useState(null);
   const [search, setSearch] = useState("");
@@ -116,7 +116,7 @@ const AdminOfficialBusiness = () => {
     onOpen();
   };
 
-  const bgColor = useColorModeValue("gray.50", "gray.900");
+  const bgColor = useColorModeValue("white");
   const cardBg = useColorModeValue("white", "gray.800");
   const headerBg = useColorModeValue(
     "linear(to-r, blue.500, purple.600)",
@@ -420,10 +420,9 @@ const AdminOfficialBusiness = () => {
         {/* Header */}
         <VStack spacing={6} mb={8}>
           <Heading
-            size="xl"
+            size="lg"
             bgGradient="linear(to-r, blue.500, purple.600)"
             bgClip="text"
-            textAlign="center"
             fontWeight="bold"
           >
             Official Business Admin Dashboard
@@ -598,7 +597,7 @@ const AdminOfficialBusiness = () => {
                       }}
                       transition="all 0.2s"
                     >
-                      Bulk Approve ({selectedItems.length})
+                      Approve ({selectedItems.length})
                     </Button>
 
                     <Button
@@ -614,7 +613,7 @@ const AdminOfficialBusiness = () => {
                       }}
                       transition="all 0.2s"
                     >
-                      Bulk Delete ({selectedItems.length})
+                      Delete ({selectedItems.length})
                     </Button>
                   </ButtonGroup>
                 </HStack>
@@ -650,7 +649,7 @@ const AdminOfficialBusiness = () => {
                   <Select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    w="140px"
+                    w="120px"
                     borderRadius="xl"
                     shadow="md"
                     focusBorderColor="blue.400"
@@ -941,6 +940,12 @@ const AdminOfficialBusiness = () => {
           onClose={onEditClose}
           item={editItem}
           onSubmit={fetchOfficialBusinessData}
+        />
+
+        <AdminOfficialBusinessDetailModal
+          isOpen={isDetailOpen}
+          onClose={onDetailClose}
+          officialBusiness={selectedItem}
         />
 
         {/* Bulk Action Confirmation Modal */}
