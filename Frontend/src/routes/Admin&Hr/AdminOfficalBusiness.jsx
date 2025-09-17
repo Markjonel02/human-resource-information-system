@@ -77,6 +77,7 @@ const STATUS_COLORS = {
 };
 import EditOfficialBusinessModal from "../../components/Admin_components/EditAdminOfficialBusiness";
 import AdminOfficialBusinessDetailModal from "../../components/Admin_components/AdminOfficialBusinessDetailModal";
+import RejectOfficialBusinessModal from "../../components/Admin_components/AdminRejectConfirmationModal";
 const AdminOfficialBusiness = () => {
   const [editItem, setEditItem] = useState(null);
   const [search, setSearch] = useState("");
@@ -89,6 +90,10 @@ const AdminOfficialBusiness = () => {
   const [selectAll, setSelectAll] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [isRejectOpen, setIsRejectOpen] = useState(false);
+  const [rejectingItem, setRejectingItem] = useState(null);
+  const [rejectLoading, setRejectLoading] = useState(false);
+
   const toast = useToast();
 
   // Statistics
@@ -100,7 +105,7 @@ const AdminOfficialBusiness = () => {
   });
 
   /* state for deletemodal */
-  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [Rejections, setRejections] = useState(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   // Bulk confirmation modal
@@ -111,9 +116,9 @@ const AdminOfficialBusiness = () => {
   } = useDisclosure();
   const [bulkAction, setBulkAction] = useState("");
 
-  const handleDeleteClick = (item) => {
-    setSelectedItem(item);
-    onOpen();
+  const handleRejectClick = (item) => {
+    setRejectingItem(item);
+    setIsRejectOpen(true);
   };
 
   const bgColor = useColorModeValue("white");
@@ -216,34 +221,32 @@ const AdminOfficialBusiness = () => {
     onAddClose();
   };
 
-  const handleConfirmDelete = async (id) => {
+  const handleConfirmReject = async (id) => {
     try {
-      setDeleteLoading(true);
-      await axiosInstance.delete(`/officialBusiness/delete_OB/${id}`);
+      setRejectLoading(true);
+      await axiosInstance.patch(`/adminOfficialBusiness/reject/${id}`);
       toast({
-        title: "Deleted",
-        description: "Official business request has been deleted.",
+        title: "Rejected",
+        description: "Request has been rejected successfully.",
         status: "success",
-        position: "top",
         duration: 3000,
         isClosable: true,
       });
       fetchOfficialBusinessData();
-      onClose();
-    } catch (err) {
-      console.error("Error deleting request:", err);
+      setIsRejectOpen(false);
+    } catch (error) {
+      console.error("Reject error:", error);
       toast({
         title: "Error",
-        description: "Failed to delete official business request",
+        description: "Failed to reject request.",
         status: "error",
         duration: 3000,
         isClosable: true,
       });
     } finally {
-      setDeleteLoading(false);
+      setRejectLoading(false);
     }
   };
-
   const handleEditClick = (item) => {
     // Pass the original data structure that includes _id and proper date formatting
     const editData = {
@@ -591,29 +594,23 @@ const AdminOfficialBusiness = () => {
                       borderRadius="xl"
                       onClick={() => handleBulkAction("approve")}
                       isDisabled={selectedItems.length === 0}
-                      _hover={{
-                        transform: "translateY(-1px)",
-                        shadow: "md",
-                      }}
+                      _hover={{ transform: "translateY(-1px)", shadow: "md" }}
                       transition="all 0.2s"
                     >
                       Approve ({selectedItems.length})
                     </Button>
 
                     <Button
-                      leftIcon={<DeleteIcon />}
+                      leftIcon={<FiXCircle />} // Reject icon
                       colorScheme="red"
                       size="md"
                       borderRadius="xl"
-                      onClick={() => handleBulkAction("delete")}
+                      onClick={() => handleBulkAction("reject")}
                       isDisabled={selectedItems.length === 0}
-                      _hover={{
-                        transform: "translateY(-1px)",
-                        shadow: "md",
-                      }}
+                      _hover={{ transform: "translateY(-1px)", shadow: "md" }}
                       transition="all 0.2s"
                     >
-                      Delete ({selectedItems.length})
+                      Reject ({selectedItems.length})
                     </Button>
                   </ButtonGroup>
                 </HStack>
@@ -910,13 +907,13 @@ const AdminOfficialBusiness = () => {
                               Edit Request
                             </MenuItem>
                             <MenuItem
-                              icon={<FiTrash2 />}
+                              icon={<FiXCircle />}
                               borderRadius="lg"
-                              color="red.500"
-                              _hover={{ bg: "red.50" }}
-                              onClick={() => handleDeleteClick(item)}
+                              color="orange.500"
+                              _hover={{ bg: "orange.50" }}
+                              onClick={() => handleRejectClick(item)}
                             >
-                              Delete Request
+                              Reject Request
                             </MenuItem>
                           </MenuList>
                         </Menu>
@@ -946,6 +943,15 @@ const AdminOfficialBusiness = () => {
           isOpen={isDetailOpen}
           onClose={onDetailClose}
           officialBusiness={selectedItem}
+        />
+        <RejectOfficialBusinessModal
+          isOpen={isRejectOpen}
+          onClose={() => setIsRejectOpen(false)}
+          onConfirm={handleConfirmReject}
+          itemId={rejectingItem?._id}
+          itemName={rejectingItem?.reason}
+          itemType="request"
+          isLoading={rejectLoading}
         />
 
         {/* Bulk Action Confirmation Modal */}
