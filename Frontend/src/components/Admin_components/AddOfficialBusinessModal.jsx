@@ -22,7 +22,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import axiosInstance from "../../lib/axiosInstance";
-
+import useDebounce from "../../hooks/useDebounce";
 const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -36,8 +36,10 @@ const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const toast = useToast();
-
+  // Debounced value
+  const debouncedSearchTerm = useDebounce(formData.searchTerm, 800);
   // Handle input changes
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -47,7 +49,8 @@ const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
   };
 
   // Enhanced employee search that handles both name and ID
-  const handleSearchChange = async (e) => {
+  // ✅ remove API call from handleSearchChange
+  const handleSearchChange = (e) => {
     const query = e.target.value;
     setFormData((prev) => ({
       ...prev,
@@ -58,25 +61,40 @@ const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
     if (!query.trim()) {
       setSearchResults([]);
       setShowResults(false);
+    } else {
+      setShowResults(true);
+    }
+  };
+  // ✅ only debounce triggers fetch
+  useEffect(() => {
+    const query = debouncedSearchTerm;
+
+    if (!query.trim()) {
+      setSearchResults([]);
+      setShowResults(false);
       return;
     }
 
-    try {
-      setIsSearching(true);
-      setShowResults(true);
-      // Updated API call to handle both name and ID search
-      const { data } = await axiosInstance.get(
-        `/adminOfficialBusiness/searchEmployees?q=${encodeURIComponent(query)}`
-      );
-      setSearchResults(data || []);
-    } catch (error) {
-      console.error("Error searching employees:", error);
-      setSearchResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  };
+    const fetchResults = async () => {
+      try {
+        setIsSearching(true);
+        setShowResults(true);
+        const { data } = await axiosInstance.get(
+          `/adminOfficialBusiness/searchEmployees?q=${encodeURIComponent(
+            query
+          )}`
+        );
+        setSearchResults(data || []);
+      } catch (error) {
+        console.error("Error searching employees:", error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
 
+    fetchResults();
+  }, [debouncedSearchTerm]);
   // Select employee from search result
   const handleSelectEmployee = (employee) => {
     setFormData((prev) => ({
@@ -213,6 +231,7 @@ const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
               required
               autoComplete="off"
             />
+
             {isSearching && <Spinner size="sm" mt={2} />}
 
             {/* Search Results Dropdown */}

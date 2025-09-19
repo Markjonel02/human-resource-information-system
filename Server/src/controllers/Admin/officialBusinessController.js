@@ -434,10 +434,101 @@ const rejectOfficialBusiness = async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error!" });
   }
 };
+
+const bulkapproveOfficialBusiness = async (req, res) => {
+  //  Role check
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res
+      .status(401)
+      .json({ message: "Unauthorized, you do not have access to this page" });
+  }
+
+  try {
+    const { OB_ids } = req.body;
+    const adminId = req.user._id;
+
+    //  Validate input
+    if (!Array.isArray(OB_ids) || OB_ids.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "No official business IDs were provided" });
+    }
+
+    // Correct query: use $in
+    const officialBusinessRequests = await OfficialBusiness.find({
+      _id: { $in: OB_ids },
+      status: "pending",
+    }).populate("employee", " firstname lastname employeeId");
+
+    if (!officialBusinessRequests || officialBusinessRequests.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No pending Official Business requests found" });
+    }
+
+    //  Track conflicts and valid requests
+    const conflictingRequests = [];
+    const validRequests = [];
+
+    for (const request of officialBusinessRequests) {
+      const conflictingLeave = await Leave.findOne({
+        employee: request.employee._id,
+        leaveStatus: "approved",
+        $or: [
+          // OB range falls inside leave
+          { dateFrom: { $gte: request.dateFrom, $lte: request.dateTo } },
+          // OB overlaps leave end
+          { dateTo: { $gte: request.dateFrom, $lte: request.dateTo } },
+          // Leave fully covers OB
+          {
+            dateFrom: { $lte: request.dateFrom },
+            dateTo: { $gte: request.dateTo },
+          },
+        ],
+      });
+
+      if (conflictingLeave) {
+        conflictingRequests.push({
+          id: request._id,
+          employee: `${request.employee.firstname} ${request.employee.lastname}`,
+          conflict: `Leave from ${conflictingLeave.dateFrom.toDateString()} to ${conflictingLeave.dateTo.toDateString()}`,
+        });
+      } else {
+        validRequests.push(request);
+      }
+    }
+
+    //  Approve only valid requests
+    if (validRequests.length > 0) {
+      await OfficialBusiness.updateMany(
+        { _id: { $in: validRequests.map((r) => r._id) } },
+        {
+          status: "approved",
+          approvedBy: adminId,
+          approvedAt: new Date(),
+        }
+      );
+    }
+
+    // Return both results so frontend knows what happened
+    return res.status(200).json({
+      message: "Bulk approval completed",
+      approvedCount: validRequests.length,
+      conflicted: conflictingRequests,
+    });
+  } catch (err) {
+    console.error("Bulk approve error:", err);
+    return res
+      .status(500)
+      .json({ message: "Internal Server Error", error: err.message });
+  }
+};
+
 module.exports = {
   getAllOfficialBusinesss,
   addAdminOfficialBusiness,
   searchEmployees,
   editOfficialBusiness,
   rejectOfficialBusiness,
+  bulkapproveOfficialBusiness,
 };
