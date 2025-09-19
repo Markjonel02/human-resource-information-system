@@ -78,6 +78,7 @@ const STATUS_COLORS = {
 import EditOfficialBusinessModal from "../../components/Admin_components/EditAdminOfficialBusiness";
 import AdminOfficialBusinessDetailModal from "../../components/Admin_components/AdminOfficialBusinessDetailModal";
 import RejectOfficialBusinessModal from "../../components/Admin_components/AdminRejectConfirmationModal";
+
 const AdminOfficialBusiness = () => {
   const [editItem, setEditItem] = useState(null);
   const [search, setSearch] = useState("");
@@ -247,6 +248,7 @@ const AdminOfficialBusiness = () => {
       setRejectLoading(false);
     }
   };
+
   const handleEditClick = (item) => {
     // Pass the original data structure that includes _id and proper date formatting
     const editData = {
@@ -265,23 +267,48 @@ const AdminOfficialBusiness = () => {
     onEditOpen();
   };
 
-  // Checkbox handlers
+  // Get selectible items (only pending items)
+  const getSelectableItems = () => {
+    return filteredAndSortedData.filter((item) => item.status === "pending");
+  };
+
+  // Updated checkbox handlers
   const handleSelectAll = () => {
+    const selectableItems = getSelectableItems();
     if (selectAll) {
       setSelectedItems([]);
     } else {
-      setSelectedItems(filteredAndSortedData.map((item) => item.id));
+      setSelectedItems(selectableItems.map((item) => item.id));
     }
     setSelectAll(!selectAll);
   };
 
   const handleSelectItem = (itemId) => {
+    const item = officialBusinessData.find((item) => item.id === itemId);
+
+    // Only allow selection if item is pending
+    if (item && item.status !== "pending") {
+      toast({
+        title: "Cannot select",
+        description: `Cannot select ${item.status} requests for bulk operations`,
+        status: "warning",
+        duration: 2000,
+        isClosable: true,
+      });
+      return;
+    }
+
     const newSelected = selectedItems.includes(itemId)
       ? selectedItems.filter((id) => id !== itemId)
       : [...selectedItems, itemId];
 
     setSelectedItems(newSelected);
-    setSelectAll(newSelected.length === filteredAndSortedData.length);
+
+    const selectableItems = getSelectableItems();
+    setSelectAll(
+      newSelected.length === selectableItems.length &&
+        selectableItems.length > 0
+    );
   };
 
   // Bulk actions
@@ -289,7 +316,7 @@ const AdminOfficialBusiness = () => {
     if (selectedItems.length === 0) {
       toast({
         title: "No items selected",
-        description: "Please select items to perform bulk actions",
+        description: "Please select pending items to perform bulk actions",
         status: "warning",
         duration: 3000,
         isClosable: true,
@@ -318,19 +345,72 @@ const AdminOfficialBusiness = () => {
           isClosable: true,
         });
       } else if (bulkAction === "approve") {
-        await axiosInstance.post(
+        const response = await axiosInstance.post(
           "/adminOfficialBusiness/adminApproved-Bulk",
-          { OB_ids: selectedItems }, //  send as array in body
+          { OB_ids: selectedItems },
           { withCredentials: true }
         );
 
-        toast({
-          title: "Success",
-          description: `${selectedItems.length} requests approved successfully`,
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
+        // Handle partial success from backend
+        if (response.data.conflicted && response.data.conflicted.length > 0) {
+          const conflictedItems = response.data.conflicted;
+          const conflictMessages = conflictedItems
+            .map((item) => `${item.employee}: ${item.conflict}`)
+            .join(", ");
+
+          toast({
+            title: "Partial Success",
+            description: `${response.data.approvedCount} approved successfully. Conflicts: ${conflictMessages}`,
+            status: "warning",
+            duration: 5000,
+            isClosable: true,
+          });
+        } else {
+          toast({
+            title: "Success",
+            description: `${selectedItems.length} requests approved successfully`,
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+          });
+        }
+      } else if (bulkAction === "reject") {
+        const response = await axiosInstance.post(
+          "/adminOfficialBusiness/adminReject-Bulk",
+          { ids: selectedItems },
+          { withCredentials: true }
+        );
+
+        const { rejectedCount, conflicted, alreadyProcessed } = response.data;
+
+        // Handle partial success
+        if (
+          (conflicted?.length || 0) > 0 ||
+          (alreadyProcessed?.length || 0) > 0
+        ) {
+          const conflictMessages = conflicted
+            .map((item) => `${item.employee}: ${item.conflict}`)
+            .join(", ");
+          const processedMessages = alreadyProcessed
+            .map((item) => `${item.employee}: ${item.status}`)
+            .join(", ");
+
+          toast({
+            title: "Partial Success",
+            description: `${rejectedCount} rejected. Conflicts: ${conflictMessages}. Already processed: ${processedMessages}`,
+            status: "warning",
+            duration: 6000,
+            isClosable: true,
+          });
+        } else {
+          toast({
+            title: "Success",
+            description: `${selectedItems.length} requests rejected successfully`,
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+          });
+        }
       }
 
       setSelectedItems([]);
@@ -379,6 +459,16 @@ const AdminOfficialBusiness = () => {
       }
     });
 
+  // Update select all state when filtered data changes
+  useEffect(() => {
+    const selectableItems = getSelectableItems();
+    setSelectAll(
+      selectedItems.length > 0 &&
+        selectedItems.length === selectableItems.length &&
+        selectableItems.length > 0
+    );
+  }, [filteredAndSortedData, selectedItems]);
+
   if (isLoading) {
     return (
       <Box
@@ -417,6 +507,8 @@ const AdminOfficialBusiness = () => {
       </Container>
     );
   }
+
+  const selectableItems = getSelectableItems();
 
   return (
     <Box bg={bgColor} minH="100vh" py={8}>
@@ -602,7 +694,7 @@ const AdminOfficialBusiness = () => {
                     </Button>
 
                     <Button
-                      leftIcon={<FiXCircle />} // Reject icon
+                      leftIcon={<FiXCircle />}
                       colorScheme="red"
                       size="md"
                       borderRadius="xl"
@@ -693,12 +785,21 @@ const AdminOfficialBusiness = () => {
               <Thead bg="linear(to-r, blue.50, purple.50)">
                 <Tr>
                   <Th py={6} borderRadius="tl-2xl">
-                    <Checkbox
-                      isChecked={selectAll}
-                      onChange={handleSelectAll}
-                      colorScheme="blue"
-                      size="lg"
-                    />
+                    <Tooltip
+                      label={
+                        selectableItems.length === 0
+                          ? "No pending items to select"
+                          : `Select all pending items (${selectableItems.length})`
+                      }
+                    >
+                      <Checkbox
+                        isChecked={selectAll}
+                        onChange={handleSelectAll}
+                        colorScheme="blue"
+                        size="lg"
+                        isDisabled={selectableItems.length === 0}
+                      />
+                    </Tooltip>
                   </Th>
                   <Th color="gray.700" fontSize="sm" fontWeight="bold" py={6}>
                     <HStack>
@@ -791,12 +892,22 @@ const AdminOfficialBusiness = () => {
                       }
                     >
                       <Td py={6}>
-                        <Checkbox
-                          isChecked={selectedItems.includes(item.id)}
-                          onChange={() => handleSelectItem(item.id)}
-                          colorScheme="blue"
-                          size="lg"
-                        />
+                        <Tooltip
+                          label={
+                            item.status !== "pending"
+                              ? `Cannot select ${item.status} items`
+                              : ""
+                          }
+                        >
+                          <Checkbox
+                            isChecked={selectedItems.includes(item.id)}
+                            onChange={() => handleSelectItem(item.id)}
+                            colorScheme="blue"
+                            size="lg"
+                            isDisabled={item.status !== "pending"}
+                            opacity={item.status !== "pending" ? 0.5 : 1}
+                          />
+                        </Tooltip>
                       </Td>
                       <Td py={6}>
                         <VStack align="start" spacing={1}>
@@ -903,6 +1014,7 @@ const AdminOfficialBusiness = () => {
                               icon={<FiEdit2 />}
                               borderRadius="lg"
                               _hover={{ bg: "yellow.50" }}
+                              isDisabled={item.status === "approved"}
                               onClick={() => handleEditClick(item)}
                             >
                               Edit Request
@@ -912,6 +1024,10 @@ const AdminOfficialBusiness = () => {
                               borderRadius="lg"
                               color="orange.500"
                               _hover={{ bg: "orange.50" }}
+                              isDisabled={
+                                item.status === "approved" ||
+                                item.status === "rejected"
+                              }
                               onClick={() => handleRejectClick(item)}
                             >
                               Reject Request
@@ -962,12 +1078,28 @@ const AdminOfficialBusiness = () => {
             <ModalHeader>
               <HStack>
                 <Icon
-                  as={bulkAction === "approve" ? FiCheckCircle : FiTrash2}
-                  color={bulkAction === "approve" ? "green.500" : "red.500"}
+                  as={
+                    bulkAction === "approve"
+                      ? FiCheckCircle
+                      : bulkAction === "reject"
+                      ? FiXCircle
+                      : FiTrash2
+                  }
+                  color={
+                    bulkAction === "approve"
+                      ? "green.500"
+                      : bulkAction === "reject"
+                      ? "red.500"
+                      : "red.500"
+                  }
                 />
                 <Text>
                   Confirm Bulk{" "}
-                  {bulkAction === "approve" ? "Approval" : "Deletion"}
+                  {bulkAction === "approve"
+                    ? "Approval"
+                    : bulkAction === "reject"
+                    ? "Rejection"
+                    : "Deletion"}
                 </Text>
               </HStack>
             </ModalHeader>
@@ -987,6 +1119,8 @@ const AdminOfficialBusiness = () => {
                     <Text fontSize="sm">
                       {bulkAction === "approve"
                         ? "This will approve all selected pending requests."
+                        : bulkAction === "reject"
+                        ? "This will reject all selected pending requests."
                         : "This action cannot be undone."}
                     </Text>
                   </VStack>
@@ -1042,16 +1176,30 @@ const AdminOfficialBusiness = () => {
                   onClick={confirmBulkAction}
                   isLoading={bulkActionLoading}
                   loadingText={
-                    bulkAction === "approve" ? "Approving..." : "Deleting..."
+                    bulkAction === "approve"
+                      ? "Approving..."
+                      : bulkAction === "reject"
+                      ? "Rejecting..."
+                      : "Deleting..."
                   }
                   borderRadius="lg"
                   leftIcon={
                     <Icon
-                      as={bulkAction === "approve" ? FiCheckCircle : FiTrash2}
+                      as={
+                        bulkAction === "approve"
+                          ? FiCheckCircle
+                          : bulkAction === "reject"
+                          ? FiXCircle
+                          : FiTrash2
+                      }
                     />
                   }
                 >
-                  {bulkAction === "approve" ? "Approve" : "Delete"}{" "}
+                  {bulkAction === "approve"
+                    ? "Approve"
+                    : bulkAction === "reject"
+                    ? "Reject"
+                    : "Delete"}{" "}
                   {selectedItems.length} Items
                 </Button>
               </HStack>

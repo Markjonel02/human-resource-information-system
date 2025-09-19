@@ -4,6 +4,7 @@ const Leave = require("../../models/LeaveSchema/leaveSchema");
 const {
   validateOfficialBusiness,
 } = require("../../utils/officialbusinessValidator");
+const Attendance = require("../../models/attendance");
 const mongoose = require("mongoose");
 const getAllOfficialBusinesss = async (req, res) => {
   try {
@@ -435,8 +436,100 @@ const rejectOfficialBusiness = async (req, res) => {
   }
 };
 
-const bulkapproveOfficialBusiness = async (req, res) => {
-  //  Role check
+const rejectOfficialBusinessbulk = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res
+      .status(401)
+      .json({ message: "Unauthorized access to this page" });
+  }
+
+  try {
+    const { ids } = req.body;
+    const adminId = req.user._id;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "No Official Business IDs were provided" });
+    }
+
+    const allRequests = await OfficialBusiness.find({
+      _id: { $in: ids },
+    }).populate("employee", "firstname lastname employeeId");
+
+    if (!allRequests || allRequests.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No Official Business requests found" });
+    }
+
+    const alreadyProcessed = [];
+    const conflictingRequests = [];
+    const validRequests = [];
+
+    for (const request of allRequests) {
+      if (request.status === "rejected" || request.status === "approved") {
+        alreadyProcessed.push({
+          id: request._id,
+          employee: `${request.employee.firstname} ${request.employee.lastname}`,
+          status:
+            request.status === "rejected"
+              ? "Official Business already rejected"
+              : "Official Business already approved",
+        });
+        continue;
+      }
+
+      const conflictingLeave = await Leave.findOne({
+        employee: request.employee._id,
+        leaveStatus: "rejected",
+        $or: [
+          { dateFrom: { $gte: request.dateFrom, $lte: request.dateTo } },
+          { dateTo: { $gte: request.dateFrom, $lte: request.dateTo } },
+          {
+            dateFrom: { $lte: request.dateFrom },
+            dateTo: { $gte: request.dateTo },
+          },
+        ],
+      });
+
+      if (conflictingLeave) {
+        conflictingRequests.push({
+          id: request._id,
+          employee: `${request.employee.firstname} ${request.employee.lastname}`,
+          conflict: `Leave from ${conflictingLeave.dateFrom.toLocaleDateString()} to ${conflictingLeave.dateTo.toLocaleDateString()}`,
+        });
+      } else {
+        validRequests.push(request);
+      }
+    }
+
+    if (validRequests.length > 0) {
+      await OfficialBusiness.updateMany(
+        { _id: { $in: validRequests.map((r) => r._id) } },
+        {
+          status: "rejected",
+          rejectedBy: adminId,
+          rejectedAt: new Date(),
+        }
+      );
+    }
+
+    return res.status(200).json({
+      message: "Bulk rejection completed",
+      rejectedCount: validRequests.length,
+      conflicted: conflictingRequests,
+      alreadyProcessed,
+    });
+  } catch (error) {
+    console.error("Bulk reject error:", error);
+    return res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
+  }
+};
+
+/* const bulkapproveOfficialBusiness = async (req, res) => {
   if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res
       .status(401)
@@ -447,39 +540,44 @@ const bulkapproveOfficialBusiness = async (req, res) => {
     const { OB_ids } = req.body;
     const adminId = req.user._id;
 
-    //  Validate input
     if (!Array.isArray(OB_ids) || OB_ids.length === 0) {
       return res
         .status(400)
         .json({ message: "No official business IDs were provided" });
     }
 
-    // Correct query: use $in
-    const officialBusinessRequests = await OfficialBusiness.find({
+    // Get ALL OBs, not just pending
+    const allRequests = await OfficialBusiness.find({
       _id: { $in: OB_ids },
-      status: "pending",
-    }).populate("employee", " firstname lastname employeeId");
+    }).populate("employee", "firstname lastname employeeId");
 
-    if (!officialBusinessRequests || officialBusinessRequests.length === 0) {
+    if (!allRequests || allRequests.length === 0) {
       return res
         .status(404)
-        .json({ message: "No pending Official Business requests found" });
+        .json({ message: "No Official Business requests found" });
     }
 
-    //  Track conflicts and valid requests
+    const alreadyProcessed = [];
     const conflictingRequests = [];
     const validRequests = [];
 
-    for (const request of officialBusinessRequests) {
+    for (const request of allRequests) {
+      if (request.status === "approved") {
+        alreadyProcessed.push({
+          id: request._id,
+          employee: `${request.employee.firstname} ${request.employee.lastname}`,
+          status: "Official Business already approved",
+        });
+        continue;
+      }
+
+      // Check conflicts only for pending requests
       const conflictingLeave = await Leave.findOne({
         employee: request.employee._id,
         leaveStatus: "approved",
         $or: [
-          // OB range falls inside leave
           { dateFrom: { $gte: request.dateFrom, $lte: request.dateTo } },
-          // OB overlaps leave end
           { dateTo: { $gte: request.dateFrom, $lte: request.dateTo } },
-          // Leave fully covers OB
           {
             dateFrom: { $lte: request.dateFrom },
             dateTo: { $gte: request.dateTo },
@@ -498,7 +596,7 @@ const bulkapproveOfficialBusiness = async (req, res) => {
       }
     }
 
-    //  Approve only valid requests
+    // Approve valid ones
     if (validRequests.length > 0) {
       await OfficialBusiness.updateMany(
         { _id: { $in: validRequests.map((r) => r._id) } },
@@ -510,11 +608,169 @@ const bulkapproveOfficialBusiness = async (req, res) => {
       );
     }
 
-    // Return both results so frontend knows what happened
     return res.status(200).json({
       message: "Bulk approval completed",
       approvedCount: validRequests.length,
       conflicted: conflictingRequests,
+      alreadyProcessed, // includes already approved/rejected
+    });
+  } catch (err) {
+    console.error("Bulk approve error:", err);
+    return res
+      .status(500)
+      .json({ message: "Internal Server Error", error: err.message });
+  }
+}; */
+const bulkapproveOfficialBusiness = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res
+      .status(401)
+      .json({ message: "Unauthorized, you do not have access to this page" });
+  }
+
+  try {
+    const { OB_ids } = req.body;
+    const adminId = req.user._id;
+
+    if (!Array.isArray(OB_ids) || OB_ids.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "No official business IDs were provided" });
+    }
+
+    // Get ALL OBs, not just pending
+    const allRequests = await OfficialBusiness.find({
+      _id: { $in: OB_ids },
+    }).populate("employee", "firstname lastname employeeId");
+
+    if (!allRequests || allRequests.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No Official Business requests found" });
+    }
+
+    const alreadyProcessed = [];
+    const conflictingRequests = [];
+    const validRequests = [];
+
+    for (const request of allRequests) {
+      if (request.status === "approved") {
+        alreadyProcessed.push({
+          id: request._id,
+          employee: `${request.employee.firstname} ${request.employee.lastname}`,
+          status: "Official Business already approved",
+        });
+        continue;
+      }
+
+      // Check conflicts only for pending requests
+      const conflictingLeave = await Leave.findOne({
+        employee: request.employee._id,
+        leaveStatus: "approved",
+        $or: [
+          { dateFrom: { $gte: request.dateFrom, $lte: request.dateTo } },
+          { dateTo: { $gte: request.dateFrom, $lte: request.dateTo } },
+          {
+            dateFrom: { $lte: request.dateFrom },
+            dateTo: { $gte: request.dateTo },
+          },
+        ],
+      });
+
+      if (conflictingLeave) {
+        conflictingRequests.push({
+          id: request._id,
+          employee: `${request.employee.firstname} ${request.employee.lastname}`,
+          conflict: `Leave from ${conflictingLeave.dateFrom.toDateString()} to ${conflictingLeave.dateTo.toDateString()}`,
+        });
+      } else {
+        validRequests.push(request);
+      }
+    }
+
+    // Approve valid ones and create attendance records
+    if (validRequests.length > 0) {
+      // Update official business status
+      await OfficialBusiness.updateMany(
+        { _id: { $in: validRequests.map((r) => r._id) } },
+        {
+          status: "approved",
+          approvedBy: adminId,
+          approvedAt: new Date(),
+        }
+      );
+
+      // Create attendance records for each approved official business
+      const attendanceRecords = [];
+
+      for (const request of validRequests) {
+        const startDate = new Date(request.dateFrom);
+        const endDate = new Date(request.dateTo);
+
+        // Generate all dates between dateFrom and dateTo (inclusive)
+        const currentDate = new Date(startDate);
+
+        while (currentDate <= endDate) {
+          // Skip weekends (optional - remove this if you want to include weekends)
+          const dayOfWeek = currentDate.getDay();
+          if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            // 0 = Sunday, 6 = Saturday
+
+            // Create check-in time at 8:00 AM
+            const checkInTime = new Date(currentDate);
+            checkInTime.setHours(8, 0, 0, 0);
+
+            // Create check-out time at 5:00 PM
+            const checkOutTime = new Date(currentDate);
+            checkOutTime.setHours(17, 0, 0, 0);
+
+            // Calculate hours rendered in minutes (8 hours = 480 minutes)
+            const hoursRenderedInMinutes = 8 * 60; // 480 minutes
+
+            attendanceRecords.push({
+              employee: request.employee._id,
+              date: new Date(currentDate),
+              checkIn: checkInTime,
+              checkOut: checkOutTime,
+              status: "present",
+              hoursRendered: hoursRenderedInMinutes,
+              tardinessMinutes: 0, // No tardiness for official business
+              leaveRequest: null, // This is for official business, not leave
+            });
+          }
+
+          // Move to next day
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+      }
+
+      // Insert all attendance records
+      if (attendanceRecords.length > 0) {
+        await Attendance.insertMany(attendanceRecords);
+      }
+    }
+
+    return res.status(200).json({
+      message: "Bulk approval completed",
+      approvedCount: validRequests.length,
+      attendanceRecordsCreated: validRequests.reduce((total, request) => {
+        const startDate = new Date(request.dateFrom);
+        const endDate = new Date(request.dateTo);
+        let count = 0;
+        const currentDate = new Date(startDate);
+
+        while (currentDate <= endDate) {
+          const dayOfWeek = currentDate.getDay();
+          if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            // Skip weekends
+            count++;
+          }
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+        return total + count;
+      }, 0),
+      conflicted: conflictingRequests,
+      alreadyProcessed,
     });
   } catch (err) {
     console.error("Bulk approve error:", err);
@@ -523,12 +779,12 @@ const bulkapproveOfficialBusiness = async (req, res) => {
       .json({ message: "Internal Server Error", error: err.message });
   }
 };
-
 module.exports = {
   getAllOfficialBusinesss,
   addAdminOfficialBusiness,
   searchEmployees,
   editOfficialBusiness,
   rejectOfficialBusiness,
+  rejectOfficialBusinessbulk,
   bulkapproveOfficialBusiness,
 };
