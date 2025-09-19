@@ -65,6 +65,7 @@ import {
   TabPanel,
   StatHelpText,
   StatArrow,
+  Tooltip,
 } from "@chakra-ui/react";
 import {
   SearchIcon,
@@ -1122,15 +1123,24 @@ const Attendances = () => {
                       {calculateHoursRendered(record.checkIn, record.checkOut)}
                     </Text>
                   </Td>
+
                   <Td
                     px={4}
                     py={4}
                     display={{ base: "none", xl: "table-cell" }}
                   >
                     {record.notes ? (
-                      <Text fontSize="xs" color="gray.500" noOfLines={1}>
-                        {record.notes}
-                      </Text>
+                      <Tooltip label={record.notes}>
+                        <Text
+                          fontSize="xs"
+                          color="gray.500"
+                          noOfLines={1}
+                          isTruncated
+                          maxW={100}
+                        >
+                          {record.notes}
+                        </Text>
+                      </Tooltip>
                     ) : (
                       <Text fontSize="sm" color="gray.500">
                         -

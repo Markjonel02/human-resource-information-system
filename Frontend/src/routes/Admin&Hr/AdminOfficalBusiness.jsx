@@ -1024,7 +1024,10 @@ const AdminOfficialBusiness = () => {
                               borderRadius="lg"
                               color="orange.500"
                               _hover={{ bg: "orange.50" }}
-                              isDisabled={item.status === "approved"}
+                              isDisabled={
+                                item.status === "approved" ||
+                                item.status === "rejected"
+                              }
                               onClick={() => handleRejectClick(item)}
                             >
                               Reject Request

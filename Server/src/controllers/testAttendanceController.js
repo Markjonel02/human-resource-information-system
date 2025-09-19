@@ -6,6 +6,7 @@ const AttendanceLog = require("../models/attendanceLogSchema"); // New model for
 const LeaveCredits = require("../models/LeaveSchema/leaveCreditsSchema");
 const Leave = require("../models/LeaveSchema/leaveSchema");
 const Overtime = require("../models/overtimeSchema");
+const OfficialBusiness = require("../models/officialbusinessSchema/officialBusinessSchema");
 // Helper function to calculate hours in minutes
 const calculateHoursInMinutes = (checkIn, checkOut) => {
   if (!checkIn || !checkOut) return 0;
@@ -787,48 +788,101 @@ const getAttendance = async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
+    // Get total count for pagination
+    const totalRecords = await Attendance.countDocuments(attendanceQuery);
+
     const attendanceRecords = await Attendance.find(attendanceQuery)
       .populate(
         "employee",
         "firstname lastname employeeId department role employmentType"
       )
+      .populate("leaveRequest", "leaveType reason") // Populate leave request if exists
       .sort({ date: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
     console.log("Found attendance records:", attendanceRecords.length);
 
-    const transformedAttendance = attendanceRecords.map((record) => ({
-      _id: record._id,
-      employee: record.employee,
-      date: record.date,
-      status: record.status.charAt(0).toUpperCase() + record.status.slice(1),
-      checkIn: record.checkIn
-        ? record.checkIn.toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-          })
-        : "-",
-      checkOut: record.checkOut
-        ? record.checkOut.toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-          })
-        : "-",
-      hoursRendered: record.hoursRendered || 0,
-      tardinessMinutes: record.tardinessMinutes || 0,
-      leaveType: record.leaveType,
-      leaveStatus: record.leaveStatus,
-      notes: record.notes,
-    }));
+    // Transform attendance records with enhanced data
+    const transformedAttendance = await Promise.all(
+      attendanceRecords.map(async (record) => {
+        let notes = "";
+        let isOfficialBusiness = false;
+
+        // Check if this attendance record corresponds to an official business
+        if (record.checkIn && record.checkOut && record.status === "present") {
+          // Check if there's an approved official business for this employee and date
+          const officialBusiness = await OfficialBusiness.findOne({
+            employee: record.employee._id,
+            status: "approved",
+            dateFrom: { $lte: record.date },
+            dateTo: { $gte: record.date },
+          });
+
+          if (officialBusiness) {
+            notes = `Official Business: ${officialBusiness.reason}`;
+            isOfficialBusiness = true;
+          }
+        }
+
+        // Format hours rendered (convert minutes to hours:minutes)
+        const formatHoursRendered = (minutes) => {
+          if (!minutes) return "0:00";
+          const hours = Math.floor(minutes / 60);
+          const mins = minutes % 60;
+          return `${hours}:${mins.toString().padStart(2, "0")}`;
+        };
+
+        // Format tardiness
+        const formatTardiness = (minutes) => {
+          if (!minutes || minutes === 0) return "No tardiness";
+          const hours = Math.floor(minutes / 60);
+          const mins = minutes % 60;
+          if (hours > 0) {
+            return `${hours}h ${mins}m late`;
+          }
+          return `${mins}m late`;
+        };
+
+        return {
+          _id: record._id,
+          employee: record.employee,
+          date: record.date,
+          status:
+            record.status.charAt(0).toUpperCase() + record.status.slice(1),
+          checkIn: record.checkIn
+            ? record.checkIn.toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true,
+              })
+            : "-",
+          checkOut: record.checkOut
+            ? record.checkOut.toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true,
+              })
+            : "-",
+          hoursRendered: formatHoursRendered(record.hoursRendered),
+          hoursRenderedMinutes: record.hoursRendered || 0, // Keep original minutes for calculations
+          tardinessMinutes: record.tardinessMinutes || 0,
+          tardinessDisplay: formatTardiness(record.tardinessMinutes),
+          leaveType: record.leaveRequest?.leaveType || null,
+          leaveReason: record.leaveRequest?.reason || null,
+          notes:
+            notes ||
+            (record.leaveRequest ? `Leave: ${record.leaveRequest.reason}` : ""),
+          isOfficialBusiness: isOfficialBusiness,
+        };
+      })
+    );
 
     // Log access
     const performedBy = req.user?._id;
     if (performedBy) {
       try {
-        await createAttendanceLog({
+        await AttendanceLog({
           employeeId: null,
           action: "BULK_ACCESS",
           description: `Accessed attendance records (${transformedAttendance.length} records) - Role: ${currentUser.role}`,
@@ -849,9 +903,10 @@ const getAttendance = async (req, res) => {
     res.json({
       data: transformedAttendance,
       summary: {
-        total: transformedAttendance.length,
+        total: totalRecords,
         page: parseInt(page),
         limit: parseInt(limit),
+        totalPages: Math.ceil(totalRecords / parseInt(limit)),
       },
     });
   } catch (error) {
