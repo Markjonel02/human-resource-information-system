@@ -36,5 +36,9 @@ router.post(
   authorizeRoles("admin", "hr"),
   officialBusiness.bulkapproveOfficialBusiness
 );
-
+router.post(
+  "/adminReject-Bulk",
+  authorizeRoles("hr", "admin"),
+  officialBusiness.rejectOfficialBusinessbulk
+);
 module.exports = router;

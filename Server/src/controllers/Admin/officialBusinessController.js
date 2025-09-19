@@ -435,8 +435,100 @@ const rejectOfficialBusiness = async (req, res) => {
   }
 };
 
+const rejectOfficialBusinessbulk = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res
+      .status(401)
+      .json({ message: "Unauthorized access to this page" });
+  }
+
+  try {
+    const { ids } = req.body;
+    const adminId = req.user._id;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "No Official Business IDs were provided" });
+    }
+
+    const allRequests = await OfficialBusiness.find({
+      _id: { $in: ids },
+    }).populate("employee", "firstname lastname employeeId");
+
+    if (!allRequests || allRequests.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No Official Business requests found" });
+    }
+
+    const alreadyProcessed = [];
+    const conflictingRequests = [];
+    const validRequests = [];
+
+    for (const request of allRequests) {
+      if (request.status === "rejected" || request.status === "approved") {
+        alreadyProcessed.push({
+          id: request._id,
+          employee: `${request.employee.firstname} ${request.employee.lastname}`,
+          status:
+            request.status === "rejected"
+              ? "Official Business already rejected"
+              : "Official Business already approved",
+        });
+        continue;
+      }
+
+      const conflictingLeave = await Leave.findOne({
+        employee: request.employee._id,
+        leaveStatus: "rejected",
+        $or: [
+          { dateFrom: { $gte: request.dateFrom, $lte: request.dateTo } },
+          { dateTo: { $gte: request.dateFrom, $lte: request.dateTo } },
+          {
+            dateFrom: { $lte: request.dateFrom },
+            dateTo: { $gte: request.dateTo },
+          },
+        ],
+      });
+
+      if (conflictingLeave) {
+        conflictingRequests.push({
+          id: request._id,
+          employee: `${request.employee.firstname} ${request.employee.lastname}`,
+          conflict: `Leave from ${conflictingLeave.dateFrom.toLocaleDateString()} to ${conflictingLeave.dateTo.toLocaleDateString()}`,
+        });
+      } else {
+        validRequests.push(request);
+      }
+    }
+
+    if (validRequests.length > 0) {
+      await OfficialBusiness.updateMany(
+        { _id: { $in: validRequests.map((r) => r._id) } },
+        {
+          status: "rejected",
+          rejectedBy: adminId,
+          rejectedAt: new Date(),
+        }
+      );
+    }
+
+    return res.status(200).json({
+      message: "Bulk rejection completed",
+      rejectedCount: validRequests.length,
+      conflicted: conflictingRequests,
+      alreadyProcessed,
+    });
+  } catch (error) {
+    console.error("Bulk reject error:", error);
+    return res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
+  }
+};
+
 const bulkapproveOfficialBusiness = async (req, res) => {
-  //  Role check
   if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res
       .status(401)
@@ -447,39 +539,44 @@ const bulkapproveOfficialBusiness = async (req, res) => {
     const { OB_ids } = req.body;
     const adminId = req.user._id;
 
-    //  Validate input
     if (!Array.isArray(OB_ids) || OB_ids.length === 0) {
       return res
         .status(400)
         .json({ message: "No official business IDs were provided" });
     }
 
-    // Correct query: use $in
-    const officialBusinessRequests = await OfficialBusiness.find({
+    // Get ALL OBs, not just pending
+    const allRequests = await OfficialBusiness.find({
       _id: { $in: OB_ids },
-      status: "pending",
-    }).populate("employee", " firstname lastname employeeId");
+    }).populate("employee", "firstname lastname employeeId");
 
-    if (!officialBusinessRequests || officialBusinessRequests.length === 0) {
+    if (!allRequests || allRequests.length === 0) {
       return res
         .status(404)
-        .json({ message: "No pending Official Business requests found" });
+        .json({ message: "No Official Business requests found" });
     }
 
-    //  Track conflicts and valid requests
+    const alreadyProcessed = [];
     const conflictingRequests = [];
     const validRequests = [];
 
-    for (const request of officialBusinessRequests) {
+    for (const request of allRequests) {
+      if (request.status === "approved") {
+        alreadyProcessed.push({
+          id: request._id,
+          employee: `${request.employee.firstname} ${request.employee.lastname}`,
+          status: "Official Business already approved",
+        });
+        continue;
+      }
+
+      // Check conflicts only for pending requests
       const conflictingLeave = await Leave.findOne({
         employee: request.employee._id,
         leaveStatus: "approved",
         $or: [
-          // OB range falls inside leave
           { dateFrom: { $gte: request.dateFrom, $lte: request.dateTo } },
-          // OB overlaps leave end
           { dateTo: { $gte: request.dateFrom, $lte: request.dateTo } },
-          // Leave fully covers OB
           {
             dateFrom: { $lte: request.dateFrom },
             dateTo: { $gte: request.dateTo },
@@ -498,7 +595,7 @@ const bulkapproveOfficialBusiness = async (req, res) => {
       }
     }
 
-    //  Approve only valid requests
+    // Approve valid ones
     if (validRequests.length > 0) {
       await OfficialBusiness.updateMany(
         { _id: { $in: validRequests.map((r) => r._id) } },
@@ -510,11 +607,11 @@ const bulkapproveOfficialBusiness = async (req, res) => {
       );
     }
 
-    // Return both results so frontend knows what happened
     return res.status(200).json({
       message: "Bulk approval completed",
       approvedCount: validRequests.length,
       conflicted: conflictingRequests,
+      alreadyProcessed, // includes already approved/rejected
     });
   } catch (err) {
     console.error("Bulk approve error:", err);
@@ -530,5 +627,6 @@ module.exports = {
   searchEmployees,
   editOfficialBusiness,
   rejectOfficialBusiness,
+  rejectOfficialBusinessbulk,
   bulkapproveOfficialBusiness,
 };
