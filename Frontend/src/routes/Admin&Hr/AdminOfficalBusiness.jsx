@@ -318,11 +318,12 @@ const AdminOfficialBusiness = () => {
           isClosable: true,
         });
       } else if (bulkAction === "approve") {
-        await Promise.all(
-          selectedItems.map((id) =>
-            axiosInstance.patch(`/adminOfficialBusiness/approve/${id}`)
-          )
+        await axiosInstance.post(
+          "/adminOfficialBusiness/adminApproved-Bulk",
+          { OB_ids: selectedItems }, //  send as array in body
+          { withCredentials: true }
         );
+
         toast({
           title: "Success",
           description: `${selectedItems.length} requests approved successfully`,
