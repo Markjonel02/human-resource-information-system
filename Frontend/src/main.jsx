@@ -7,6 +7,7 @@ import { BrowserRouter } from "react-router-dom";
 import { useToast } from "@chakra-ui/react";
 import { useEffect } from "react";
 import { setToast } from "./lib/toastService.jsx";
+
 /* import SessionPing from "./lib/SessionPing.jsx"; */
 const ToastManager = () => {
   const toast = useToast();
