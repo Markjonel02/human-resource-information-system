@@ -116,6 +116,11 @@ const addAdminOfficialBusiness = async (req, res) => {
 };
 
 const searchEmployees = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res
+      .status(401)
+      .json({ message: "Unauthorized! You cannot access this resource." });
+  }
   try {
     const { q } = req.query; // q is the search query
 

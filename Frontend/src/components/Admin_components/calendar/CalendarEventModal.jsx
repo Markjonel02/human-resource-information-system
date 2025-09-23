@@ -14,9 +14,18 @@ import {
   Textarea,
   VStack,
   HStack,
+  Tag,
+  TagLabel,
+  TagCloseButton,
+  Box,
+  List,
+  ListItem,
+  Text,
+  Spinner,
 } from "@chakra-ui/react";
 import { DeleteIcon } from "@chakra-ui/icons";
 import { useState, useEffect } from "react";
+import axiosInstance from "../../../lib/axiosInstance";
 
 const CalendarEventModal = ({ isOpen, onClose, onSave, onDelete, event }) => {
   const [formData, setFormData] = useState({
@@ -28,7 +37,12 @@ const CalendarEventModal = ({ isOpen, onClose, onSave, onDelete, event }) => {
     duration: 60,
     type: "meeting",
     priority: "medium",
+    participants: [], // store selected employees
   });
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     if (event) {
@@ -43,6 +57,7 @@ const CalendarEventModal = ({ isOpen, onClose, onSave, onDelete, event }) => {
         duration: props.duration || 60,
         type: props.type || "meeting",
         priority: props.priority || "medium",
+        participants: props.participants || [],
       });
     } else {
       setFormData({
@@ -54,12 +69,48 @@ const CalendarEventModal = ({ isOpen, onClose, onSave, onDelete, event }) => {
         duration: 60,
         type: "meeting",
         priority: "medium",
+        participants: [],
       });
     }
   }, [event]);
 
   const handleChange = (field, value) =>
     setFormData((prev) => ({ ...prev, [field]: value }));
+
+  const handleSearch = async (q) => {
+    setSearchQuery(q);
+    if (!q.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    try {
+      setIsSearching(true);
+      const res = await axiosInstance.get(`/calendar/search-employees?q=${q}`);
+      setSearchResults(res.data);
+    } catch (err) {
+      console.error("Search failed:", err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSelectEmployee = (emp) => {
+    if (!formData.participants.find((p) => p._id === emp._id)) {
+      setFormData((prev) => ({
+        ...prev,
+        participants: [...prev.participants, emp],
+      }));
+    }
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  const handleRemoveParticipant = (id) => {
+    setFormData((prev) => ({
+      ...prev,
+      participants: prev.participants.filter((p) => p._id !== id),
+    }));
+  };
 
   const handleSubmit = () => {
     onSave(formData);
@@ -81,6 +132,7 @@ const CalendarEventModal = ({ isOpen, onClose, onSave, onDelete, event }) => {
                 onChange={(e) => handleChange("title", e.target.value)}
               />
             </FormControl>
+
             <FormControl>
               <FormLabel>Description</FormLabel>
               <Textarea
@@ -88,6 +140,7 @@ const CalendarEventModal = ({ isOpen, onClose, onSave, onDelete, event }) => {
                 onChange={(e) => handleChange("description", e.target.value)}
               />
             </FormControl>
+
             <HStack w="100%">
               <FormControl isRequired>
                 <FormLabel>Start Date</FormLabel>
@@ -106,6 +159,7 @@ const CalendarEventModal = ({ isOpen, onClose, onSave, onDelete, event }) => {
                 />
               </FormControl>
             </HStack>
+
             <HStack w="100%">
               <FormControl isRequired>
                 <FormLabel>Time</FormLabel>
@@ -126,6 +180,7 @@ const CalendarEventModal = ({ isOpen, onClose, onSave, onDelete, event }) => {
                 />
               </FormControl>
             </HStack>
+
             <HStack w="100%">
               <FormControl>
                 <FormLabel>Type</FormLabel>
@@ -151,8 +206,73 @@ const CalendarEventModal = ({ isOpen, onClose, onSave, onDelete, event }) => {
                 </Select>
               </FormControl>
             </HStack>
+
+            {/* 🔎 Employee Search */}
+            <FormControl>
+              <FormLabel>Invite Participants</FormLabel>
+              <Input
+                placeholder="Search employees..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
+              {isSearching && <Spinner size="sm" mt={2} />}
+              {searchResults.length > 0 && (
+                <Box
+                  border="1px solid"
+                  borderColor="gray.200"
+                  borderRadius="md"
+                  mt={2}
+                  maxH="150px"
+                  overflowY="auto"
+                  bg="white"
+                  zIndex={10}
+                >
+                  <List spacing={1}>
+                    {searchResults.map((emp) => (
+                      <ListItem
+                        key={emp._id}
+                        px={3}
+                        py={2}
+                        _hover={{ bg: "gray.100", cursor: "pointer" }}
+                        onClick={() => handleSelectEmployee(emp)}
+                      >
+                        <Text fontWeight="medium">
+                          {emp.firstname} {emp.lastname} ({emp.employeeId})
+                        </Text>
+                        {emp.leaveMessage && (
+                          <Text fontSize="sm" color="red.500">
+                            {emp.leaveMessage}
+                          </Text>
+                        )}
+                      </ListItem>
+                    ))}
+                  </List>
+                </Box>
+              )}
+            </FormControl>
+
+            {/* Selected participants */}
+            <HStack wrap="wrap" spacing={2} w="100%">
+              {formData.participants.map((emp) => (
+                <Tag
+                  key={emp._id}
+                  size="md"
+                  borderRadius="full"
+                  variant="solid"
+                  colorScheme="blue"
+                >
+                  <TagLabel>
+                    {emp.firstname} {emp.lastname}
+                  </TagLabel>
+                  <TagCloseButton
+                    onClick={() => handleRemoveParticipant(emp._id)}
+                  />
+                </Tag>
+              ))}
+            </HStack>
           </VStack>
         </ModalBody>
+
         <ModalFooter>
           {event && (
             <Button

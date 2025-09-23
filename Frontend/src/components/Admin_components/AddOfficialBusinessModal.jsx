@@ -49,7 +49,7 @@ const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
   };
 
   // Enhanced employee search that handles both name and ID
-  // ✅ remove API call from handleSearchChange
+  //  remove API call from handleSearchChange
   const handleSearchChange = (e) => {
     const query = e.target.value;
     setFormData((prev) => ({
@@ -65,7 +65,7 @@ const AddOfficialBusinessModal = ({ isOpen, onClose, onSubmit }) => {
       setShowResults(true);
     }
   };
-  // ✅ only debounce triggers fetch
+  //  only debounce triggers fetch
   useEffect(() => {
     const query = debouncedSearchTerm;
 
