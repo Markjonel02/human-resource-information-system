@@ -11,5 +11,14 @@ router.post(
   authorizeRole("admin", "hr"),
   upcomingevent.createUpcomingEvent
 );
-
+router.get(
+  "/get-events",
+  authorizeRole("admin", "hr"),
+  upcomingevent.getUpcomingEvents
+);
+router.get(
+  "/search-employees",
+  authorizeRole("admin", "hr"),
+  upcomingevent.searchEmployeesAlternative
+);
 module.exports = router;

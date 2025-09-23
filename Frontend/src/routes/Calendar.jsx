@@ -6,6 +6,14 @@ import {
   Heading,
   Button,
   useToast,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  Badge,
+  Text,
 } from "@chakra-ui/react";
 import { AddIcon } from "@chakra-ui/icons";
 import FullCalendar from "@fullcalendar/react";
@@ -31,13 +39,23 @@ const Calendar = () => {
     try {
       const res = await axiosInstance.get("/calendar/get-events");
       setEvents(
-        res.data.map((e) => ({
-          id: e._id,
-          title: e.title,
-          start: `${e.date}T${e.time}`,
-          end: e.endDate ? `${e.endDate}T${e.time}` : null,
-          extendedProps: e,
-        }))
+        res.data.map((e) => {
+          let bgColor = "#3182CE"; // default blue
+          if (e.priority === "high") bgColor = "#E53E3E"; // red
+          else if (e.priority === "medium") bgColor = "#DD6B20"; // orange
+          else if (e.priority === "low") bgColor = "#38A169"; // green
+
+          return {
+            id: e._id,
+            title: e.title,
+            start: `${e.date}T${e.time}`,
+            end: e.endDate ? `${e.endDate}T${e.time}` : null,
+            backgroundColor: bgColor,
+            borderColor: bgColor,
+            textColor: "white",
+            extendedProps: e,
+          };
+        })
       );
     } catch (err) {
       toast({ title: "Error loading events", status: "error" });
@@ -115,6 +133,63 @@ const Calendar = () => {
           eventClick={handleEventClick}
           height="75vh"
         />
+
+        {/* Events Table */}
+        <Box bg="white" rounded="xl" shadow="md" p={4}>
+          <Heading size="md" mb={4}>
+            📋 Event List
+          </Heading>
+          <Table variant="simple">
+            <Thead>
+              <Tr>
+                <Th>Title</Th>
+                <Th>Date</Th>
+                <Th>Time</Th>
+                <Th>Type</Th>
+                <Th>Priority</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {events.map((e) => (
+                <Tr key={e.id}>
+                  <Td>
+                    <Text fontWeight="medium">{e.title}</Text>
+                  </Td>
+                  <Td>{e.extendedProps.date}</Td>
+                  <Td>{e.extendedProps.time}</Td>
+                  <Td>
+                    <Badge
+                      colorScheme={
+                        e.extendedProps.type === "meeting"
+                          ? "purple"
+                          : e.extendedProps.type === "call"
+                          ? "blue"
+                          : e.extendedProps.type === "review"
+                          ? "orange"
+                          : "gray"
+                      }
+                    >
+                      {e.extendedProps.type}
+                    </Badge>
+                  </Td>
+                  <Td>
+                    <Badge
+                      colorScheme={
+                        e.extendedProps.priority === "high"
+                          ? "red"
+                          : e.extendedProps.priority === "medium"
+                          ? "yellow"
+                          : "green"
+                      }
+                    >
+                      {e.extendedProps.priority}
+                    </Badge>
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </Box>
       </VStack>
 
       {/* Add/Edit Modal */}
