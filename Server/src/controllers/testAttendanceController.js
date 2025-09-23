@@ -796,7 +796,7 @@ const getAttendance = async (req, res) => {
         "employee",
         "firstname lastname employeeId department role employmentType"
       )
-      .populate("leaveRequest", "leaveType reason") // Populate leave request if exists
+      .populate("leaveRequest", "leaveType reason")
       .sort({ date: -1 })
       .skip(skip)
       .limit(parseInt(limit));
@@ -811,17 +811,20 @@ const getAttendance = async (req, res) => {
 
         // Check if this attendance record corresponds to an official business
         if (record.checkIn && record.checkOut && record.status === "present") {
-          // Check if there's an approved official business for this employee and date
-          const officialBusiness = await OfficialBusiness.findOne({
-            employee: record.employee._id,
-            status: "approved",
-            dateFrom: { $lte: record.date },
-            dateTo: { $gte: record.date },
-          });
+          try {
+            const officialBusiness = await OfficialBusiness.findOne({
+              employee: record.employee._id,
+              status: "approved",
+              dateFrom: { $lte: record.date },
+              dateTo: { $gte: record.date },
+            });
 
-          if (officialBusiness) {
-            notes = `Official Business: ${officialBusiness.reason}`;
-            isOfficialBusiness = true;
+            if (officialBusiness) {
+              notes = `Official Business: ${officialBusiness.reason}`;
+              isOfficialBusiness = true;
+            }
+          } catch (error) {
+            console.error("Error checking official business:", error);
           }
         }
 
@@ -865,39 +868,38 @@ const getAttendance = async (req, res) => {
               })
             : "-",
           hoursRendered: formatHoursRendered(record.hoursRendered),
-          hoursRenderedMinutes: record.hoursRendered || 0, // Keep original minutes for calculations
+          hoursRenderedMinutes: record.hoursRendered || 0,
           tardinessMinutes: record.tardinessMinutes || 0,
           tardinessDisplay: formatTardiness(record.tardinessMinutes),
-          leaveType: record.leaveRequest?.leaveType || null,
+          leaveType: record.leaveRequest?.leaveType || record.leaveType || null,
           leaveReason: record.leaveRequest?.reason || null,
           notes:
             notes ||
-            (record.leaveRequest ? `Leave: ${record.leaveRequest.reason}` : ""),
+            (record.leaveRequest
+              ? `Leave: ${record.leaveRequest.reason}`
+              : record.notes || ""),
           isOfficialBusiness: isOfficialBusiness,
         };
       })
     );
 
     // Log access
-    const performedBy = req.user?._id;
-    if (performedBy) {
-      try {
-        await AttendanceLog({
-          employeeId: null,
-          action: "BULK_ACCESS",
-          description: `Accessed attendance records (${transformedAttendance.length} records) - Role: ${currentUser.role}`,
-          performedBy: performedBy,
-          metadata: {
-            query: req.query,
-            attendanceCount: transformedAttendance.length,
-            page: page,
-            limit: limit,
-            userRole: currentUser.role,
-          },
-        });
-      } catch (logError) {
-        console.error("Error creating attendance log:", logError);
-      }
+    try {
+      await AttendanceLog({
+        employeeId: null,
+        action: "BULK_ACCESS",
+        description: `Accessed attendance records (${transformedAttendance.length} records) - Role: ${currentUser.role}`,
+        performedBy: req.user._id,
+        metadata: {
+          query: req.query,
+          attendanceCount: transformedAttendance.length,
+          page: page,
+          limit: limit,
+          userRole: currentUser.role,
+        },
+      });
+    } catch (logError) {
+      console.error("Error creating attendance log:", logError);
     }
 
     res.json({
@@ -917,10 +919,8 @@ const getAttendance = async (req, res) => {
     });
   }
 };
-
 // Update attendance record
 const updateAttendance = async (req, res) => {
-  // Fixed: consistent use of req.user (lowercase 'u')
   if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res.status(403).json({
       message:
@@ -934,11 +934,11 @@ const updateAttendance = async (req, res) => {
       req.body;
     const performedBy = req.user._id;
 
+    // Validate attendance record exists
     const attendance = await Attendance.findById(id).populate("employee");
     if (!attendance) {
-      // Log failed attempt
-      await createAttendanceLog({
-        employeeId: null,
+      await AttendanceLog({
+        employeeId: req.user ? req.user._id : null,
         attendanceId: id,
         action: "UPDATE_FAILED",
         description: "Attempted to update non-existent attendance record",
@@ -949,8 +949,9 @@ const updateAttendance = async (req, res) => {
       return res.status(404).json({
         message: "Attendance record not found",
       });
-    } // Store old record for comparison
+    }
 
+    // Store old record for comparison
     const oldRecord = {
       status: attendance.status,
       checkIn: attendance.checkIn,
@@ -959,11 +960,14 @@ const updateAttendance = async (req, res) => {
       notes: attendance.notes,
       tardinessMinutes: attendance.tardinessMinutes,
       hoursRendered: attendance.hoursRendered,
+      dateFrom: attendance.dateFrom,
+      dateTo: attendance.dateTo,
     };
 
     let autoStatusChange = false;
-    let originalStatus = attendance.status; // Update basic fields
+    let originalStatus = attendance.status;
 
+    // Update basic fields
     if (status) {
       const validStatuses = ["present", "absent", "late", "on_leave"];
       if (!validStatuses.includes(status.toLowerCase())) {
@@ -977,40 +981,47 @@ const updateAttendance = async (req, res) => {
 
     if (notes !== undefined) {
       attendance.notes = notes;
-    } // Handle status-specific updates
+    }
 
+    // Handle status-specific updates
     if (attendance.status === "present" || attendance.status === "late") {
       if (checkIn) {
         const checkInDate = parseTimeToDate(checkIn, attendance.date);
-        attendance.checkIn = checkInDate; // Auto-detect late status
+        if (checkInDate) {
+          attendance.checkIn = checkInDate;
 
-        const scheduledTime = new Date(checkInDate);
-        scheduledTime.setHours(8, 0, 0, 0);
+          // Auto-detect late status
+          const scheduledTime = new Date(checkInDate);
+          scheduledTime.setHours(8, 0, 0, 0);
 
-        if (checkInDate > scheduledTime && attendance.status === "present") {
-          autoStatusChange = true;
-          originalStatus = attendance.status;
-          attendance.status = "late";
-          attendance.tardinessMinutes = calculateTardiness(checkInDate);
-        } else if (attendance.status === "late") {
-          attendance.tardinessMinutes = calculateTardiness(checkInDate);
-        } else {
-          attendance.tardinessMinutes = 0;
+          if (checkInDate > scheduledTime && attendance.status === "present") {
+            autoStatusChange = true;
+            originalStatus = attendance.status;
+            attendance.status = "late";
+            attendance.tardinessMinutes = calculateTardiness(checkInDate);
+          } else if (attendance.status === "late") {
+            attendance.tardinessMinutes = calculateTardiness(checkInDate);
+          } else {
+            attendance.tardinessMinutes = 0;
+          }
         }
       }
 
       if (checkOut) {
         const checkOutDate = parseTimeToDate(checkOut, attendance.date);
-        attendance.checkOut = checkOutDate;
+        if (checkOutDate) {
+          attendance.checkOut = checkOutDate;
 
-        if (attendance.checkIn && checkOutDate) {
-          attendance.hoursRendered = calculateHoursInMinutes(
-            attendance.checkIn,
-            checkOutDate
-          );
+          if (attendance.checkIn && checkOutDate) {
+            attendance.hoursRendered = calculateHoursInMinutes(
+              attendance.checkIn,
+              checkOutDate
+            );
+          }
         }
-      } // Clear leave type for non-leave status
+      }
 
+      // Clear leave-related fields for non-leave status
       attendance.leaveType = null;
       attendance.dateFrom = undefined;
       attendance.dateTo = undefined;
@@ -1025,9 +1036,11 @@ const updateAttendance = async (req, res) => {
         }
         attendance.leaveType = leaveType;
       }
+
       // Add/Update leave date range
       if (dateFrom) attendance.dateFrom = new Date(dateFrom);
       if (dateTo) attendance.dateTo = new Date(dateTo);
+
       // Clear time-related fields for leave
       attendance.checkIn = null;
       attendance.checkOut = null;
@@ -1042,16 +1055,11 @@ const updateAttendance = async (req, res) => {
       attendance.leaveType = null;
       attendance.dateFrom = undefined;
       attendance.dateTo = undefined;
-      // Clear all time-related fields for absent
-      attendance.checkIn = null;
-      attendance.checkOut = null;
-      attendance.hoursRendered = 0;
-      attendance.tardinessMinutes = 0;
-      attendance.leaveType = null;
     }
 
-    await attendance.save(); // Create new record object for comparison
+    await attendance.save();
 
+    // Create new record object for comparison
     const newRecord = {
       status: attendance.status,
       checkIn: attendance.checkIn,
@@ -1060,11 +1068,15 @@ const updateAttendance = async (req, res) => {
       notes: attendance.notes,
       tardinessMinutes: attendance.tardinessMinutes,
       hoursRendered: attendance.hoursRendered,
-    }; // Get changes
+      dateFrom: attendance.dateFrom,
+      dateTo: attendance.dateTo,
+    };
 
-    const changes = getRecordChanges(oldRecord, newRecord); // Log the update
+    // Get changes
+    const changes = getRecordChanges(oldRecord, newRecord);
 
-    await createAttendanceLog({
+    // Log the update
+    await AttendanceLog({
       employeeId: attendance.employee._id,
       attendanceId: attendance._id,
       action: "UPDATED",
@@ -1078,12 +1090,13 @@ const updateAttendance = async (req, res) => {
         autoStatusChange: autoStatusChange,
         originalStatus: originalStatus,
         finalStatus: attendance.status,
-        updatedBy: req.user.firstname + " " + req.user.lastname,
+        updatedBy: `${req.user.firstname} ${req.user.lastname}`,
       },
-    }); // Log auto status change if it occurred
+    });
 
+    // Log auto status change if it occurred
     if (autoStatusChange) {
-      await createAttendanceLog({
+      await AttendanceLog({
         employeeId: attendance.employee._id,
         attendanceId: attendance._id,
         action: "AUTO_STATUS_CHANGE",
@@ -1102,8 +1115,9 @@ const updateAttendance = async (req, res) => {
           triggeredDuring: "UPDATE",
         },
       });
-    } // Return populated record
+    }
 
+    // Return populated record
     const updatedRecord = await Attendance.findById(id).populate(
       "employee",
       "firstname lastname employeeId department role employmentType"
@@ -1114,11 +1128,12 @@ const updateAttendance = async (req, res) => {
       attendance: updatedRecord,
     });
   } catch (error) {
-    console.error("Error updating attendance:", error); // Log error
+    console.error("Error updating attendance:", error);
 
-    if (req.params.id) {
-      await createAttendanceLog({
-        employeeId: null,
+    // Log error
+    try {
+      await AttendanceLog({
+        employeeId: req.user ? req.user._id : null,
         attendanceId: req.params.id,
         action: "UPDATE_ERROR",
         description: "Error occurred while updating attendance record",
@@ -1128,6 +1143,8 @@ const updateAttendance = async (req, res) => {
           providedData: req.body,
         },
       });
+    } catch (logError) {
+      console.error("Error logging update error:", logError);
     }
 
     res.status(500).json({
@@ -1138,8 +1155,8 @@ const updateAttendance = async (req, res) => {
 };
 
 // Delete attendance record
+
 const deleteAttendance = async (req, res) => {
-  // --- MODIFIED: Added role check to restrict access ---
   if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res.status(403).json({
       message:
@@ -1149,12 +1166,12 @@ const deleteAttendance = async (req, res) => {
 
   try {
     const { id } = req.params;
-    const performedBy = req.user ? req.user._id : null;
+    const performedBy = req.user._id;
 
+    // Validate attendance record exists
     const attendance = await Attendance.findById(id).populate("employee");
     if (!attendance) {
-      // Log failed attempt
-      await createAttendanceLog({
+      await AttendanceLog({
         employeeId: null,
         attendanceId: id,
         action: "DELETE_FAILED",
@@ -1166,23 +1183,27 @@ const deleteAttendance = async (req, res) => {
       return res.status(404).json({
         message: "Attendance record not found",
       });
-    } // Store record data before deletion
+    }
 
+    // Store record data before deletion
     const recordData = {
       employeeId: attendance.employee._id,
-      employeeName:
-        attendance.employee.firstname + " " + attendance.employee.lastname,
+      employeeName: `${attendance.employee.firstname} ${attendance.employee.lastname}`,
       date: attendance.date,
       status: attendance.status,
       checkIn: attendance.checkIn,
       checkOut: attendance.checkOut,
       leaveType: attendance.leaveType,
       notes: attendance.notes,
+      hoursRendered: attendance.hoursRendered,
+      tardinessMinutes: attendance.tardinessMinutes,
     };
 
-    await Attendance.findByIdAndDelete(id); // Log successful deletion
+    // Delete the record
+    await Attendance.findByIdAndDelete(id);
 
-    await createAttendanceLog({
+    // Log successful deletion
+    await AttendanceLog({
       employeeId: attendance.employee._id,
       attendanceId: id,
       action: "DELETED",
@@ -1192,21 +1213,21 @@ const deleteAttendance = async (req, res) => {
         deleted: recordData,
       },
       metadata: {
-        deletedBy: req.user
-          ? req.user.firstname + " " + req.user.lastname
-          : "Unknown",
+        deletedBy: `${req.user.firstname} ${req.user.lastname}`,
         originalRecord: recordData,
       },
     });
 
     res.json({
       message: "Attendance record deleted successfully",
+      deletedRecord: recordData,
     });
   } catch (error) {
-    console.error("Error deleting attendance:", error); // Log error
+    console.error("Error deleting attendance:", error);
 
-    if (req.params.id) {
-      await createAttendanceLog({
+    // Log error
+    try {
+      await AttendanceLog({
         employeeId: null,
         attendanceId: req.params.id,
         action: "DELETE_ERROR",
@@ -1216,6 +1237,8 @@ const deleteAttendance = async (req, res) => {
           error: error.message,
         },
       });
+    } catch (logError) {
+      console.error("Error logging delete error:", logError);
     }
 
     res.status(500).json({
@@ -1478,467 +1501,6 @@ const getLeaveBreakdown = async (req, res) => {
   } catch (error) {
     console.error("Error fetching leave breakdown:", error);
     res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-// Get all overtime requests for admin view
-const getAllOvertimeRequests = async (req, res) => {
-  if (req.user.role !== "admin" && req.user.role !== "hr") {
-    return res.status(403).json({
-      message:
-        "Access denied. Only Admin and HR users can view overtime requests.",
-    });
-  }
-  try {
-    const { status, department, page = 1, limit = 50 } = req.query;
-
-    // Build filter object
-    const filter = {};
-    if (status && status !== "all") {
-      filter.status = status;
-    }
-
-    // Calculate pagination
-    const skip = (page - 1) * limit;
-
-    // Base query
-    let query = overtime
-      .find(filter)
-      .populate({
-        path: "employee",
-        select: "firstname lastname employeeId department email",
-        match: department && department !== "all" ? { department } : {},
-      })
-      .populate({
-        path: "approvedBy",
-        select: "firstname lastname employeeId",
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const overtimeRequests = await query.exec();
-
-    // Filter out records where employee is null (due to department filter)
-    const filteredRequests = overtimeRequests.filter(
-      (req) => req.employee !== null
-    );
-
-    // Get total count for pagination
-    const totalQuery = overtime.find(filter).populate({
-      path: "employee",
-      select: "department",
-      match: department && department !== "all" ? { department } : {},
-    });
-
-    const totalResults = await totalQuery.exec();
-    const totalCount = totalResults.filter(
-      (req) => req.employee !== null
-    ).length;
-
-    res.status(200).json({
-      success: true,
-      data: filteredRequests,
-      pagination: {
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(totalCount / limit),
-        totalCount,
-        hasNext: page * limit < totalCount,
-        hasPrev: page > 1,
-      },
-    });
-  } catch (error) {
-    console.error("Error in getAllOvertimeRequests:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch overtime requests",
-      error: error.message,
-    });
-  }
-};
-
-// Approve overtime request
-const approveOvertimeRequest = async (req, res) => {
-  if (req.user.role !== "admin" && req.user.role !== "hr") {
-    return res.status(403).json({
-      message:
-        "Access denied. Only Admin and HR users can approve overtime requests.",
-    });
-  }
-  try {
-    const { id } = req.params;
-    const adminId = req.user._id;
-
-    // Find the overtime request
-    const overtimeRequest = await Overtime.findById(id).populate(
-      "employee",
-      "firstname lastname employeeId email"
-    );
-
-    if (!overtimeRequest) {
-      return res.status(404).json({
-        success: false,
-        message: "Overtime request not found",
-      });
-    }
-
-    if (overtimeRequest.status !== "pending") {
-      return res.status(400).json({
-        success: false,
-        message: "Only pending overtime requests can be approved",
-      });
-    }
-
-    // Check if employee has conflicting approved leave during overtime period
-    const conflictingLeave = await leave.findOne({
-      employee: overtimeRequest.employee._id,
-      leaveStatus: "approved",
-      $or: [
-        {
-          dateFrom: {
-            $gte: overtimeRequest.dateFrom,
-            $lte: overtimeRequest.dateTo,
-          },
-        },
-        {
-          dateTo: {
-            $gte: overtimeRequest.dateFrom,
-            $lte: overtimeRequest.dateTo,
-          },
-        },
-        {
-          dateFrom: { $lte: overtimeRequest.dateFrom },
-          dateTo: { $gte: overtimeRequest.dateTo },
-        },
-      ],
-    });
-
-    if (conflictingLeave) {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot approve overtime. Employee has approved leave from ${conflictingLeave.dateFrom.toDateString()} to ${conflictingLeave.dateTo.toDateString()}`,
-      });
-    }
-
-    // Update overtime request
-    overtimeRequest.status = "approved";
-    overtimeRequest.approvedBy = adminId;
-    overtimeRequest.approvedAt = new Date();
-
-    await overtimeRequest.save();
-
-    // Populate the approvedBy field for response
-    await overtimeRequest.populate(
-      "approvedBy",
-      "firstname lastname employeeId"
-    );
-
-    res.status(200).json({
-      success: true,
-      message: "Overtime request approved successfully",
-      data: overtimeRequest,
-    });
-  } catch (error) {
-    console.error("Error in approveOvertimeRequest:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to approve overtime request",
-      error: error.message,
-    });
-  }
-};
-
-// Reject overtime request
-const rejectOvertimeRequest = async (req, res) => {
-  if (req.user.role !== "admin" && req.user.role !== "hr") {
-    return res.status(403).json({
-      message:
-        "Access denied. Only Admin and HR users can reject overtime requests.",
-    });
-  }
-  try {
-    const { id } = req.params;
-    const { rejectionReason } = req.body;
-    const adminId = req.user._id;
-
-    if (!rejectionReason || rejectionReason.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Rejection reason is required",
-      });
-    }
-
-    // Find the overtime request
-    const overtimeRequest = await overtime
-      .findById(id)
-      .populate("employee", "firstname lastname employeeId email");
-
-    if (!overtimeRequest) {
-      return res.status(404).json({
-        success: false,
-        message: "Overtime request not found",
-      });
-    }
-
-    if (overtimeRequest.status !== "pending") {
-      return res.status(400).json({
-        success: false,
-        message: "Only pending overtime requests can be rejected",
-      });
-    }
-
-    // Update overtime request
-    overtimeRequest.status = "rejected";
-    overtimeRequest.approvedBy = adminId;
-    overtimeRequest.approvedAt = new Date();
-    overtimeRequest.rejectionReason = rejectionReason.trim();
-
-    await overtimeRequest.save();
-
-    // Populate the approvedBy field for response
-    await overtimeRequest.populate(
-      "approvedBy",
-      "firstname lastname employeeId"
-    );
-
-    res.status(200).json({
-      success: true,
-      message: "Overtime request rejected successfully",
-      data: overtimeRequest,
-    });
-  } catch (error) {
-    console.error("Error in rejectOvertimeRequest:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to reject overtime request",
-      error: error.message,
-    });
-  }
-};
-
-// Get overtime statistics for admin dashboard
-const getOvertimeStatistics = async (req, res) => {
-  if (req.user.role !== "admin" && req.user.role !== "hr") {
-    return res.status(403).json({
-      message:
-        "Access denied. Only Admin and HR users can view overtime statistics.",
-    });
-  }
-  try {
-    const { department, startDate, endDate } = req.query;
-
-    // Build match filter
-    const matchFilter = {};
-
-    if (startDate && endDate) {
-      matchFilter.dateFrom = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
-      };
-    }
-
-    // Aggregate pipeline
-    const pipeline = [
-      { $match: matchFilter },
-      {
-        $lookup: {
-          from: "users",
-          localField: "employee",
-          foreignField: "_id",
-          as: "employee",
-        },
-      },
-      { $unwind: "$employee" },
-    ];
-
-    // Add department filter if specified
-    if (department && department !== "all") {
-      pipeline.push({
-        $match: { "employee.department": department },
-      });
-    }
-
-    // Group by status and calculate statistics
-    pipeline.push({
-      $group: {
-        _id: "$status",
-        count: { $sum: 1 },
-        totalHours: { $sum: "$hours" },
-        totalDays: { $sum: "$totalOvertimeDays" },
-      },
-    });
-
-    const stats = await overtime.aggregate(pipeline);
-
-    // Format statistics
-    const formattedStats = {
-      pending: { count: 0, totalHours: 0, totalDays: 0 },
-      approved: { count: 0, totalHours: 0, totalDays: 0 },
-      rejected: { count: 0, totalHours: 0, totalDays: 0 },
-      total: { count: 0, totalHours: 0, totalDays: 0 },
-    };
-
-    stats.forEach((stat) => {
-      formattedStats[stat._id] = {
-        count: stat.count,
-        totalHours: stat.totalHours,
-        totalDays: stat.totalDays,
-      };
-
-      formattedStats.total.count += stat.count;
-      formattedStats.total.totalHours += stat.totalHours;
-      formattedStats.total.totalDays += stat.totalDays;
-    });
-
-    res.status(200).json({
-      success: true,
-      data: formattedStats,
-    });
-  } catch (error) {
-    console.error("Error in getOvertimeStatistics:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch overtime statistics",
-      error: error.message,
-    });
-  }
-};
-
-// Get overtime request details
-const getOvertimeRequestDetails = async (req, res) => {
-  if (req.user.role !== "admin" && req.user.role !== "hr") {
-    return res.status(403).json({
-      message:
-        "Access denied. Only Admin and HR users can view overtime request details.",
-    });
-  }
-  try {
-    const { id } = req.params;
-
-    const overtimeRequest = await overtime
-      .findById(id)
-      .populate(
-        "employee",
-        "firstname lastname employeeId department email phone"
-      )
-      .populate("approvedBy", "firstname lastname employeeId");
-
-    if (!overtimeRequest) {
-      return res.status(404).json({
-        success: false,
-        message: "Overtime request not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: overtimeRequest,
-    });
-  } catch (error) {
-    console.error("Error in getOvertimeRequestDetails:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch overtime request details",
-      error: error.message,
-    });
-  }
-};
-
-// Bulk approve overtime requests
-const bulkApproveOvertimeRequests = async (req, res) => {
-  if (req.user.role !== "admin" && req.user.role !== "hr") {
-    return res.status(403).json({
-      message:
-        "Access denied. Only Admin and HR users can approve overtime requests.",
-    });
-  }
-  try {
-    const { overtimeIds } = req.body;
-    const adminId = req.user._id;
-
-    if (!Array.isArray(overtimeIds) || overtimeIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide an array of overtime IDs",
-      });
-    }
-
-    // Find all pending overtime requests
-    const overtimeRequests = await overtime
-      .find({
-        _id: { $in: overtimeIds },
-        status: "pending",
-      })
-      .populate("employee", "firstname lastname employeeId");
-
-    if (overtimeRequests.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "No pending overtime requests found for the provided IDs",
-      });
-    }
-
-    // Check for leave conflicts for each request
-    const conflictingRequests = [];
-    const validRequests = [];
-
-    for (const request of overtimeRequests) {
-      const conflictingLeave = await leave.findOne({
-        employee: request.employee._id,
-        leaveStatus: "approved",
-        $or: [
-          {
-            dateFrom: { $gte: request.dateFrom, $lte: request.dateTo },
-          },
-          {
-            dateTo: { $gte: request.dateFrom, $lte: request.dateTo },
-          },
-          {
-            dateFrom: { $lte: request.dateFrom },
-            dateTo: { $gte: request.dateTo },
-          },
-        ],
-      });
-
-      if (conflictingLeave) {
-        conflictingRequests.push({
-          id: request._id,
-          employee: `${request.employee.firstname} ${request.employee.lastname}`,
-          conflict: `Leave from ${conflictingLeave.dateFrom.toDateString()} to ${conflictingLeave.dateTo.toDateString()}`,
-        });
-      } else {
-        validRequests.push(request);
-      }
-    }
-
-    // Update valid requests
-    if (validRequests.length > 0) {
-      await overtime.updateMany(
-        { _id: { $in: validRequests.map((r) => r._id) } },
-        {
-          status: "approved",
-          approvedBy: adminId,
-          approvedAt: new Date(),
-        }
-      );
-    }
-
-    res.status(200).json({
-      success: true,
-      message: `${validRequests.length} overtime requests approved successfully`,
-      data: {
-        approved: validRequests.length,
-        conflicts: conflictingRequests.length,
-        conflictingRequests,
-      },
-    });
-  } catch (error) {
-    console.error("Error in bulkApproveOvertimeRequests:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to bulk approve overtime requests",
-      error: error.message,
-    });
   }
 };
 
