@@ -37,7 +37,7 @@ import {
   EditIcon,
   DeleteIcon,
 } from "@chakra-ui/icons";
-
+import axiosInstance from "../lib/axiosInstance";
 // Mock API functions (replace with actual API calls to your Node.js backend)
 const API_BASE = "http://localhost:3001/api";
 
@@ -75,37 +75,6 @@ const mockEvents = [
 ];
 
 // API service functions
-const eventService = {
-  async getEvents() {
-    // In a real app, this would be: const response = await fetch(`${API_BASE}/events`);
-    // return response.json();
-    return new Promise((resolve) => setTimeout(() => resolve(mockEvents), 500));
-  },
-
-  async createEvent(event) {
-    // In a real app: await fetch(`${API_BASE}/events`, { method: 'POST', body: JSON.stringify(event) });
-    const newEvent = { ...event, id: Date.now().toString() };
-    mockEvents.push(newEvent);
-    return newEvent;
-  },
-
-  async updateEvent(id, event) {
-    // In a real app: await fetch(`${API_BASE}/events/${id}`, { method: 'PUT', body: JSON.stringify(event) });
-    const index = mockEvents.findIndex((e) => e.id === id);
-    if (index !== -1) {
-      mockEvents[index] = { ...event, id };
-    }
-    return { ...event, id };
-  },
-
-  async deleteEvent(id) {
-    // In a real app: await fetch(`${API_BASE}/events/${id}`, { method: 'DELETE' });
-    const index = mockEvents.findIndex((e) => e.id === id);
-    if (index !== -1) {
-      mockEvents.splice(index, 1);
-    }
-  },
-};
 
 const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -148,6 +117,11 @@ const Calendar = () => {
 
   const handleSaveEvent = async () => {
     try {
+      const response = await axiosInstance.post(
+        "/calendar/create-events",
+        formData
+      );
+      const data = response.data;
       if (!formData.title || !formData.date || !formData.time) {
         toast({
           title: "Please fill in all required fields",
