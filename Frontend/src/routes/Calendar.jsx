@@ -62,12 +62,14 @@ const Calendar = () => {
           extendedProps: {
             ...e, // keep all original backend fields
             participants: e.participants || [], // ensure array
+            _id: e._id, // explicitly store _id in extendedProps
           },
         };
       });
 
       setEvents(mappedEvents);
     } catch (err) {
+      console.error("Load events error:", err);
       toast({ title: "Error loading events", status: "error" });
     }
   };
@@ -89,28 +91,42 @@ const Calendar = () => {
   const handleSave = async (data) => {
     try {
       if (selectedEvent) {
-        await axiosInstance.put(
-          `/calendar/update-event/${selectedEvent.id}`,
-          data
-        );
+        // Get the MongoDB _id from extendedProps
+        const eventId = selectedEvent.extendedProps._id;
+        await axiosInstance.put(`/calendar/update-event/${eventId}`, data);
         toast({ title: "Event updated", status: "success" });
       } else {
         await axiosInstance.post(`/calendar/create-events`, data);
         toast({ title: "Event created", status: "success" });
       }
+      setIsModalOpen(false);
       loadEvents();
     } catch (err) {
-      toast({ title: "Save failed", status: "error" });
+      console.error("Save error:", err.response?.data || err.message);
+      toast({
+        title: "Save failed",
+        description: err.response?.data?.error || "An error occurred",
+        status: "error",
+      });
     }
   };
 
   const handleDelete = async () => {
     try {
-      await axiosInstance.delete(`/calendar/delete-event/${selectedEvent.id}`);
+      // Get the MongoDB _id from extendedProps
+      const eventId = selectedEvent.extendedProps._id;
+      await axiosInstance.delete(`/calendar/delete-event/${eventId}`);
       toast({ title: "Event deleted", status: "success" });
+      setIsDeleteOpen(false);
+      setIsModalOpen(false);
       loadEvents();
     } catch (err) {
-      toast({ title: "Delete failed", status: "error" });
+      console.error("Delete error:", err.response?.data || err.message);
+      toast({
+        title: "Delete failed",
+        description: err.response?.data?.error || "An error occurred",
+        status: "error",
+      });
     }
   };
 
@@ -215,23 +231,20 @@ const Calendar = () => {
                     </Badge>
                   </Td>
                   <Td>
-                  
-                      {" "}
-                      {e.extendedProps.participants?.length > 0 ? (
-                        <AvatarGroup size="sm" max={3}>
-                          {e.extendedProps.participants.map((p, i) => (
-                            <Avatar
-                              key={i}
-                              name={`${p.firstname} ${p.lastname}`}
-                            />
-                          ))}
-                        </AvatarGroup>
-                      ) : (
-                        <Text color="gray.500" fontSize="sm">
-                          No participants
-                        </Text>
-                      )}
-                 
+                    {e.extendedProps.participants?.length > 0 ? (
+                      <AvatarGroup size="sm" max={3}>
+                        {e.extendedProps.participants.map((p, i) => (
+                          <Avatar
+                            key={i}
+                            name={`${p.firstname} ${p.lastname}`}
+                          />
+                        ))}
+                      </AvatarGroup>
+                    ) : (
+                      <Text color="gray.500" fontSize="sm">
+                        No participants
+                      </Text>
+                    )}
                   </Td>
                 </Tr>
               ))}

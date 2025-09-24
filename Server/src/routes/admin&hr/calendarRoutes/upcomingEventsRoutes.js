@@ -21,4 +21,9 @@ router.get(
   authorizeRole("admin", "hr"),
   upcomingevent.searchEmployeesAlternative
 );
+router.put(
+  "/update-event/:id",
+  authorizeRole("admin", "hr"),
+  upcomingevent.updateUpcomingEvent
+);
 module.exports = router;

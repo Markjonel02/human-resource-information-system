@@ -182,8 +182,154 @@ const searchEmployeesAlternative = async (req, res) => {
   }
 };
 
+const updateUpcomingEvent = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res.status(403).json({ error: "Access denied" });
+  }
+
+  try {
+    const { eventId } = req.params;
+    const {
+      title,
+      date,
+      time,
+      duration,
+      description,
+      type,
+      priority,
+      participants,
+    } = req.body;
+
+    // 🔹 Validate ID
+    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      return res.status(400).json({ error: "Invalid event ID" });
+    }
+
+    // 🔹 Find existing event
+    const event = await upcomingEvents.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    // 🔹 Validate required fields
+    if (!title || !date || !time) {
+      return res
+        .status(400)
+        .json({ error: "Title, date, and time are required" });
+    }
+
+    // 🔹 Validate participants (array of IDs)
+    if (
+      !participants ||
+      !Array.isArray(participants) ||
+      participants.length === 0
+    ) {
+      return res
+        .status(400)
+        .json({ error: "At least one participant is required" });
+    }
+
+    // Convert dates for duration-based validation
+    const eventStart = new Date(`${date}T${time}`);
+    const eventDuration = duration || 60; // Default 60 minutes
+    const eventEnd = new Date(eventStart.getTime() + eventDuration * 60000);
+
+    // 🔹 Check if participants have pending/approved leave overlapping event
+    if (participants?.length) {
+      const leaves = await Leave.find({
+        employee: { $in: participants },
+        leaveStatus: { $in: ["pending", "approved"] },
+        dateFrom: { $lte: eventEnd },
+        dateTo: { $gte: eventStart },
+      });
+
+      if (leaves.length > 0) {
+        return res.status(400).json({
+          error:
+            "One or more participants have pending/approved leave during this event period",
+          conflictLeaves: leaves,
+        });
+      }
+    }
+
+    // 🔹 Check if participants already have another event on same date/time
+    const conflicts = await upcomingEvents.findOne({
+      _id: { $ne: eventId }, // exclude current event
+      participants: { $in: participants },
+      date: date, // Same date
+      $or: [
+        {
+          // Check if times overlap
+          $expr: {
+            $and: [
+              {
+                $lte: [
+                  {
+                    $dateFromString: {
+                      dateString: { $concat: ["$date", "T", "$time"] },
+                    },
+                  },
+                  eventEnd,
+                ],
+              },
+              {
+                $gte: [
+                  {
+                    $add: [
+                      {
+                        $dateFromString: {
+                          dateString: { $concat: ["$date", "T", "$time"] },
+                        },
+                      },
+                      { $multiply: [{ $ifNull: ["$duration", 60] }, 60000] },
+                    ],
+                  },
+                  eventStart,
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    if (conflicts) {
+      return res.status(400).json({
+        error:
+          "One or more participants already have another event during this time period",
+        conflictEvent: conflicts,
+      });
+    }
+
+    // 🔹 Update only the fields that exist in the schema
+    event.title = title;
+    event.date = date;
+    event.time = time;
+    if (duration !== undefined) event.duration = duration;
+    if (description !== undefined) event.description = description;
+    if (type !== undefined) event.type = type;
+    if (priority !== undefined) event.priority = priority;
+    event.participants = participants;
+
+    // 🔹 Save updated event
+    await event.save();
+
+    // 🔹 Populate participants with consistent field selection
+    const updatedEvent = await event.populate(
+      "participants",
+      "firstname lastname employeeId email"
+    );
+
+    res.status(200).json(updatedEvent);
+  } catch (error) {
+    console.error("Error updating event:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   createUpcomingEvent,
   getUpcomingEvents,
   searchEmployeesAlternative,
+  updateUpcomingEvent,
 };
