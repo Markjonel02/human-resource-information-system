@@ -1,13 +1,12 @@
 const mongoose = require("mongoose");
 
 const upcomingEventsSchema = new mongoose.Schema({
-  employeeId: {
+  employee: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "user",
-    required: true,
   },
   title: { type: String, required: true },
-  description: String,
+  description: { type: String },
   date: { type: String, required: true },
   time: { type: String, required: true },
   duration: { type: Number, default: 60 },
@@ -21,9 +20,19 @@ const upcomingEventsSchema = new mongoose.Schema({
     enum: ["low", "medium", "high"],
     default: "medium",
   },
+  participants: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "user",
+    },
+  ],
   createdAt: { type: Date, default: Date.now },
-
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "user",
+    required: true,
+  },
 });
 
-const UpcomingEvent = mongoose.model("UpcomingEvent", upcomingEventsSchema);
-module.exports = UpcomingEvent;
+const upcomingEvents = mongoose.model("UpcomingEvent", upcomingEventsSchema);
+module.exports = upcomingEvents;
