@@ -14,6 +14,10 @@ import {
   Td,
   Badge,
   Text,
+  useColorModeValue,
+  Avatar,
+  AvatarGroup,
+  Tooltip,
 } from "@chakra-ui/react";
 import { AddIcon } from "@chakra-ui/icons";
 import FullCalendar from "@fullcalendar/react";
@@ -34,29 +38,35 @@ const Calendar = () => {
   useEffect(() => {
     loadEvents();
   }, []);
+  const headerBg = useColorModeValue("gray.100", "gray.700");
+  const rowHover = useColorModeValue("gray.50", "gray.600");
 
   const loadEvents = async () => {
     try {
       const res = await axiosInstance.get("/calendar/get-events");
-      setEvents(
-        res.data.map((e) => {
-          let bgColor = "#3182CE"; // default blue
-          if (e.priority === "high") bgColor = "#E53E3E"; // red
-          else if (e.priority === "medium") bgColor = "#DD6B20"; // orange
-          else if (e.priority === "low") bgColor = "#38A169"; // green
 
-          return {
-            id: e._id,
-            title: e.title,
-            start: `${e.date}T${e.time}`,
-            end: e.endDate ? `${e.endDate}T${e.time}` : null,
-            backgroundColor: bgColor,
-            borderColor: bgColor,
-            textColor: "white",
-            extendedProps: e,
-          };
-        })
-      );
+      const mappedEvents = res.data.map((e) => {
+        let bgColor = "#3182CE"; // default blue
+        if (e.priority === "high") bgColor = "#E53E3E"; // red
+        else if (e.priority === "medium") bgColor = "#DD6B20"; // orange
+        else if (e.priority === "low") bgColor = "#38A169"; // green
+
+        return {
+          id: e._id,
+          title: e.title,
+          start: `${e.date}T${e.time}`,
+          end: e.endDate ? `${e.endDate}T${e.time}` : null,
+          backgroundColor: bgColor,
+          borderColor: bgColor,
+          textColor: "white",
+          extendedProps: {
+            ...e, // keep all original backend fields
+            participants: e.participants || [], // ensure array
+          },
+        };
+      });
+
+      setEvents(mappedEvents);
     } catch (err) {
       toast({ title: "Error loading events", status: "error" });
     }
@@ -134,31 +144,47 @@ const Calendar = () => {
           height="75vh"
         />
 
-        {/* Events Table */}
-        <Box bg="white" rounded="xl" shadow="md" p={4}>
-          <Heading size="md" mb={4}>
+        <Box
+          bg={useColorModeValue("white", "gray.800")}
+          rounded="2xl"
+          shadow="lg"
+          p={6}
+          overflowX="auto"
+        >
+          <Heading size="md" mb={6} color="blue.600">
             📋 Event List
           </Heading>
-          <Table variant="simple">
-            <Thead>
+
+          <Table variant="striped" colorScheme="blue" size="md">
+            <Thead bg={headerBg}>
               <Tr>
                 <Th>Title</Th>
                 <Th>Date</Th>
                 <Th>Time</Th>
                 <Th>Type</Th>
                 <Th>Priority</Th>
+                <Th>Participants</Th>
               </Tr>
             </Thead>
             <Tbody>
               {events.map((e) => (
-                <Tr key={e.id}>
+                <Tr
+                  key={e.id}
+                  _hover={{ bg: rowHover, transform: "scale(1.01)" }}
+                  transition="all 0.2s"
+                >
                   <Td>
-                    <Text fontWeight="medium">{e.title}</Text>
+                    <Text fontWeight="semibold" color="blue.700">
+                      {e.title}
+                    </Text>
                   </Td>
                   <Td>{e.extendedProps.date}</Td>
                   <Td>{e.extendedProps.time}</Td>
                   <Td>
                     <Badge
+                      px={3}
+                      py={1}
+                      rounded="full"
                       colorScheme={
                         e.extendedProps.type === "meeting"
                           ? "purple"
@@ -174,6 +200,9 @@ const Calendar = () => {
                   </Td>
                   <Td>
                     <Badge
+                      px={3}
+                      py={1}
+                      rounded="full"
                       colorScheme={
                         e.extendedProps.priority === "high"
                           ? "red"
@@ -184,6 +213,25 @@ const Calendar = () => {
                     >
                       {e.extendedProps.priority}
                     </Badge>
+                  </Td>
+                  <Td>
+                  
+                      {" "}
+                      {e.extendedProps.participants?.length > 0 ? (
+                        <AvatarGroup size="sm" max={3}>
+                          {e.extendedProps.participants.map((p, i) => (
+                            <Avatar
+                              key={i}
+                              name={`${p.firstname} ${p.lastname}`}
+                            />
+                          ))}
+                        </AvatarGroup>
+                      ) : (
+                        <Text color="gray.500" fontSize="sm">
+                          No participants
+                        </Text>
+                      )}
+                 
                   </Td>
                 </Tr>
               ))}

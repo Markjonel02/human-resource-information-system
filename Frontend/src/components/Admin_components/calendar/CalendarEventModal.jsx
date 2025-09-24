@@ -113,7 +113,11 @@ const CalendarEventModal = ({ isOpen, onClose, onSave, onDelete, event }) => {
   };
 
   const handleSubmit = () => {
-    onSave(formData);
+    const payload = {
+      ...formData,
+      participants: formData.participants.map((emp) => emp._id), // send only IDs
+    };
+    onSave(payload);
     onClose();
   };
 

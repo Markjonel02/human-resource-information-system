@@ -10,8 +10,16 @@ const createUpcomingEvent = async (req, res) => {
   }
 
   try {
-    const { title, date, time, duration, description, type, priority } =
-      req.body;
+    const {
+      title,
+      date,
+      time,
+      duration,
+      description,
+      type,
+      priority,
+      participants,
+    } = req.body;
 
     // Validate required fields
     if (!title || !date || !time) {
@@ -20,25 +28,40 @@ const createUpcomingEvent = async (req, res) => {
         .json({ error: "Title, date, and time are required" });
     }
 
+    // Validate participants (array of IDs)
+    if (
+      !participants ||
+      !Array.isArray(participants) ||
+      participants.length === 0
+    ) {
+      return res
+        .status(400)
+        .json({ error: "At least one participant is required" });
+    }
+
     const event = new upcomingEvents({
-      employeeId: req.user._id,
+      createdBy: req.user._id,
+      participants, // array of employee IDs
       title,
       date,
       time,
-      duration, // will fallback to schema default if not provided
+      duration,
       description,
-      type, // will fallback to schema default if not provided
-      priority, // will fallback to schema default if not provided
+      type,
+      priority,
     });
 
-    // Save first
     await event.save();
 
-    // Populate employeeId details (name, email)
-    const populatedEvent = await event.populate("employeeId", "name email");
+    // Populate participants (name, email, etc.)
+    const populatedEvent = await event.populate(
+      "participants",
+      "firstname lastname employeeId"
+    );
 
     res.status(201).json(populatedEvent);
   } catch (error) {
+    console.error("Error saving event:", error); // ✅ logs root cause
     res.status(500).json({ error: error.message });
   }
 };
@@ -47,21 +70,25 @@ const getUpcomingEvents = async (req, res) => {
   if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res.status(403).json({ error: "Access denied" });
   }
+
   try {
     const get_events = await upcomingEvents
       .find()
-      .populate("employeeId", "firstname lastname employeeId")
+      .populate("employee", "firstname lastname employeeId")
+      .populate("participants", "firstname lastname employeeId")
       .sort({ date: 1, time: 1 });
 
-    if (!get_events) {
+    if (!get_events || get_events.length === 0) {
       return res.status(404).json({ error: "No events found" });
     }
+
     res.status(200).json(get_events);
   } catch (error) {
-    console.log("error", error);
+    console.error("error", error);
     return res.status(500).json({ error: error.message });
   }
 };
+
 const searchEmployeesAlternative = async (req, res) => {
   try {
     const { q } = req.query;
