@@ -122,7 +122,7 @@ const UserSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// 🔄 Normalize corporaterank input before validation
+// Normalize corporaterank input before validation
 UserSchema.pre("validate", function (next) {
   if (this.corporaterank) {
     const input = this.corporaterank.toLowerCase().trim();
@@ -133,7 +133,7 @@ UserSchema.pre("validate", function (next) {
   next();
 });
 
-// 🔐 Pre-save: calculate age + hash password if changed
+// Pre-save: calculate age + hash password if changed
 UserSchema.pre("save", async function (next) {
   // Age calculation
   if (this.birthday) {
@@ -162,7 +162,7 @@ UserSchema.pre("save", async function (next) {
   }
 });
 
-// ✅ Instance method: compare plaintext with hashed password
+//  Instance method: compare plaintext with hashed password
 UserSchema.methods.comparePassword = function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
