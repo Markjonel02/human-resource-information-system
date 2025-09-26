@@ -1,4 +1,4 @@
-// --- Enhanced UpcomingSchedule Component ---
+// --- Updated UpcomingSchedule.jsx ---
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -14,10 +14,17 @@ import {
   useToast,
   Spinner,
   Badge,
+  Divider,
   IconButton,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  useDisclosure,
 } from "@chakra-ui/react";
 import { FaCalendarAlt, FaEllipsisV, FaClock } from "react-icons/fa";
 import axiosInstance from "../lib/axiosInstance";
+import ReusableModal from "./EmployeeCalendarModalView"; // ✅ Updated modal
 
 const UpcomingSchedule = () => {
   const cardBg = useColorModeValue("white", "gray.700");
@@ -28,6 +35,9 @@ const UpcomingSchedule = () => {
 
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedSchedule, setSelectedSchedule] = useState(null);
+
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   // Priority color mapping
   const getPriorityColor = (priority) => {
@@ -44,9 +54,8 @@ const UpcomingSchedule = () => {
     }
   };
 
-  // Get initials from name
+  // Get initials (First + Last only)
   const getInitials = (firstName, lastName) => {
-    if (!firstName && !lastName) return "?";
     const first = firstName?.charAt(0) || "";
     const last = lastName?.charAt(0) || "";
     return (first + last).toUpperCase();
@@ -60,10 +69,8 @@ const UpcomingSchedule = () => {
       if (!response || !response.data) {
         throw new Error("No data from server");
       }
-      console.log("Schedules data:", response.data); // Debug log
       setSchedules(response.data);
     } catch (error) {
-      console.error("Error fetching schedules:", error);
       toast({
         title: "Error fetching schedules",
         description: error.message || "Something went wrong",
@@ -81,6 +88,21 @@ const UpcomingSchedule = () => {
     getSchedules();
   }, []);
 
+  // Format date helper
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const handleViewSchedule = (schedule) => {
+    setSelectedSchedule(schedule);
+    onOpen();
+  };
+
   return (
     <Box
       p={5}
@@ -90,6 +112,7 @@ const UpcomingSchedule = () => {
       rounded="lg"
       bg={cardBg}
     >
+      {/* Header */}
       <Flex mb={4} alignItems="center">
         <Heading as="h3" size="md" color={textColor} fontWeight="600">
           Upcoming Schedule
@@ -106,6 +129,7 @@ const UpcomingSchedule = () => {
         </Button>
       </Flex>
 
+      {/* Loading / Empty / List */}
       {loading ? (
         <Flex justify="center" py={6}>
           <Spinner size="lg" color="blue.500" />
@@ -117,16 +141,21 @@ const UpcomingSchedule = () => {
           </Text>
         </Box>
       ) : (
-        <VStack spacing={3} align="stretch">
+        <VStack
+          spacing={6}
+          align="stretch"
+          divider={<Divider borderColor={borderColor} />}
+        >
           {schedules.map((schedule, index) => (
             <Box
               key={schedule._id || index}
-              position="relative"
               bg={cardBg}
               borderRadius="md"
-              overflow="hidden"
+              p={4}
+              _hover={{ shadow: "md", transform: "translateY(-2px)" }}
+              transition="all 0.2s ease-in-out"
             >
-              {/* Priority Badge and Menu */}
+              {/* Priority Badge + Menu */}
               <Flex justify="space-between" align="center" mb={3}>
                 <Badge
                   colorScheme={getPriorityColor(schedule.priority)}
@@ -134,71 +163,99 @@ const UpcomingSchedule = () => {
                   fontSize="xs"
                   px={2}
                   py={1}
-                  borderRadius="sm"
+                  borderRadius="full"
                   textTransform="capitalize"
                 >
                   {schedule.priority || "Medium"}
                 </Badge>
-                <IconButton
-                  icon={<FaEllipsisV />}
-                  variant="ghost"
-                  size="sm"
-                  color={subTextColor}
-                  _hover={{ bg: "gray.100" }}
-                />
+                <Menu>
+                  <MenuButton
+                    as={IconButton}
+                    icon={<FaEllipsisV />}
+                    variant="ghost"
+                    size="sm"
+                    color={subTextColor}
+                    _hover={{ bg: "gray.100" }}
+                  />
+                  <MenuList>
+                    <MenuItem onClick={() => handleViewSchedule(schedule)}>
+                      View
+                    </MenuItem>
+                  </MenuList>
+                </Menu>
               </Flex>
 
               {/* Main Content */}
-              <HStack spacing={3} align="flex-start">
-                {/* Creator Avatar */}
+              <HStack spacing={3} align="start">
                 <Avatar
                   size="sm"
-                  name={`${schedule.employee?.firstname || ""} ${
-                    schedule.employee?.lastname || ""
-                  }`}
+                  name={`${schedule.createdBy?.firstname} ${schedule.createdBy?.lastname}`}
                   bg={`${getPriorityColor(schedule.priority)}.500`}
                   color="white"
                   fontWeight="bold"
                 >
                   {getInitials(
-                    schedule.employee?.firstname,
-                    schedule.employee?.lastname
+                    schedule.createdBy?.firstName,
+                    schedule.createdBy?.lastName
                   )}
                 </Avatar>
 
-                {/* Event Details */}
                 <Box flex={1} minW={0}>
                   <Text
                     fontWeight="600"
                     fontSize="md"
                     color={textColor}
-                    mb={1}
                     noOfLines={1}
                   >
                     {schedule.title}
                   </Text>
 
-                  <Text fontSize="sm" color={subTextColor} mb={2} noOfLines={2}>
+                  <Text
+                    fontSize="sm"
+                    color={subTextColor}
+                    mb={2}
+                    noOfLines={2}
+                    isTruncated
+                  >
                     {schedule.description}
                   </Text>
 
-                  {/* Creator and Time Info */}
-                  <HStack spacing={4} fontSize="sm" color={subTextColor}>
-                    <Text fontWeight="500">
-                      {schedule.employee?.lastname || "Unknown"}...
-                    </Text>
+                  <HStack spacing={4} fontSize="sm" color={subTextColor} mb={2}>
+                    <HStack spacing={1}>
+                      <FaCalendarAlt size="12px" />
+                      <Text>
+                        {schedule.endDate
+                          ? `${formatDate(schedule.date)} - ${formatDate(
+                              schedule.endDate
+                            )}`
+                          : formatDate(schedule.date)}
+                      </Text>
+                    </HStack>
 
                     <HStack spacing={1}>
                       <FaClock size="12px" />
                       <Text>{schedule.time}</Text>
                     </HStack>
                   </HStack>
+
+                  <Text fontSize="sm" fontWeight="500" color={subTextColor}>
+                    {schedule.createdBy
+                      ? `${schedule.createdBy.firstname} ${schedule.createdBy.lastname}`
+                      : "Unknown"}
+                  </Text>
                 </Box>
               </HStack>
             </Box>
           ))}
         </VStack>
       )}
+
+      {/* 🔗 Use new modal with structured event view */}
+      <ReusableModal
+        isOpen={isOpen}
+        onClose={onClose}
+        event={selectedSchedule} // 👈 pass whole schedule
+      />
     </Box>
   );
 };

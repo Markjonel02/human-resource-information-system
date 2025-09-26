@@ -22,6 +22,8 @@ const createUpcomingEvent = async (req, res) => {
       participants,
     } = req.body;
 
+    const adminId = req.user._id;
+
     // Validate required fields
     if (!title || !date || !time) {
       return res
@@ -29,7 +31,7 @@ const createUpcomingEvent = async (req, res) => {
         .json({ error: "Title, date, and time are required" });
     }
 
-    // Validate participants (array of IDs)
+    // Validate participants
     if (
       !participants ||
       !Array.isArray(participants) ||
@@ -40,8 +42,9 @@ const createUpcomingEvent = async (req, res) => {
         .json({ error: "At least one participant is required" });
     }
 
+    // Create new event
     const event = new upcomingEvents({
-      createdBy: req.user._id,
+      createdBy: adminId,
       participants, // array of employee IDs
       title,
       date,
@@ -54,15 +57,15 @@ const createUpcomingEvent = async (req, res) => {
 
     await event.save();
 
-    // Populate participants (name, email, etc.)
-    const populatedEvent = await event.populate(
-      "participants",
-      "firstname lastname employeeId"
-    );
+    // ✅ Re-fetch with population (cleaner than execPopulate in Mongoose 6+)
+    const populatedEvent = await upcomingEvents
+      .findById(event._id)
+      .populate("participants", "firstname lastname employeeId")
+      .populate("createdBy", "firstname lastname employeeId");
 
     res.status(201).json(populatedEvent);
   } catch (error) {
-    console.error("Error saving event:", error); // ✅ logs root cause
+    console.error("Error saving event:", error);
     res.status(500).json({ error: error.message });
   }
 };
