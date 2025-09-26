@@ -26,4 +26,9 @@ router.put(
   authorizeRole("admin", "hr"),
   upcomingevent.updateUpcomingEvent
 );
+router.delete(
+  "/delete-event/:eventId",
+  authorizeRole("admin", "hr"),
+  upcomingevent.delteUpcomingEvent
+);
 module.exports = router;
