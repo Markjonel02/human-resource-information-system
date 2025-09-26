@@ -22,7 +22,7 @@ router.get(
   upcomingevent.searchEmployeesAlternative
 );
 router.put(
-  "/update-event/:id",
+  "/update-event/:eventId",
   authorizeRole("admin", "hr"),
   upcomingevent.updateUpcomingEvent
 );

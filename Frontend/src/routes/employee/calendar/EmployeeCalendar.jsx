@@ -23,6 +23,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import axiosInstance from "../../../lib/axiosInstance";
 import { useAuth } from "../../../context/AuthContext";
+
 const EmployeeCalendar = () => {
   const [events, setEvents] = useState([]);
   const toast = useToast();
@@ -70,6 +71,35 @@ const EmployeeCalendar = () => {
     }
   };
 
+  // Helper function to sort participants with current user first
+  const sortParticipants = (participants) => {
+    if (!participants || participants.length === 0) return [];
+
+    // Handle different possible structures of currentUser
+    const currentUserId = currentUser?._id || currentUser?.id || currentUser;
+
+    const currentUserParticipant = participants.find(
+      (p) =>
+        p._id === currentUserId ||
+        p.id === currentUserId ||
+        p._id === currentUser ||
+        p.id === currentUser
+    );
+    const otherParticipants = participants.filter(
+      (p) =>
+        !(
+          p._id === currentUserId ||
+          p.id === currentUserId ||
+          p._id === currentUser ||
+          p.id === currentUser
+        )
+    );
+
+    return currentUserParticipant
+      ? [currentUserParticipant, ...otherParticipants]
+      : participants;
+  };
+
   return (
     <Box p={6} bg="gray.50" minH="100vh">
       <VStack spacing={6} align="stretch">
@@ -115,75 +145,96 @@ const EmployeeCalendar = () => {
               </Tr>
             </Thead>
             <Tbody>
-              {events.map((e) => (
-                <Tr
-                  key={e.id}
-                  _hover={{ bg: rowHover, transform: "scale(1.01)" }}
-                  transition="all 0.2s"
-                >
-                  <Td>
-                    <Text fontWeight="semibold" color="blue.700">
-                      {e.title}
-                    </Text>
-                  </Td>
-                  <Td>{e.extendedProps.date}</Td>
-                  <Td>{e.extendedProps.time}</Td>
-                  <Td>
-                    <Badge
-                      px={3}
-                      py={1}
-                      rounded="full"
-                      colorScheme={
-                        e.extendedProps.type === "meeting"
-                          ? "purple"
-                          : e.extendedProps.type === "call"
-                          ? "blue"
-                          : e.extendedProps.type === "review"
-                          ? "orange"
-                          : "gray"
-                      }
-                    >
-                      {e.extendedProps.type}
-                    </Badge>
-                  </Td>
-                  <Td>
-                    <Badge
-                      px={3}
-                      py={1}
-                      rounded="full"
-                      colorScheme={
-                        e.extendedProps.priority === "high"
-                          ? "red"
-                          : e.extendedProps.priority === "medium"
-                          ? "yellow"
-                          : "green"
-                      }
-                    >
-                      {e.extendedProps.priority}
-                    </Badge>
-                  </Td>
-                  <Td>
-                    {e.extendedProps.participants?.length > 0 ? (
-                      <AvatarGroup size="sm" max={3}>
-                        {e.extendedProps.participants.map((p, i) => (
-                          <Avatar
-                            key={i}
-                            name={
-                              p._id === currentUser
-                                ? "You"
-                                : `${p.firstname} ${p.lastname}`
-                            }
-                          />
-                        ))}
-                      </AvatarGroup>
-                    ) : (
-                      <Text color="gray.500" fontSize="sm">
-                        No participants
+              {events.map((e) => {
+                const sortedParticipants = sortParticipants(
+                  e.extendedProps.participants
+                );
+
+                return (
+                  <Tr
+                    key={e.id}
+                    _hover={{ bg: rowHover, transform: "scale(1.01)" }}
+                    transition="all 0.2s"
+                  >
+                    <Td>
+                      <Text fontWeight="semibold" color="blue.700">
+                        {e.title}
                       </Text>
-                    )}
-                  </Td>
-                </Tr>
-              ))}
+                    </Td>
+                    <Td>{e.extendedProps.date}</Td>
+                    <Td>{e.extendedProps.time}</Td>
+                    <Td>
+                      <Badge
+                        px={3}
+                        py={1}
+                        rounded="full"
+                        colorScheme={
+                          e.extendedProps.type === "meeting"
+                            ? "purple"
+                            : e.extendedProps.type === "call"
+                            ? "blue"
+                            : e.extendedProps.type === "review"
+                            ? "orange"
+                            : "gray"
+                        }
+                      >
+                        {e.extendedProps.type}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      <Badge
+                        px={3}
+                        py={1}
+                        rounded="full"
+                        colorScheme={
+                          e.extendedProps.priority === "high"
+                            ? "red"
+                            : e.extendedProps.priority === "medium"
+                            ? "yellow"
+                            : "green"
+                        }
+                      >
+                        {e.extendedProps.priority}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      {sortedParticipants.length > 0 ? (
+                        <AvatarGroup size="sm" max={3}>
+                          {sortedParticipants.map((p, i) => {
+                            // Handle different possible structures of currentUser
+                            const currentUserId =
+                              currentUser?._id ||
+                              currentUser?.id ||
+                              currentUser;
+                            const isCurrentUser =
+                              p._id === currentUserId ||
+                              p.id === currentUserId ||
+                              p._id === currentUser ||
+                              p.id === currentUser;
+
+                            return (
+                              <Avatar
+                                key={i}
+                                size="sm"
+                                fontSize="0.8em"
+                                name={
+                                  isCurrentUser
+                                    ? "You"
+                                    : `${p.firstname} ${p.lastname}`
+                                }
+                              />
+                            );
+                          })}
+                        </AvatarGroup>
+                      ) : (
+                        <Text color="gray.500" fontSize="sm">
+                          No participants
+                        </Text>
+                      )}
+                    </Td>
+                  </Tr>
+                );
+              })}
             </Tbody>
           </Table>
         </Box>

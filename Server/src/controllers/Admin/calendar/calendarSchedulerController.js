@@ -218,15 +218,14 @@ const updateUpcomingEvent = async (req, res) => {
         .json({ error: "Title, date, and time are required" });
     }
 
-    // 🔹 Validate participants (array of IDs)
+    // 🔹 Validate participants (array of IDs) - Optional since schema doesn't require it
     if (
-      !participants ||
-      !Array.isArray(participants) ||
-      participants.length === 0
+      participants &&
+      (!Array.isArray(participants) || participants.length === 0)
     ) {
       return res
         .status(400)
-        .json({ error: "At least one participant is required" });
+        .json({ error: "Participants must be a non-empty array if provided" });
     }
 
     // Convert dates for duration-based validation
@@ -234,8 +233,8 @@ const updateUpcomingEvent = async (req, res) => {
     const eventDuration = duration || 60; // Default 60 minutes
     const eventEnd = new Date(eventStart.getTime() + eventDuration * 60000);
 
-    // 🔹 Check if participants have pending/approved leave overlapping event
-    if (participants?.length) {
+    // 🔹 Check if participants have pending/approved leave overlapping event (only if participants provided)
+    if (participants && participants.length > 0) {
       const leaves = await Leave.find({
         employee: { $in: participants },
         leaveStatus: { $in: ["pending", "approved"] },
@@ -252,52 +251,67 @@ const updateUpcomingEvent = async (req, res) => {
       }
     }
 
-    // 🔹 Check if participants already have another event on same date/time
-    const conflicts = await upcomingEvents.findOne({
-      _id: { $ne: eventId }, // exclude current event
-      participants: { $in: participants },
-      date: date, // Same date
-      $or: [
-        {
-          // Check if times overlap
-          $expr: {
-            $and: [
-              {
-                $lte: [
-                  {
-                    $dateFromString: {
-                      dateString: { $concat: ["$date", "T", "$time"] },
-                    },
-                  },
-                  eventEnd,
-                ],
-              },
-              {
-                $gte: [
-                  {
-                    $add: [
-                      {
-                        $dateFromString: {
-                          dateString: { $concat: ["$date", "T", "$time"] },
-                        },
+    // 🔹 Check if participants already have another event on same date/time (only if participants provided)
+    if (participants && participants.length > 0) {
+      const conflicts = await upcomingEvents.findOne({
+        _id: { $ne: eventId }, // exclude current event
+        participants: { $in: participants },
+        date: date, // Same date
+        $or: [
+          {
+            // Check if times overlap
+            $expr: {
+              $and: [
+                {
+                  $lte: [
+                    {
+                      $dateFromString: {
+                        dateString: { $concat: ["$date", "T", "$time"] },
                       },
-                      { $multiply: [{ $ifNull: ["$duration", 60] }, 60000] },
-                    ],
-                  },
-                  eventStart,
-                ],
-              },
-            ],
+                    },
+                    eventEnd,
+                  ],
+                },
+                {
+                  $gte: [
+                    {
+                      $add: [
+                        {
+                          $dateFromString: {
+                            dateString: { $concat: ["$date", "T", "$time"] },
+                          },
+                        },
+                        { $multiply: [{ $ifNull: ["$duration", 60] }, 60000] },
+                      ],
+                    },
+                    eventStart,
+                  ],
+                },
+              ],
+            },
           },
-        },
-      ],
-    });
+        ],
+      });
 
-    if (conflicts) {
+      if (conflicts) {
+        return res.status(400).json({
+          error:
+            "One or more participants already have another event during this time period",
+          conflictEvent: conflicts,
+        });
+      }
+    }
+
+    // 🔹 Validate enum values
+    if (type && !["meeting", "call", "review", "task"].includes(type)) {
       return res.status(400).json({
-        error:
-          "One or more participants already have another event during this time period",
-        conflictEvent: conflicts,
+        error: "Invalid type. Must be one of: meeting, call, review, task",
+      });
+    }
+
+    if (priority && !["low", "medium", "high"].includes(priority)) {
+      return res.status(400).json({
+        error: "Invalid priority. Must be one of: low, medium, high",
       });
     }
 
@@ -309,16 +323,17 @@ const updateUpcomingEvent = async (req, res) => {
     if (description !== undefined) event.description = description;
     if (type !== undefined) event.type = type;
     if (priority !== undefined) event.priority = priority;
-    event.participants = participants;
+    if (participants !== undefined) event.participants = participants;
 
     // 🔹 Save updated event
     await event.save();
 
-    // 🔹 Populate participants with consistent field selection
-    const updatedEvent = await event.populate(
-      "participants",
-      "firstname lastname employeeId email"
-    );
+    // 🔹 Populate participants and employee with consistent field selection
+    const updatedEvent = await upcomingEvents
+      .findById(eventId)
+      .populate("participants", "firstname lastname employeeId email")
+      .populate("employee", "firstname lastname employeeId email")
+      .populate("createdBy", "firstname lastname employeeId email");
 
     res.status(200).json(updatedEvent);
   } catch (error) {
@@ -326,7 +341,6 @@ const updateUpcomingEvent = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
 module.exports = {
   createUpcomingEvent,
   getUpcomingEvents,
