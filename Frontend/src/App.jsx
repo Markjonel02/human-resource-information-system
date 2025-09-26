@@ -33,6 +33,9 @@ const EmployeeRoutes = lazy(() =>
 const EmployeeRequests = lazy(() =>
   import("./routes/employee/RequestTab/EmployeeRequestLayout")
 );
+const EmployeeCalendar = lazy(() =>
+  import("./routes/employee/calendar/EmployeeCalendar")
+);
 /**
  * Loader Component
  * Displays a full-screen, centered loading spinner with a semi-transparent background.
@@ -126,7 +129,10 @@ const App = () => {
                               path="/employees-requests"
                               element={<EmployeeRequests />}
                             />
-
+                            <Route
+                              path="/employee-calendar"
+                              element={<EmployeeCalendar />}
+                            ></Route>
                             <Route
                               path="/attendances"
                               element={<Attendances />}

@@ -16,6 +16,7 @@ const adminOvertimeRoute = require("./routes/admin&hr/adminovertimeRoutes.js");
 const Obroutes = require("./routes/employee/employeeOfiicialBusinessRoutes.js");
 const adminObroutes = require("./routes/admin&hr/OfficialBusinessRoutes");
 const calendarRoutes = require("./routes/admin&hr/calendarRoutes/upcomingEventsRoutes.js");
+const employeeCalendar = require("./routes/employee/employeeCalendarRoutes.js");
 // Initialize the Express app
 const app = express();
 const port = process.env.PORT || 5000; // Use a default port if not specified
@@ -62,6 +63,7 @@ app.use("/api/admin/overtime", adminOvertimeRoute);
 app.use("/api/officialBusiness", Obroutes);
 app.use("/api/adminOfficialBusiness", adminObroutes);
 app.use("/api/calendar", calendarRoutes);
+app.use("/api/employeeCalendar", employeeCalendar);
 // =======================
 //   ERROR HANDLING
 // =======================

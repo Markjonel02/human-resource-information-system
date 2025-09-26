@@ -98,6 +98,9 @@ const SideNavigation = () => {
       : "/attendances";
   const leavePath =
     loggedInUser?.role === "employee" ? "/employees-requests" : "/request";
+
+  const calendarPath =
+    loggedInUser?.role === "employee" ? "/employee-calendar" : "/calendar";
   const menuItems = [
     // Dynamically set the Dashboard path
     { icon: Home, label: "Dashboard", path: dashboardPath },
@@ -109,7 +112,7 @@ const SideNavigation = () => {
     }, // Add a 'roles' property
 
     { icon: CheckSquare, label: "Attendances", path: EmployeeRoutespath },
-    { icon: Calendar, label: "Calendar", path: "/calendar" },
+    { icon: Calendar, label: "Calendar", path: calendarPath },
     { icon: MdOutlineRequestPage, label: "Request", path: leavePath },
     { icon: DollarSign, label: "Payroll", path: "/payroll" },
     { icon: FileText, label: "Documents", path: "/documents" },
