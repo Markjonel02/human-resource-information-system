@@ -2,6 +2,7 @@ const upcomingEvents = require("../../../models/calendar/upcomingEvents");
 const User = require("../../../models/user");
 const mongoose = require("mongoose");
 const Leave = require("../../../models/LeaveSchema/leaveSchema");
+
 // Create a new upcoming event
 
 const createUpcomingEvent = async (req, res) => {
@@ -341,9 +342,31 @@ const updateUpcomingEvent = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+const delteUpcomingEvent = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res.status(403).json({ error: "Access denied" });
+  }
+  try {
+    const { eventId } = req.params;
+    // Validate ID
+    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      return res.status(400).json({ error: "Invalid event ID" });
+    } // Find existing event
+    const event = await upcomingEvents.findByIdAndDelete(eventId);
+    if (!event) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+    res.status(200).json({ message: "Event deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting event:", error);
+    return res.status(500).json({ error: error.message });
+  }
+};
 module.exports = {
   createUpcomingEvent,
   getUpcomingEvents,
   searchEmployeesAlternative,
   updateUpcomingEvent,
+  delteUpcomingEvent,
 };

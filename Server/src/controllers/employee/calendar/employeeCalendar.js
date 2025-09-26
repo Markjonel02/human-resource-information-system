@@ -7,7 +7,7 @@ const getEmployeeUpcomingEvents = async (req, res) => {
   }
 
   try {
-    const employeeId = req.user._id; // assuming JWT middleware sets req.user._id
+    const employeeId = req.user._id;
 
     const events = await UpcomingEvents.find({
       $or: [
@@ -15,8 +15,9 @@ const getEmployeeUpcomingEvents = async (req, res) => {
         { participants: { $in: [employeeId] } }, // events where employee is a participant
       ],
     })
-      .populate("employee", "firstname lastname employeeId")
-      .populate("participants", "firstname lastname employeeId")
+      .populate("employee", "firstname lastname employeeId ") // Added profilePicture
+      .populate("participants", "firstname lastname employeeId ")
+      .populate("createdBy", "firstname lastname employeeId ") // Add this line
       .sort({ date: 1, time: 1 });
 
     if (!events || events.length === 0) {
