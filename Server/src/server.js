@@ -5,7 +5,7 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const connectDB = require("./config/connection.js");
-
+const bodyParser = require("body-parser");
 // Import Routes
 const userRoutes = require("./routes/userRoutes.js");
 const testRoutes = require("./routes/admin&hr/testRoutes.js");
@@ -36,6 +36,8 @@ app.use(cors(corsOptions));
 // This replaces bodyParser, as it's built-in since Express 4.16
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // Middleware for parsing cookies
 app.use(cookieParser());
