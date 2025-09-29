@@ -14,7 +14,7 @@ import {
 } from "@chakra-ui/react";
 import { FaCheck, FaCheckCircle } from "react-icons/fa";
 import axiosInstance from "../lib/axiosInstance";
-
+import { useAuth } from "../context/AuthContext";
 const MarkAsDoneButton = ({
   id, //  prop from parent
   onSuccess,
@@ -29,7 +29,8 @@ const MarkAsDoneButton = ({
   const { isOpen, onOpen, onClose } = useDisclosure();
   const cancelRef = React.useRef();
   const toast = useToast();
-
+  const { authState } = useAuth();
+  const currentUser = authState?.user;
   // Handle mark as done
   const handleMarkAsDone = async () => {
     if (!id) {
@@ -111,6 +112,9 @@ const MarkAsDoneButton = ({
           size={size}
           aria-label="Mark as done"
           title="Mark as Done"
+          isDisabled={
+            currentUser?.role !== "admin" && currentUser?.role !== "hr"
+          } // only employee can mark as done
         />
 
         {showConfirm && (
