@@ -109,7 +109,6 @@ const EmployeeCalendarModalView = ({
                   {event.type || "General"}
                 </Badge>
               </HStack>
-
               {/* Creator */}
               <HStack spacing={2}>
                 <FaUser size="12px" />
@@ -119,7 +118,6 @@ const EmployeeCalendarModalView = ({
                     : "Unknown"}
                 </Text>
               </HStack>
-
               {/* Dates */}
               <HStack spacing={2}>
                 <FaCalendarAlt size="12px" />
@@ -129,7 +127,6 @@ const EmployeeCalendarModalView = ({
                     : formatDate(event.date)}
                 </Text>
               </HStack>
-
               {/* Time */}
               {event.time && (
                 <HStack spacing={2}>
@@ -137,8 +134,8 @@ const EmployeeCalendarModalView = ({
                   <Text>{event.time}</Text>
                 </HStack>
               )}
-
               {/* Description */}
+              Message:
               {event.description && (
                 <Box pt={2}>
                   <Text fontSize="sm">{event.description}</Text>

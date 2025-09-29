@@ -32,7 +32,7 @@ router.delete(
   upcomingevent.delteUpcomingEvent
 );
 router.put(
-  "/mark-done/:scheduleId",
+  "/mark-done/:id",
   authorizeRole("admin", "hr"),
   upcomingevent.markAsDone
 );
