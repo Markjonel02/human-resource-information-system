@@ -48,7 +48,9 @@ const MarkAsDoneButton = ({
     setIsLoading(true);
 
     try {
-      await axiosInstance.put(`/calendar/mark-done/${id}`);
+      // Store the response from axios
+      const response = await axiosInstance.put(`/calendar/mark-done/${id}`);
+
       toast({
         title: "Success!",
         description:
@@ -60,6 +62,8 @@ const MarkAsDoneButton = ({
       });
 
       if (showConfirm) onClose();
+
+      // Refresh parent state or re-fetch data
       if (onSuccess && typeof onSuccess === "function") {
         await onSuccess();
       }

@@ -43,6 +43,7 @@ const getEmployeeUpcomingEvents = async (req, res) => {
       type: event.type,
       priority: event.priority,
       done: event.done,
+      description: event.description,
       employee: event.employee,
       participants: event.participants,
       createdBy: event.createdBy,

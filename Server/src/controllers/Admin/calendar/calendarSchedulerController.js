@@ -36,7 +36,7 @@ const createUpcomingEvent = async (req, res) => {
       return res.status(400).json({ error: "Participants must be an array" });
     }
 
-    // ✅ Ensure creator is always included in participants
+    //  Ensure creator is always included in participants
     const updatedParticipants = [
       ...new Set([
         adminId.toString(),

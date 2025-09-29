@@ -134,8 +134,7 @@ const EmployeeCalendarModalView = ({
                   <Text>{event.time}</Text>
                 </HStack>
               )}
-              {/* Description */}
-              Message:
+
               {event.description && (
                 <Box pt={2}>
                   <Text fontSize="sm">{event.description}</Text>
