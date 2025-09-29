@@ -32,8 +32,8 @@ import {
 } from "react-icons/fa";
 import axiosInstance from "../lib/axiosInstance";
 import ReusableModal from "./EmployeeCalendarModalView"; // View modal
-
 import MarkAsDoneButton from "./MarkAsDoneButton"; // Mark as done button
+import { useAuth } from "../context/AuthContext";
 
 const ScheduleMenu = ({ onView, scheduleId, onSuccess }) => {
   return (
@@ -50,7 +50,7 @@ const ScheduleMenu = ({ onView, scheduleId, onSuccess }) => {
           View Details
         </MenuItem>
 
-        {/* ✅ Fix: prevent Menu from closing when clicking MarkAsDoneButton */}
+        {/* prevent Menu from closing when clicking MarkAsDoneButton */}
         <MenuItem
           as="div"
           icon={<FaCheck color="green" />}
@@ -71,6 +71,8 @@ const ScheduleMenu = ({ onView, scheduleId, onSuccess }) => {
 };
 
 const UpcomingSchedule = () => {
+  const { authState } = useAuth();
+  const currentUser = authState?.user;
   const cardBg = useColorModeValue("white", "gray.700");
   const textColor = useColorModeValue("gray.800", "white");
   const subTextColor = useColorModeValue("gray.600", "gray.300");
@@ -237,6 +239,10 @@ const UpcomingSchedule = () => {
                     size="sm"
                     colorScheme="green"
                     showConfirm={true}
+                    isDisabled={
+                      currentUser?.role !== "admin" &&
+                      currentUser?.role !== "hr"
+                    }
                   />
 
                   <ScheduleMenu
