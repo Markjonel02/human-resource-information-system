@@ -254,7 +254,7 @@ const UpcomingSchedule = () => {
       <ReusableModal
         isOpen={isOpen}
         onClose={onClose}
-        event={selectedSchedule} // 👈 pass whole schedule
+        event={selectedSchedule} // pass whole schedule
       />
     </Box>
   );
