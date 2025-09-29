@@ -35,12 +35,9 @@ import ReusableModal from "./EmployeeCalendarModalView"; // View modal
 
 import MarkAsDoneButton from "./MarkAsDoneButton"; // Mark as done button
 
-// --- Reusable ScheduleMenu ---
-// --- Reusable ScheduleMenu ---
 const ScheduleMenu = ({ onView, scheduleId, onSuccess }) => {
   return (
     <Menu placement="bottom-start">
-      {" "}
       <MenuButton
         as={IconButton}
         icon={<FaEllipsisV />}
@@ -53,8 +50,12 @@ const ScheduleMenu = ({ onView, scheduleId, onSuccess }) => {
           View Details
         </MenuItem>
 
-        {/* ✅ Make MarkAsDoneButton behave like MenuItem */}
-        <MenuItem as="div" icon={<FaCheck color="green" />}>
+        {/* ✅ Fix: prevent Menu from closing when clicking MarkAsDoneButton */}
+        <MenuItem
+          as="div"
+          icon={<FaCheck color="green" />}
+          onClick={(e) => e.stopPropagation()}
+        >
           <MarkAsDoneButton
             id={scheduleId}
             onSuccess={onSuccess}
@@ -126,14 +127,15 @@ const UpcomingSchedule = () => {
       }
       setSchedules(response.data);
     } catch (error) {
-      toast({
+      /*   toast({
         title: "Error fetching schedules",
         description: error.message || "Something went wrong",
         status: "error",
         duration: 5000,
         isClosable: true,
         position: "top",
-      });
+      }); */
+      console.error("getSchedules error:", error);
     } finally {
       setLoading(false);
     }
@@ -234,8 +236,9 @@ const UpcomingSchedule = () => {
                     variant="icon"
                     size="sm"
                     colorScheme="green"
+                    showConfirm={true}
                   />
-                  {/* Menu with more options */}
+
                   <ScheduleMenu
                     onView={() => handleViewSchedule(schedule)}
                     scheduleId={schedule._id || schedule.id}
@@ -276,7 +279,7 @@ const UpcomingSchedule = () => {
                     noOfLines={2}
                     isTruncated
                   >
-                    {schedule.description}
+                    {schedule.description || "No description provided."}
                   </Text>
 
                   <HStack spacing={4} fontSize="sm" color={subTextColor} mb={2}>
