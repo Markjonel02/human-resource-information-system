@@ -1,4 +1,4 @@
-// --- Updated UpcomingSchedule.jsx ---
+// --- Final UpcomingSchedule.jsx with Add Event Modal ---
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -22,14 +22,25 @@ import {
   MenuItem,
   useDisclosure,
 } from "@chakra-ui/react";
-import { FaCalendarAlt, FaEllipsisV, FaClock, FaCheck } from "react-icons/fa";
+import {
+  FaCalendarAlt,
+  FaEllipsisV,
+  FaClock,
+  FaRegEye,
+  FaPlus,
+  FaCheck,
+} from "react-icons/fa";
 import axiosInstance from "../lib/axiosInstance";
-import ReusableModal from "./EmployeeCalendarModalView"; // modal
+import ReusableModal from "./EmployeeCalendarModalView"; // View modal
+
+import MarkAsDoneButton from "./MarkAsDoneButton"; // Mark as done button
 
 // --- Reusable ScheduleMenu ---
-const ScheduleMenu = ({ onView, onMarkDone }) => {
+// --- Reusable ScheduleMenu ---
+const ScheduleMenu = ({ onView, scheduleId, onSuccess }) => {
   return (
-    <Menu>
+    <Menu placement="bottom-start">
+      {" "}
       <MenuButton
         as={IconButton}
         icon={<FaEllipsisV />}
@@ -38,9 +49,20 @@ const ScheduleMenu = ({ onView, onMarkDone }) => {
         _hover={{ bg: "gray.100" }}
       />
       <MenuList>
-        <MenuItem onClick={onView}>👁 View</MenuItem>
-        <MenuItem icon={<FaCheck />} onClick={onMarkDone}>
-          Mark as Done
+        <MenuItem onClick={onView} icon={<FaRegEye />}>
+          View Details
+        </MenuItem>
+
+        {/* ✅ Make MarkAsDoneButton behave like MenuItem */}
+        <MenuItem as="div" icon={<FaCheck color="green" />}>
+          <MarkAsDoneButton
+            id={scheduleId}
+            onSuccess={onSuccess}
+            variant="ghost"
+            size="sm"
+            fullWidth={true}
+            showConfirm={true}
+          />
         </MenuItem>
       </MenuList>
     </Menu>
@@ -58,7 +80,18 @@ const UpcomingSchedule = () => {
   const [loading, setLoading] = useState(true);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
 
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  // Separate modals for view and add
+  const {
+    isOpen: isViewOpen,
+    onOpen: onViewOpen,
+    onClose: onViewClose,
+  } = useDisclosure();
+
+  const {
+    isOpen: isAddOpen,
+    onOpen: onAddOpen,
+    onClose: onAddClose,
+  } = useDisclosure();
 
   // Priority color mapping
   const getPriorityColor = (priority) => {
@@ -122,33 +155,7 @@ const UpcomingSchedule = () => {
 
   const handleViewSchedule = (schedule) => {
     setSelectedSchedule(schedule);
-    onOpen();
-  };
-
-  const handleMarkDone = async (scheduleId) => {
-    try {
-      // Call backend to mark as done
-      await axiosInstance.put(`/employeeCalendar/mark-done/${scheduleId}`);
-      toast({
-        title: "Schedule marked as done",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-        position: "top",
-      });
-
-      // Refresh schedules
-      getSchedules();
-    } catch (error) {
-      toast({
-        title: "Failed to mark as done",
-        description: error.message || "Something went wrong",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-        position: "top",
-      });
-    }
+    onViewOpen();
   };
 
   return (
@@ -160,22 +167,24 @@ const UpcomingSchedule = () => {
       rounded="lg"
       bg={cardBg}
     >
-      {/* Header */}
+      {/* Header with Add Event and Refresh buttons */}
       <Flex mb={4} alignItems="center">
         <Heading as="h3" size="md" color={textColor} fontWeight="600">
           Upcoming Schedule
         </Heading>
         <Spacer />
-        <Button
-          leftIcon={<FaCalendarAlt />}
-          size="sm"
-          variant="outline"
-          colorScheme="gray"
-          fontSize="sm"
-          onClick={getSchedules} // Refresh when clicked
-        >
-          Today
-        </Button>
+        <HStack spacing={2}>
+          <Button
+            leftIcon={<FaCalendarAlt />}
+            size="sm"
+            variant="outline"
+            colorScheme="gray"
+            fontSize="sm"
+            onClick={getSchedules}
+          >
+            Refresh
+          </Button>
+        </HStack>
       </Flex>
 
       {/* Loading / Empty / List */}
@@ -185,7 +194,7 @@ const UpcomingSchedule = () => {
         </Flex>
       ) : schedules.length === 0 ? (
         <Box textAlign="center" py={6}>
-          <Text color={subTextColor} fontSize="md">
+          <Text color={subTextColor} fontSize="md" mb={4}>
             No upcoming schedules
           </Text>
         </Box>
@@ -204,7 +213,7 @@ const UpcomingSchedule = () => {
               _hover={{ shadow: "md", transform: "translateY(-2px)" }}
               transition="all 0.2s ease-in-out"
             >
-              {/* Priority + Menu */}
+              {/* Priority + Actions */}
               <Flex justify="space-between" align="center" mb={3}>
                 <Badge
                   colorScheme={getPriorityColor(schedule.priority)}
@@ -218,10 +227,21 @@ const UpcomingSchedule = () => {
                   {schedule.priority || "Medium"}
                 </Badge>
 
-                <ScheduleMenu
-                  onView={() => handleViewSchedule(schedule)}
-                  onMarkDone={() => handleMarkDone(schedule._id)}
-                />
+                <HStack spacing={2}>
+                  <MarkAsDoneButton
+                    id={schedule._id}
+                    onSuccess={getSchedules}
+                    variant="icon"
+                    size="sm"
+                    colorScheme="green"
+                  />
+                  {/* Menu with more options */}
+                  <ScheduleMenu
+                    onView={() => handleViewSchedule(schedule)}
+                    scheduleId={schedule._id || schedule.id}
+                    onSuccess={getSchedules}
+                  />
+                </HStack>
               </Flex>
 
               {/* Main Content */}
@@ -289,10 +309,10 @@ const UpcomingSchedule = () => {
         </VStack>
       )}
 
-      {/* Modal */}
+      {/* View Event Modal */}
       <ReusableModal
-        isOpen={isOpen}
-        onClose={onClose}
+        isOpen={isViewOpen}
+        onClose={onViewClose}
         event={selectedSchedule}
       />
     </Box>

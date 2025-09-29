@@ -180,6 +180,7 @@ const Calendar = () => {
                 <Th>Type</Th>
                 <Th>Priority</Th>
                 <Th>Participants</Th>
+                <Th>Mark Done</Th> {/* ✅ New column */}
               </Tr>
             </Thead>
             <Tbody>
@@ -244,6 +245,55 @@ const Calendar = () => {
                       <Text color="gray.500" fontSize="sm">
                         No participants
                       </Text>
+                    )}
+                  </Td>
+
+                  <Td>
+                    {e.extendedProps.done ? (
+                      <VStack spacing={1} align="start">
+                        <Badge colorScheme="green">Done</Badge>
+                        <Text fontSize="xs" color="gray.600">
+                          By:{" "}
+                          {e.extendedProps.markDoneBy?.firstname
+                            ? `${e.extendedProps.markDoneBy.firstname} ${e.extendedProps.markDoneBy.lastname}`
+                            : "Unknown"}
+                        </Text>
+                        <Text fontSize="xs" color="gray.500">
+                          {e.extendedProps.markDoneAt
+                            ? new Date(
+                                e.extendedProps.markDoneAt
+                              ).toLocaleString()
+                            : ""}
+                        </Text>
+                      </VStack>
+                    ) : (
+                      <Button
+                        size="sm"
+                        colorScheme="green"
+                        onClick={async () => {
+                          try {
+                            await axiosInstance.put(
+                              `/calendar/mark-done/${e.id}`
+                            );
+                            toast({
+                              title: "Event marked as done",
+                              status: "success",
+                            });
+                            loadEvents(); // refresh
+                          } catch (err) {
+                            console.error("Mark done error:", err);
+                            toast({
+                              title: "Failed to mark as done",
+                              description:
+                                err.response?.data?.error ||
+                                "Something went wrong",
+                              status: "error",
+                            });
+                          }
+                        }}
+                      >
+                        Mark Done
+                      </Button>
                     )}
                   </Td>
                 </Tr>

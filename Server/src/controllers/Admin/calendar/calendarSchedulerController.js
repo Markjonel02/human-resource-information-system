@@ -32,20 +32,22 @@ const createUpcomingEvent = async (req, res) => {
     }
 
     // Validate participants
-    if (
-      !participants ||
-      !Array.isArray(participants) ||
-      participants.length === 0
-    ) {
-      return res
-        .status(400)
-        .json({ error: "At least one participant is required" });
+    if (!participants || !Array.isArray(participants)) {
+      return res.status(400).json({ error: "Participants must be an array" });
     }
+
+    // ✅ Ensure creator is always included in participants
+    const updatedParticipants = [
+      ...new Set([
+        adminId.toString(),
+        ...participants.map((p) => p.toString()),
+      ]),
+    ];
 
     // Create new event
     const event = new upcomingEvents({
       createdBy: adminId,
-      participants, // array of employee IDs
+      participants: updatedParticipants, // includes creator
       title,
       date,
       time,
@@ -57,7 +59,7 @@ const createUpcomingEvent = async (req, res) => {
 
     await event.save();
 
-    // ✅ Re-fetch with population (cleaner than execPopulate in Mongoose 6+)
+    //  Re-fetch with population
     const populatedEvent = await upcomingEvents
       .findById(event._id)
       .populate("participants", "firstname lastname employeeId")
@@ -366,44 +368,52 @@ const delteUpcomingEvent = async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 };
-
 const markAsDone = async (req, res) => {
-  if (req.user.role !== "admin" && req.user.role !== "hr") {
-    return res.status(403).json({ error: "Access denied" });
-  }
-
   try {
-    const { eventId } = req.params;
+    const { id } = req.params;
 
     // Validate ID
-    if (!mongoose.Types.ObjectId.isValid(eventId)) {
-      return res.status(400).json({ error: "Invalid event ID" });
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Invalid schedule ID" });
     }
 
-    // Update the event
-    const event = await upcomingEvents.findByIdAndUpdate(
-      eventId,
-      {
-        done: true,
-        markDoneBy: req.user._id,
-        markDoneAt: new Date(),
-      },
-      { new: true }
-    );
-
+    // Find the event
+    const event = await upcomingEvents.findById(id);
     if (!event) {
-      return res.status(404).json({ error: "Event not found" });
+      return res.status(404).json({ error: "Schedule not found" });
     }
 
-    res.status(200).json({
-      message: "Event marked as done",
+    // Already done check
+    if (event.done) {
+      return res
+        .status(400)
+        .json({ error: "This schedule is already marked as done" });
+    }
+
+    // Update fields
+    event.done = true;
+    event.markDoneBy = req.user._id;
+    event.markDoneAt = new Date();
+
+    await event.save();
+
+    // Populate before sending back
+    await event.populate("employee", "firstname lastname employeeId");
+    await event.populate("markDoneBy", "firstname lastname employeeId");
+
+    return res.status(200).json({
+      message: "Schedule marked as done successfully",
       event,
     });
   } catch (error) {
-    console.error("Error marking event as done:", error);
-    return res.status(500).json({ error: error.message });
+    console.error("Error marking schedule as done:", error);
+    return res.status(500).json({
+      error: "Internal server error",
+      details: error.message,
+    });
   }
 };
+
 module.exports = {
   createUpcomingEvent,
   getUpcomingEvents,

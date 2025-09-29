@@ -37,5 +37,5 @@ const upcomingEventsSchema = new mongoose.Schema({
   markDoneAt: { type: Date },
 });
 
-const upcomingEvents = mongoose.model("UpcomingEvent", upcomingEventsSchema);
+const upcomingEvents = mongoose.model("upcomingEvent", upcomingEventsSchema);
 module.exports = upcomingEvents;
