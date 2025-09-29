@@ -12,23 +12,21 @@ const getEmployeeUpcomingEvents = async (req, res) => {
 
   try {
     const employeeId = req.user._id;
-    const today = new Date().toISOString().split("T")[0]; // "2025-09-29"
+
+    const today = new Date().setHours(0, 0, 0, 0);
 
     const events = await UpcomingEvents.find({
-      $and: [
-        {
-          $or: [
-            { employee: employeeId },
-            { participants: { $in: [employeeId] } },
-            { createdBy: { $exists: true } }, // any admin-created
-          ],
-        },
-        { date: { $gte: today } }, // ✅ string compare works with YYYY-MM-DD
+      done: false, // ✅ exclude completed
+      date: { $gte: today }, // ✅ only future + today
+      $or: [
+        { employee: employeeId }, // created by employee
+        { participants: { $in: [employeeId] } }, // participant
+        { createdBy: { $ne: employeeId } }, // admin/others created
       ],
     })
       .populate("employee", "firstname lastname employeeId")
       .populate("participants", "firstname lastname employeeId")
-      .populate("createdBy", "firstname lastname employeeId role")
+      .populate("createdBy", "firstname lastname employeeId")
       .sort({ date: 1, time: 1 });
 
     if (!events || events.length === 0) {
