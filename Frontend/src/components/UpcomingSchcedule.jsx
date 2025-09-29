@@ -22,9 +22,30 @@ import {
   MenuItem,
   useDisclosure,
 } from "@chakra-ui/react";
-import { FaCalendarAlt, FaEllipsisV, FaClock } from "react-icons/fa";
+import { FaCalendarAlt, FaEllipsisV, FaClock, FaCheck } from "react-icons/fa";
 import axiosInstance from "../lib/axiosInstance";
-import ReusableModal from "./EmployeeCalendarModalView"; // ✅ Updated modal
+import ReusableModal from "./EmployeeCalendarModalView"; // modal
+
+// --- Reusable ScheduleMenu ---
+const ScheduleMenu = ({ onView, onMarkDone }) => {
+  return (
+    <Menu>
+      <MenuButton
+        as={IconButton}
+        icon={<FaEllipsisV />}
+        variant="ghost"
+        size="sm"
+        _hover={{ bg: "gray.100" }}
+      />
+      <MenuList>
+        <MenuItem onClick={onView}>👁 View</MenuItem>
+        <MenuItem icon={<FaCheck />} onClick={onMarkDone}>
+          Mark as Done
+        </MenuItem>
+      </MenuList>
+    </Menu>
+  );
+};
 
 const UpcomingSchedule = () => {
   const cardBg = useColorModeValue("white", "gray.700");
@@ -41,8 +62,7 @@ const UpcomingSchedule = () => {
 
   // Priority color mapping
   const getPriorityColor = (priority) => {
-    const priorityLower = priority?.toLowerCase();
-    switch (priorityLower) {
+    switch (priority?.toLowerCase()) {
       case "high":
         return "red";
       case "medium":
@@ -54,15 +74,17 @@ const UpcomingSchedule = () => {
     }
   };
 
-  // Get initials (First + Last only)
+  // Get initials
   const getInitials = (firstName, lastName) => {
     const first = firstName?.charAt(0) || "";
     const last = lastName?.charAt(0) || "";
     return (first + last).toUpperCase();
   };
 
+  // Fetch schedules
   const getSchedules = async () => {
     try {
+      setLoading(true);
       const response = await axiosInstance.get(
         "/employeeCalendar/employee-get-events"
       );
@@ -88,7 +110,7 @@ const UpcomingSchedule = () => {
     getSchedules();
   }, []);
 
-  // Format date helper
+  // Format date
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     return new Date(dateStr).toLocaleDateString("en-US", {
@@ -101,6 +123,32 @@ const UpcomingSchedule = () => {
   const handleViewSchedule = (schedule) => {
     setSelectedSchedule(schedule);
     onOpen();
+  };
+
+  const handleMarkDone = async (scheduleId) => {
+    try {
+      // Call backend to mark as done
+      await axiosInstance.put(`/employeeCalendar/mark-done/${scheduleId}`);
+      toast({
+        title: "Schedule marked as done",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+        position: "top",
+      });
+
+      // Refresh schedules
+      getSchedules();
+    } catch (error) {
+      toast({
+        title: "Failed to mark as done",
+        description: error.message || "Something went wrong",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "top",
+      });
+    }
   };
 
   return (
@@ -124,6 +172,7 @@ const UpcomingSchedule = () => {
           variant="outline"
           colorScheme="gray"
           fontSize="sm"
+          onClick={getSchedules} // Refresh when clicked
         >
           Today
         </Button>
@@ -155,7 +204,7 @@ const UpcomingSchedule = () => {
               _hover={{ shadow: "md", transform: "translateY(-2px)" }}
               transition="all 0.2s ease-in-out"
             >
-              {/* Priority Badge + Menu */}
+              {/* Priority + Menu */}
               <Flex justify="space-between" align="center" mb={3}>
                 <Badge
                   colorScheme={getPriorityColor(schedule.priority)}
@@ -168,21 +217,11 @@ const UpcomingSchedule = () => {
                 >
                   {schedule.priority || "Medium"}
                 </Badge>
-                <Menu>
-                  <MenuButton
-                    as={IconButton}
-                    icon={<FaEllipsisV />}
-                    variant="ghost"
-                    size="sm"
-                    color={subTextColor}
-                    _hover={{ bg: "gray.100" }}
-                  />
-                  <MenuList>
-                    <MenuItem onClick={() => handleViewSchedule(schedule)}>
-                      View
-                    </MenuItem>
-                  </MenuList>
-                </Menu>
+
+                <ScheduleMenu
+                  onView={() => handleViewSchedule(schedule)}
+                  onMarkDone={() => handleMarkDone(schedule._id)}
+                />
               </Flex>
 
               {/* Main Content */}
@@ -250,11 +289,11 @@ const UpcomingSchedule = () => {
         </VStack>
       )}
 
-      {/* 🔗 Use new modal with structured event view */}
+      {/* Modal */}
       <ReusableModal
         isOpen={isOpen}
         onClose={onClose}
-        event={selectedSchedule} // 👈 pass whole schedule
+        event={selectedSchedule}
       />
     </Box>
   );

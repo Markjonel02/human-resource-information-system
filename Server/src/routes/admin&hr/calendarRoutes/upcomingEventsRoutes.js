@@ -31,4 +31,9 @@ router.delete(
   authorizeRole("admin", "hr"),
   upcomingevent.delteUpcomingEvent
 );
+router.put(
+  "/mark-done/:scheduleId",
+  authorizeRole("admin", "hr"),
+  upcomingevent.markAsDone
+);
 module.exports = router;

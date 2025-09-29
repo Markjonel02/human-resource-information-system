@@ -366,10 +366,49 @@ const delteUpcomingEvent = async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 };
+
+const markAsDone = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res.status(403).json({ error: "Access denied" });
+  }
+
+  try {
+    const { eventId } = req.params;
+
+    // Validate ID
+    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      return res.status(400).json({ error: "Invalid event ID" });
+    }
+
+    // Update the event
+    const event = await upcomingEvents.findByIdAndUpdate(
+      eventId,
+      {
+        done: true,
+        markDoneBy: req.user._id,
+        markDoneAt: new Date(),
+      },
+      { new: true }
+    );
+
+    if (!event) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    res.status(200).json({
+      message: "Event marked as done",
+      event,
+    });
+  } catch (error) {
+    console.error("Error marking event as done:", error);
+    return res.status(500).json({ error: error.message });
+  }
+};
 module.exports = {
   createUpcomingEvent,
   getUpcomingEvents,
   searchEmployeesAlternative,
   updateUpcomingEvent,
   delteUpcomingEvent,
+  markAsDone,
 };

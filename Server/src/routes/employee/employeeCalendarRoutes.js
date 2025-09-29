@@ -7,7 +7,7 @@ router.use(verifyJwt);
 
 router.get(
   "/employee-get-events",
-  authorizeRole("employee"),
+  authorizeRole("employee", "admin", "hr"),
   empployeeCalendar.getEmployeeUpcomingEvents
 );
 

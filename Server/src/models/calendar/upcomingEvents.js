@@ -32,6 +32,9 @@ const upcomingEventsSchema = new mongoose.Schema({
     ref: "user",
     required: true,
   },
+  done: { type: Boolean, default: false },
+  markDoneBy: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
+  markDoneAt: { type: Date },
 });
 
 const upcomingEvents = mongoose.model("UpcomingEvent", upcomingEventsSchema);
