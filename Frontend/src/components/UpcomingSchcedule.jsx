@@ -27,7 +27,6 @@ import {
   FaEllipsisV,
   FaClock,
   FaRegEye,
-  FaPlus,
   FaCheck,
 } from "react-icons/fa";
 import axiosInstance from "../lib/axiosInstance";
@@ -35,6 +34,8 @@ import ReusableModal from "./EmployeeCalendarModalView"; // View modal
 import MarkAsDoneButton from "./MarkAsDoneButton"; // Mark as done button
 import { useAuth } from "../context/AuthContext";
 
+// --- ScheduleMenu ---
+// --- ScheduleMenu ---
 const ScheduleMenu = ({ onView, scheduleId, onSuccess }) => {
   return (
     <Menu placement="bottom-start">
@@ -50,12 +51,7 @@ const ScheduleMenu = ({ onView, scheduleId, onSuccess }) => {
           View Details
         </MenuItem>
 
-        {/* prevent Menu from closing when clicking MarkAsDoneButton */}
-        <MenuItem
-          as="div"
-          icon={<FaCheck color="green" />}
-          onClick={(e) => e.stopPropagation()}
-        >
+        <Box px={3} py={1}>
           <MarkAsDoneButton
             id={scheduleId}
             onSuccess={onSuccess}
@@ -63,8 +59,9 @@ const ScheduleMenu = ({ onView, scheduleId, onSuccess }) => {
             size="sm"
             fullWidth={true}
             showConfirm={true}
+            label="Mark as Done"
           />
-        </MenuItem>
+        </Box>
       </MenuList>
     </Menu>
   );
@@ -129,14 +126,6 @@ const UpcomingSchedule = () => {
       }
       setSchedules(response.data);
     } catch (error) {
-      /*   toast({
-        title: "Error fetching schedules",
-        description: error.message || "Something went wrong",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-        position: "top",
-      }); */
       console.error("getSchedules error:", error);
     } finally {
       setLoading(false);
@@ -171,7 +160,7 @@ const UpcomingSchedule = () => {
       rounded="lg"
       bg={cardBg}
     >
-      {/* Header with Add Event and Refresh buttons */}
+      {/* Header with Refresh */}
       <Flex mb={4} alignItems="center">
         <Heading as="h3" size="md" color={textColor} fontWeight="600">
           Upcoming Schedule
@@ -231,26 +220,11 @@ const UpcomingSchedule = () => {
                   {schedule.priority || "Medium"}
                 </Badge>
 
-                <HStack spacing={2}>
-                  <MarkAsDoneButton
-                    id={schedule._id}
-                    onSuccess={getSchedules}
-                    variant="icon"
-                    size="sm"
-                    colorScheme="green"
-                    showConfirm={true}
-                    isDisabled={
-                      currentUser?.role !== "admin" &&
-                      currentUser?.role !== "hr"
-                    }
-                  />
-
-                  <ScheduleMenu
-                    onView={() => handleViewSchedule(schedule)}
-                    scheduleId={schedule._id || schedule.id}
-                    onSuccess={getSchedules}
-                  />
-                </HStack>
+                <ScheduleMenu
+                  onView={() => handleViewSchedule(schedule)}
+                  scheduleId={schedule._id || schedule.id}
+                  onSuccess={getSchedules}
+                />
               </Flex>
 
               {/* Main Content */}
