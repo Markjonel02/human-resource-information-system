@@ -135,7 +135,7 @@ const Calendar = () => {
       <VStack spacing={6} align="stretch">
         {/* Header */}
         <HStack justify="space-between">
-          <Heading size="lg">📅 Team Scheduler</Heading>
+          <Heading size="lg"> Team Scheduler</Heading>
           <Button
             leftIcon={<AddIcon />}
             colorScheme="blue"
@@ -145,20 +145,31 @@ const Calendar = () => {
           </Button>
         </HStack>
 
-        {/* FullCalendar */}
-        <FullCalendar
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-          headerToolbar={{
-            left: "prev,next today",
-            center: "title",
-            right: "dayGridMonth,timeGridWeek,timeGridDay",
+        <Box
+          sx={{
+            ".fc .fc-toolbar .fc-button": {
+              bg: "blue.500",
+              color: "white",
+              border: "none",
+              _hover: { bg: "blue.600" },
+              "&.fc-button-active": { bg: "blue.700" },
+            },
           }}
-          initialView="dayGridMonth"
-          selectable
-          events={events}
-          eventClick={handleEventClick}
-          height="75vh"
-        />
+        >
+          <FullCalendar
+            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+            headerToolbar={{
+              left: "prev,next today",
+              center: "title",
+              right: "dayGridMonth,timeGridWeek,timeGridDay",
+            }}
+            initialView="dayGridMonth"
+            selectable
+            events={events}
+            eventClick={handleEventClick}
+            height="75vh"
+          />
+        </Box>
 
         <Box
           bg={useColorModeValue("white", "gray.800")}
@@ -168,7 +179,7 @@ const Calendar = () => {
           overflowX="auto"
         >
           <Heading size="md" mb={6} color="blue.600">
-            📋 Event List
+            Event List
           </Heading>
 
           <Table variant="striped" colorScheme="blue" size="md">

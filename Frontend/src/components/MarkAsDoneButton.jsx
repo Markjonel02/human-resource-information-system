@@ -66,6 +66,7 @@ const MarkAsDoneButton = ({
 
       // Refresh parent state or re-fetch data
       if (onSuccess && typeof onSuccess === "function") {
+        console.log("Calling onSuccess (refresh schedules)");
         await onSuccess();
       }
     } catch (error) {
