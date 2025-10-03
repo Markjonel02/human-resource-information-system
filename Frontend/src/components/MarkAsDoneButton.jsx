@@ -10,6 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogContent,
   AlertDialogOverlay,
+  Flex,
   useDisclosure,
 } from "@chakra-ui/react";
 import { FaCheck, FaCheckCircle } from "react-icons/fa";
@@ -24,6 +25,7 @@ const MarkAsDoneButton = ({
   showConfirm = true,
   fullWidth = false,
   label = "Mark as Done",
+  icon,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -106,7 +108,7 @@ const MarkAsDoneButton = ({
     return (
       <>
         <IconButton
-          icon={<FaCheckCircle />}
+          icon={<FaCheck />}
           onClick={handleClick}
           isLoading={isLoading}
           colorScheme={colorScheme}
@@ -144,7 +146,6 @@ const MarkAsDoneButton = ({
                   <Button
                     colorScheme={colorScheme}
                     onClick={handleMarkAsDone}
-                    ml={3}
                     isLoading={isLoading}
                     loadingText="Marking..."
                   >
@@ -169,8 +170,13 @@ const MarkAsDoneButton = ({
         colorScheme={colorScheme}
         variant={variant}
         size={size}
+        width={fullWidth ? "100%" : "auto"}
+        justifyContent="flex-start"
       >
-        {label}
+        <Flex align="center" gap={2}>
+          {icon ?? <FaCheck />}
+          <span>{label}</span>
+        </Flex>
       </Button>
 
       {showConfirm && (
