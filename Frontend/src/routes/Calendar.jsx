@@ -70,7 +70,7 @@ const Calendar = () => {
       setEvents(mappedEvents);
     } catch (err) {
       console.error("Load events error:", err);
-      toast({ title: "Error loading events", status: "error" });
+      /*  toast({ title: "Error loading events", status: "error" }); */
     }
   };
 

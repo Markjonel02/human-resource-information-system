@@ -630,7 +630,7 @@ const Leave = () => {
                   No leave requests found
                 </Text>
                 <Text fontSize="sm" color="gray.500">
-                  Try adjusting your filters or check back later ✨
+                  Try adjusting your filters or check back later
                 </Text>
               </Flex>
             </GridItem>

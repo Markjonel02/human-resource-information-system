@@ -34,8 +34,6 @@ import ReusableModal from "./EmployeeCalendarModalView"; // View modal
 import MarkAsDoneButton from "./MarkAsDoneButton"; // Mark as done button
 import { useAuth } from "../context/AuthContext";
 
-// --- ScheduleMenu ---
-// --- ScheduleMenu ---
 const ScheduleMenu = ({ onView, scheduleId, onSuccess }) => {
   return (
     <Menu placement="bottom-start">
@@ -51,7 +49,7 @@ const ScheduleMenu = ({ onView, scheduleId, onSuccess }) => {
           View Details
         </MenuItem>
 
-        <Box px={3} py={1}>
+        <Box>
           <MarkAsDoneButton
             id={scheduleId}
             onSuccess={onSuccess}
@@ -60,6 +58,7 @@ const ScheduleMenu = ({ onView, scheduleId, onSuccess }) => {
             fullWidth={true}
             showConfirm={true}
             label="Mark as Done"
+            icon={<FaCheck />}
           />
         </Box>
       </MenuList>
