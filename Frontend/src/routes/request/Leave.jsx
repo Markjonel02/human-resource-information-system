@@ -47,6 +47,7 @@ import axiosInstance from "../../lib/axiosInstance";
 import { theme } from "../../constants/themeConstants";
 import { LeaveRequestCard } from "./LeaveRequestCard";
 import { useAuth } from "../../context/AuthContext";
+import AddLeaveModal from "../../components/Admin_components/AddLeaveModal";
 const Leave = () => {
   const { authState } = useAuth();
   const currentUser = authState?.user;
@@ -252,10 +253,7 @@ const Leave = () => {
 
   const handleNewLeaveChange = (e) => {
     const { name, value } = e.target;
-    setNewLeaveData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
+    setNewLeaveData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleAddLeaveSubmit = async () => {
@@ -286,20 +284,18 @@ const Leave = () => {
         newLeaveData.dateTo
       );
 
-      // Prepare data for backend
+      // Prepare data for backend (leave only, no attendance)
       const leaveData = {
         employeeId: newLeaveData.employeeId,
         leaveType: newLeaveData.leaveType,
         dateFrom: newLeaveData.dateFrom,
         dateTo: newLeaveData.dateTo,
-        totalLeaveDays: totalLeaveDays,
+        totalLeaveDays,
         notes: newLeaveData.notes,
-        status: "on_leave",
-        leaveStatus: "pending",
+        leaveStatus: "pending", // you can keep statuses strictly for leaves
       };
 
-      // Submit to backend
-      await axiosInstance.post("/attendance/create-attendance", leaveData);
+      await axiosInstance.post("/adminLeave/create-leave", leaveData);
 
       // Reset form
       setNewLeaveData({
@@ -323,7 +319,7 @@ const Leave = () => {
 
       // Refresh the list
       fetchLeaveRequests();
-      setCurrentPage(1); // Go to the first page to see the new request
+      setCurrentPage(1);
     } catch (err) {
       console.error("Error creating leave request:", err);
       toast({
@@ -475,17 +471,18 @@ const Leave = () => {
           gap={4}
         >
           <HStack spacing={4} wrap="wrap" justify="center">
-            <Button
-              colorScheme="blue"
-              leftIcon={<AddIcon />}
-              onClick={onAddModalOpen}
-              borderRadius="md"
-              boxShadow="md"
-              _hover={{ transform: "translateY(-2px)", boxShadow: "lg" }}
-              isDisabled={currentUser?.role !== "admin"}
-            >
+            <Button colorScheme="blue" onClick={() => setIsAddModalOpen(true)}>
               Add Leave
             </Button>
+            <AddLeaveModal
+              isOpen={isAddModalOpen}
+              onClose={onAddModalClose}
+              onSubmit={handleAddLeaveSubmit}
+              newLeaveData={newLeaveData}
+              setNewLeaveData={setNewLeaveData}
+              handleNewLeaveChange={handleNewLeaveChange}
+            />
+
             <Checkbox
               isChecked={isSelectAllChecked}
               onChange={handleSelectAll}
@@ -553,13 +550,7 @@ const Leave = () => {
 
           <SimpleGrid columns={{ base: 2, sm: 2, md: 5 }} spacing={4} w="100%">
             {Object.entries(leaveCounts).map(([type, count]) => (
-              <VStack
-                key={type}
-                bg="blue.50"
-                p={3}
-                borderRadius="md"
-                w="100%" // ✅ Stretch items in grid
-              >
+              <VStack key={type} bg="blue.50" p={3} borderRadius="md" w="100%">
                 <Text
                   fontSize="xs"
                   color="blue.600"

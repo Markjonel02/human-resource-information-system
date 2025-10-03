@@ -47,6 +47,11 @@ router.post(
   authorizeRoles("admin", "hr"),
   Leave.rejectLeaveBulk
 );
+router.get(
+  "/search-employees",
+  authorizeRoles("admin", "hr"),
+  Leave.searchEmployees
+);
 // ============ END OF LEAVES ============
 
 
