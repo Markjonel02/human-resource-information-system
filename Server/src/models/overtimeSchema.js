@@ -49,8 +49,7 @@ const OverTimeScheme = new mongoose.Schema(
       default: null,
     },
     rejectedAt: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "user",
+      type: Date,
       default: null,
     },
     approvedAt: {

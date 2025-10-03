@@ -15,6 +15,7 @@ const EmployeeOvertimeRoutes = require("./routes/employee/overtimeRoutes.js");
 const adminOvertimeRoute = require("./routes/admin&hr/adminovertimeRoutes.js");
 const Obroutes = require("./routes/employee/employeeOfiicialBusinessRoutes.js");
 const adminObroutes = require("./routes/admin&hr/OfficialBusinessRoutes");
+const adminLeaveRoutes = require("./routes/admin&hr/leaveRoutes.js");
 const calendarRoutes = require("./routes/admin&hr/calendarRoutes/upcomingEventsRoutes.js");
 const employeeCalendar = require("./routes/employee/employeeCalendarRoutes.js");
 // Initialize the Express app
@@ -58,6 +59,7 @@ app.use("/api/attendanceRoutes", testRoutes);
 
 app.use("/api/employeeAttendance", employeeAttendance);
 app.use("/api/employeeLeave", employeeLeave);
+app.use("/api/adminLeave", adminLeaveRoutes);
 app.use("/api/overtime", EmployeeOvertimeRoutes);
 app.use("/api/admin/overtime", adminOvertimeRoute);
 app.use("/api/officialBusiness", Obroutes);
