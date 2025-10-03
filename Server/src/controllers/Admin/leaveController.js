@@ -512,6 +512,80 @@ const getLeaveBreakdown = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+const searchEmployees = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res
+      .status(401)
+      .json({ message: "Unauthorized! You cannot access this resource." });
+  }
+
+  try {
+    const { q } = req.query; // q is the search query
+
+    if (!q || q.trim().length < 1) {
+      return res.status(400).json({
+        message: "Search query is required",
+      });
+    }
+
+    const searchTerm = q.trim();
+
+    // Create search conditions for name, employeeId, and email
+    const searchConditions = [
+      // Search by first name
+      { firstname: { $regex: searchTerm, $options: "i" } },
+
+      // Search by last name
+      { lastname: { $regex: searchTerm, $options: "i" } },
+
+      // Search by email
+      { email: { $regex: searchTerm, $options: "i" } },
+
+      // Search by employeeId (string match or partial)
+      { employeeId: { $regex: searchTerm, $options: "i" } },
+
+      // Search by full name (firstname + lastname)
+      {
+        $expr: {
+          $regexMatch: {
+            input: {
+              $concat: ["$firstname", " ", { $ifNull: ["$lastname", ""] }],
+            },
+            regex: searchTerm,
+            options: "i",
+          },
+        },
+      },
+    ];
+
+    // If the search term looks like a MongoDB ObjectId or numeric ID
+    if (searchTerm.match(/^[a-fA-F0-9]{24}$/) || searchTerm.match(/^\d+$/)) {
+      // Add exact ObjectId search
+      if (searchTerm.match(/^[a-fA-F0-9]{24}$/)) {
+        searchConditions.push({ _id: searchTerm });
+      }
+
+      // Add exact employeeId search
+      searchConditions.push({ employeeId: searchTerm });
+    }
+
+    // Execute search
+    const employees = await User.find({
+      $or: searchConditions,
+    })
+      .select("_id firstname lastname employeeId department email")
+      .limit(10)
+      .lean();
+
+    res.status(200).json(employees);
+  } catch (error) {
+    console.error("Error searching employees:", error);
+    res.status(500).json({
+      message: "Failed to search employees",
+      error: error.message,
+    });
+  }
+};
 
 module.exports = {
     approveLeave,
@@ -520,4 +594,5 @@ module.exports = {
     rejectLeaveBulk,
     getAllEmployeeLeave,
     getLeaveBreakdown,
+    searchEmployees,
 };
