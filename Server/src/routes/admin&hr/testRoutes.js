@@ -109,42 +109,5 @@ router.get(
   testAttendance.getRecentAttendanceLogs
 );
 
-// ============ LEAVES ============
-router.post(
-  "/approve-leave/:id",
-  authorizeRoles("admin", "hr"),
-  testAttendance.approveLeave
-);
-
-// Approve multiple leaves in bulk (Admin only)
-router.post(
-  "/approve-leave-bulk",
-  authorizeRoles("admin", "hr"),
-  testAttendance.approveLeaveBulk
-);
-
-router.get(
-  "/get-leave-requests",
-  authorizeRoles("admin", "hr"),
-  testAttendance.getAllEmployeeLeave
-);
-
-router.get(
-  "/get-leave-breakdown",
-  authorizeRoles("admin", "hr"),
-  testAttendance.getLeaveBreakdown
-);
-
-router.post(
-  "/reject-leave/:id",
-  authorizeRoles("admin", "hr"),
-  testAttendance.rejectLeave
-);
-
-router.post(
-  "/reject-leave-bulk",
-  authorizeRoles("admin", "hr"),
-  testAttendance.rejectLeaveBulk
-);
 
 module.exports = router;

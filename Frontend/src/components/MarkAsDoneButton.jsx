@@ -172,6 +172,7 @@ const MarkAsDoneButton = ({
         size={size}
         width={fullWidth ? "100%" : "auto"}
         justifyContent="flex-start"
+        isDisabled={currentUser?.role !== "admin" && currentUser?.role !== "hr"} // 👈 Disable for non-admin/hr
       >
         <Flex align="center" gap={2}>
           {icon ?? <FaCheck />}

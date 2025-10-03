@@ -79,7 +79,7 @@ const Leave = () => {
     const fetchLeaveBreakdown = async () => {
       try {
         const response = await axiosInstance.get(
-          "/attendanceRoutes/get-leave-breakdown"
+          "/adminLeave/get-leave-breakdown"
         );
         setLeaveCounts(response.data);
       } catch (error) {
@@ -190,7 +190,7 @@ const Leave = () => {
 
   const handleApprove = async (id) => {
     try {
-      await axiosInstance.post(`/attendanceRoutes/approve-leave/${id}`);
+      await axiosInstance.post(`/adminLeave/approve-leave/${id}`);
       toast({
         title: "Leave Approved",
         status: "success",
@@ -213,7 +213,7 @@ const Leave = () => {
   const handleReject = async (id) => {
     try {
       const response = await axiosInstance.post(
-        `/attendanceRoutes/reject-leave/${id}`
+        `/adminLeave/reject-leave/${id}`
       );
       const rejectedBy = response.data?.leaveRecord?.approvedBy;
 
@@ -381,7 +381,7 @@ const Leave = () => {
   const handleApproveSelected = async () => {
     try {
       const response = await axiosInstance.post(
-        `/attendanceRoutes/approve-leave-bulk`,
+        `/adminLeave/approve-leave-bulk`,
         {
           ids: selectedRequestIds,
         }
@@ -418,7 +418,7 @@ const Leave = () => {
   const handleRejectSelected = async () => {
     try {
       // If bulk reject endpoint exists
-      await axiosInstance.post(`/attendanceRoutes/reject-leave-bulk`, {
+      await axiosInstance.post(`/adminLeave/reject-leave-bulk`, {
         ids: selectedRequestIds,
       });
       toast({
