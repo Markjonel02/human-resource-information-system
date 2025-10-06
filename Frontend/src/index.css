@@ -238,3 +238,14 @@ html {
     clip-path: inset(0 0 0 100%);
   }
 }
+
+.fc .fc-button {
+  background-color: #007bff !important; /* Bootstrap blue */
+  border-color: #007bff !important;
+  color: white !important;
+}
+
+.fc .fc-button:hover {
+  background-color: #0056b3 !important;
+  border-color: #0056b3 !important;
+}
