@@ -105,7 +105,7 @@ const EmployeeCalendar = () => {
       <VStack spacing={6} align="stretch">
         {/* Header */}
         <HStack justify="space-between">
-          <Heading size="lg">📅 My Calendar</Heading>
+          <Heading size="lg"> My Calendar</Heading>
         </HStack>
 
         {/* FullCalendar */}
@@ -118,7 +118,7 @@ const EmployeeCalendar = () => {
           }}
           initialView="dayGridMonth"
           events={events}
-          height="75vh"
+          height="100vh"
         />
 
         {/* Event List */}
@@ -130,7 +130,7 @@ const EmployeeCalendar = () => {
           overflowX="auto"
         >
           <Heading size="md" mb={6} color="blue.600">
-            📋 Event List
+            Event List
           </Heading>
 
           <Table variant="striped" colorScheme="blue" size="md">
