@@ -5,11 +5,11 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const connectDB = require("./config/connection.js");
-
+const bodyParser = require("body-parser");
 // Import Routes
 const userRoutes = require("./routes/userRoutes.js");
 const testRoutes = require("./routes/admin&hr/testRoutes.js");
-const employeeLeave = require("./routes/employee/employeeLeaveRoutes.js");
+https://github.com/Markjonel02/human-resource-information-system/pull/105/conflict?name=Server%252Fsrc%252Fserver.js&ancestor_oid=fc3040501bbd672a8b766856a5dd8340e9ec10f9&base_oid=ce398ba6e1556c50a51f500f703760b0d997f65a&head_oid=9a557012b380d9f54cd895e7c555bc060f6baad6const employeeLeave = require("./routes/employee/employeeLeaveRoutes.js");
 const employeeAttendance = require("./routes/employee/employeeRoutes.js");
 const EmployeeOvertimeRoutes = require("./routes/employee/overtimeRoutes.js");
 const adminOvertimeRoute = require("./routes/admin&hr/adminovertimeRoutes.js");

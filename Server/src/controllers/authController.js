@@ -225,46 +225,6 @@ const login = async (req, res) => {
   }
 };
 
-// -------------------- Controller: Refresh Token -------------------- //
-/* const refreshToken = async (req, res) => {
-  const token = req.cookies?.jwt;
-  if (!token)
-    return res.status(401).json({ message: "No refresh token found." });
-
-  jwt.verify(token, process.env.JWT_REFRESH_SECRET, async (err, decoded) => {
-    if (err) {
-      res.clearCookie("jwt");
-      return res
-        .status(403)
-        .json({ message: "Invalid or expired refresh token." });
-    }
-
-    try {
-      const user = await User.findById(decoded.UserInfo.id).exec();
-      if (!user) return res.status(401).json({ message: "User not found." });
-
-      const { accessToken, refreshToken: newRefreshToken } =
-        generateTokens(user);
-      setRefreshTokenCookie(res, newRefreshToken);
-
-      return res.status(200).json({
-        message: "Token refreshed successfully",
-        accessToken,
-        user: {
-          id: user._id,
-          username: user.username,
-          employeeEmail: user.employeeEmail,
-          role: user.role,
-        },
-      });
-    } catch (error) {
-      console.error("Refresh token error:", error);
-      return res
-        .status(500)
-        .json({ message: "Server error during token refresh." });
-    }
-  });
-}; */
 const refreshToken = async (req, res) => {
   const token = req.cookies?.jwt;
 
