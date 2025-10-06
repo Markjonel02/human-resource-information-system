@@ -18,7 +18,7 @@ const DocumentSection = ({ data, color }) => (
         <Text fontSize="sm" color="gray.600">
           {item.description}
         </Text>
-      </Box>
+      </Box> 
     ))}
   </VStack>
 );
