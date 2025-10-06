@@ -5,7 +5,7 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const connectDB = require("./config/connection.js");
-
+const path = require("path");
 // Import Routes
 const userRoutes = require("./routes/userRoutes.js");
 const testRoutes = require("./routes/admin&hr/testRoutes.js");
@@ -18,6 +18,7 @@ const adminObroutes = require("./routes/admin&hr/OfficialBusinessRoutes");
 const adminLeaveRoutes = require("./routes/admin&hr/leaveRoutes.js");
 const calendarRoutes = require("./routes/admin&hr/calendarRoutes/upcomingEventsRoutes.js");
 const employeeCalendar = require("./routes/employee/employeeCalendarRoutes.js");
+const documentRoutes = require("./routes/admin&hr/document-routes/documentRoutes.js");
 // Initialize the Express app
 const app = express();
 const port = process.env.PORT || 5000; // Use a default port if not specified
@@ -37,7 +38,7 @@ app.use(cors(corsOptions));
 // This replaces bodyParser, as it's built-in since Express 4.16
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 // Middleware for parsing cookies
 app.use(cookieParser());
 
@@ -66,6 +67,7 @@ app.use("/api/officialBusiness", Obroutes);
 app.use("/api/adminOfficialBusiness", adminObroutes);
 app.use("/api/calendar", calendarRoutes);
 app.use("/api/employeeCalendar", employeeCalendar);
+app.use("/api/documents", documentRoutes);
 // =======================
 //   ERROR HANDLING
 // =======================
