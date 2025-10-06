@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react"; // Import useRef and useCallback
+import React, { useState, useRef, useCallback } from "react";
 import {
   Box,
   Tabs,
@@ -21,11 +21,6 @@ import {
   ModalFooter,
   ModalBody,
   ModalCloseButton,
-  FormControl,
-  FormLabel,
-  Input,
-  Textarea,
-  Select,
   useDisclosure,
 } from "@chakra-ui/react";
 import {
@@ -35,7 +30,13 @@ import {
   FaPlusCircle,
 } from "react-icons/fa";
 
-// Sample Data for Autocomplete
+// --- Local Components ---
+import DocumentSection from "../components/documents/DocumentSection";
+import PolicyForm from "../components/documents/PolicyForm";
+import OffenseForm from "../components/documents/OffenseForm";
+import SuspensionForm from "../components/documents/SuspensionForm";
+
+// --- Sample Employee Data ---
 const employees = [
   { id: "12345", name: "John Doe", department: "Engineering" },
   { id: "67890", name: "Jane Smith", department: "Human Resources" },
@@ -44,111 +45,110 @@ const employees = [
   { id: "77889", name: "Bob White", department: "Engineering" },
 ];
 
-// Main Documents component
 const Documents = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [tabIndex, setTabIndex] = useState(0);
-  const [employeeName, setEmployeeName] = useState("");
-  const [employeeDepartment, setEmployeeDepartment] = useState("");
-  const [offenseDetails, setOffenseDetails] = useState("");
   const [nameSuggestions, setNameSuggestions] = useState([]);
-
-  // useRef to store the timeout ID
   const debounceTimeout = useRef(null);
 
-  const handleTabChange = (index) => {
-    setTabIndex(index);
-    if (isOpen) {
-      setEmployeeName("");
-      setEmployeeDepartment("");
-      setOffenseDetails("");
-      setNameSuggestions([]);
-    }
-  };
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    employeeName: "",
+    employeeDepartment: "",
+    offenseDetails: "",
+  });
 
-  // Debounced function to filter suggestions
-  // useCallback is used to memoize the function, preventing unnecessary re-creations
+  // --- Debounced Suggestion Logic ---
   const filterNameSuggestions = useCallback((value) => {
     if (value.length > 1) {
-      const filteredSuggestions = employees.filter((employee) =>
+      const filtered = employees.filter((employee) =>
         employee.name.toLowerCase().includes(value.toLowerCase())
       );
-      setNameSuggestions(filteredSuggestions);
+      setNameSuggestions(filtered);
     } else {
       setNameSuggestions([]);
     }
-  }, []); // Empty dependency array means this function is created once
+  }, []);
 
   const handleNameChange = (e) => {
     const value = e.target.value;
-    setEmployeeName(value);
-
-    // Clear the previous timeout if it exists
-    if (debounceTimeout.current) {
-      clearTimeout(debounceTimeout.current);
-    }
-
-    // Set a new timeout
-    debounceTimeout.current = setTimeout(() => {
-      filterNameSuggestions(value);
-    }, 300); // 300ms debounce delay
+    setFormData((prev) => ({ ...prev, employeeName: value }));
+    if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+    debounceTimeout.current = setTimeout(
+      () => filterNameSuggestions(value),
+      300
+    );
   };
 
   const handleSelectName = (employee) => {
-    setEmployeeName(employee.name);
-    setEmployeeDepartment(employee.department);
+    setFormData((prev) => ({
+      ...prev,
+      employeeName: employee.name,
+      employeeDepartment: employee.department,
+    }));
     setNameSuggestions([]);
-    // Clear any pending debounce timeout immediately when a selection is made
-    if (debounceTimeout.current) {
-      clearTimeout(debounceTimeout.current);
-    }
+    if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: "",
+      description: "",
+      employeeName: "",
+      employeeDepartment: "",
+      offenseDetails: "",
+    });
+    setNameSuggestions([]);
   };
 
   const handleSubmit = () => {
-    console.log("Submitting for tab index:", tabIndex);
-    if (tabIndex === 0) {
-      console.log("Adding new Policy/Memo (details not implemented yet)");
-    } else if (tabIndex === 1) {
-      console.log("New Offense:", {
-        employeeName,
-        employeeDepartment,
-        offenseDetails,
-      });
-    } else if (tabIndex === 2) {
-      console.log("New Suspension:", {
-        employeeName,
-        employeeDepartment,
-        offenseDetails,
-      });
-    }
+    console.log("Submitted Data:", { tabIndex, ...formData });
+    resetForm();
     onClose();
-    setEmployeeName("");
-    setEmployeeDepartment("");
-    setOffenseDetails("");
-    setNameSuggestions([]);
-    if (debounceTimeout.current) {
-      clearTimeout(debounceTimeout.current);
-    }
   };
+
+  // --- Mock Data ---
+  const policyData = [
+    {
+      title: "Employee Handbook V2.0",
+      description:
+        "Updated guidelines on remote work policy and leave applications.",
+    },
+    {
+      title: "Q3 Performance Review Memo",
+      description:
+        "Details regarding performance review cycle and submission deadlines.",
+    },
+  ];
+
+  const offenseData = [
+    {
+      title: "Late Submission - Project Alpha",
+      description:
+        "Employee ID: 12345. Deliverables submitted 3 days past deadline.",
+    },
+  ];
+
+  const suspendedData = [
+    {
+      title: "John Doe - Administrative Leave",
+      description:
+        "Employee ID: 11223. On administrative leave pending investigation.",
+    },
+  ];
 
   return (
     <Box
       mt={10}
-      p={{ base: 4, md: 10, lg: 0 }}
+      p={{ base: 4, md: 10 }}
       minH="100vh"
       fontFamily="Inter, sans-serif"
       display="flex"
       justifyContent="center"
       alignItems="flex-start"
     >
-      <Box
-        w={{ base: "100%", md: "100%", lg: "100%" }}
-        maxW="1200px"
-        bg="white"
-        p={{ base: 4, md: 8, lg: 0 }}
-        borderRadius="none"
-        shadow="none"
-      >
+      <Box w="100%" maxW="1200px" bg="white" p={{ base: 4, md: 8 }}>
         <Flex mb={6} alignItems="center">
           <Text
             fontSize={{ base: "2xl", md: "3xl" }}
@@ -162,9 +162,6 @@ const Documents = () => {
             leftIcon={<FaPlusCircle />}
             colorScheme="blue"
             size={{ base: "sm", md: "md" }}
-            borderRadius="md"
-            shadow="none"
-            _hover={{ bg: "blue.500" }}
             onClick={onOpen}
           >
             Add New
@@ -174,225 +171,75 @@ const Documents = () => {
         <Tabs
           isFitted
           variant="unstyled"
-          colorScheme="blue"
           index={tabIndex}
-          onChange={handleTabChange}
+          onChange={setTabIndex}
         >
           <TabList mb="1em" borderBottom="2px solid" borderColor="gray.200">
             <Tab
-              py={3}
               _selected={{
                 color: "blue.600",
-                borderBottom: "2px solid",
-                borderColor: "blue.600",
-                bg: "transparent",
-                fontWeight: "semibold",
+                borderBottom: "2px solid blue.600",
               }}
-              _hover={{ bg: "gray.100" }}
-              borderRadius="none"
-              fontSize={{ base: "sm", md: "md" }}
             >
-              {" "}
               <Tooltip label="Policies & Memos">
-                <HStack spacing={2} justify="center">
+                <HStack spacing={2}>
                   <Icon as={FaFileAlt} />
-
-                  <Text display={{ base: "none", md: "inline" }}>
-                    Policies & Memos
-                  </Text>
-
-                  <Text display={{ base: "inline", md: "none" }}>Polic...</Text>
+                  <Text display={{ base: "none", md: "inline" }}>Policies</Text>
                 </HStack>
               </Tooltip>
             </Tab>
             <Tab
-              py={3}
               _selected={{
                 color: "red.600",
-                borderBottom: "2px solid",
-                borderColor: "red.600",
-                bg: "transparent",
-                fontWeight: "semibold",
+                borderBottom: "2px solid red.600",
               }}
-              _hover={{ bg: "gray.100" }}
-              borderRadius="none"
-              fontSize={{ base: "sm", md: "md" }}
             >
               <Tooltip label="Offenses">
-                <HStack spacing={2} justify="center">
+                <HStack spacing={2}>
                   <Icon as={FaExclamationTriangle} />
                   <Text display={{ base: "none", md: "inline" }}>Offenses</Text>
-                  <Text display={{ base: "inline", md: "none" }}>Offen...</Text>
                 </HStack>
               </Tooltip>
             </Tab>
             <Tab
-              py={3}
               _selected={{
                 color: "orange.600",
-                borderBottom: "2px solid",
-                borderColor: "orange.600",
-                bg: "transparent",
-                fontWeight: "semibold",
+                borderBottom: "2px solid orange.600",
               }}
-              _hover={{ bg: "gray.100" }}
-              borderRadius="none"
-              fontSize={{ base: "sm", md: "md" }}
             >
-              <Tooltip label="Suspended">
-                <HStack spacing={2} justify="center">
+              <Tooltip label="Suspended Employees">
+                <HStack spacing={2}>
                   <Icon as={FaBan} />
                   <Text display={{ base: "none", md: "inline" }}>
                     Suspended
                   </Text>
-                  <Text display={{ base: "inline", md: "none" }}>Suspe...</Text>
                 </HStack>
               </Tooltip>
             </Tab>
           </TabList>
+
           <TabPanels>
             <TabPanel>
-              <VStack align="stretch" spacing={4}>
-                <Box
-                  p={5}
-                  shadow="none"
-                  borderWidth="1px"
-                  borderColor="gray.200"
-                  borderRadius="none"
-                  bg="white"
-                >
-                  <Text fontWeight="bold" fontSize="lg" mb={2} color="blue.700">
-                    Employee Handbook V2.0
-                  </Text>
-                  <Text fontSize="sm" color="gray.600">
-                    Updated guidelines on remote work policy and leave
-                    applications. Effective July 1, 2025.
-                  </Text>
-                </Box>
-                <Box
-                  p={5}
-                  shadow="none"
-                  borderWidth="1px"
-                  borderColor="gray.200"
-                  borderRadius="none"
-                  bg="white"
-                >
-                  <Text fontWeight="bold" fontSize="lg" mb={2} color="blue.700">
-                    Q3 Performance Review Memo
-                  </Text>
-                  <Text fontSize="sm" color="gray.600">
-                    Details regarding the upcoming performance review cycle and
-                    submission deadlines.
-                  </Text>
-                </Box>
-                <Box
-                  p={5}
-                  shadow="none"
-                  borderWidth="1px"
-                  borderColor="gray.200"
-                  borderRadius="none"
-                  bg="white"
-                >
-                  <Text fontWeight="bold" fontSize="lg" mb={2} color="blue.700">
-                    New Travel Policy
-                  </Text>
-                  <Text fontSize="sm" color="gray.600">
-                    Revised travel expense reimbursement policy. Please review
-                    before any business travel.
-                  </Text>
-                </Box>
-              </VStack>
+              <DocumentSection data={policyData} color="blue.700" />
             </TabPanel>
-
             <TabPanel>
-              <VStack align="stretch" spacing={4}>
-                <Box
-                  p={5}
-                  shadow="none"
-                  borderWidth="1px"
-                  borderColor="gray.200"
-                  borderRadius="none"
-                  bg="white"
-                >
-                  <Text fontWeight="bold" fontSize="lg" mb={2} color="red.700">
-                    Late Submission - Project Alpha
-                  </Text>
-                  <Text fontSize="sm" color="gray.600">
-                    Employee ID: 12345. Project Alpha deliverables submitted 3
-                    days past deadline.
-                  </Text>
-                </Box>
-                <Box
-                  p={5}
-                  shadow="none"
-                  borderWidth="1px"
-                  borderColor="gray.200"
-                  borderRadius="none"
-                  bg="white"
-                >
-                  <Text fontWeight="bold" fontSize="lg" mb={2} color="red.700">
-                    Policy Violation - Data Security
-                  </Text>
-                  <Text fontSize="sm" color="gray.600">
-                    Employee ID: 67890. Unauthorized access attempt on sensitive
-                    company data.
-                  </Text>
-                </Box>
-              </VStack>
+              <DocumentSection data={offenseData} color="red.700" />
             </TabPanel>
-
             <TabPanel>
-              <VStack align="stretch" spacing={4}>
-                <Box
-                  p={5}
-                  shadow="none"
-                  borderWidth="1px"
-                  borderColor="gray.200"
-                  borderRadius="none"
-                  bg="white"
-                >
-                  <Text
-                    fontWeight="bold"
-                    fontSize="lg"
-                    mb={2}
-                    color="orange.700"
-                  >
-                    John Doe - Administrative Leave
-                  </Text>
-                  <Text fontSize="sm" color="gray.600">
-                    Employee ID: 11223. On administrative leave pending
-                    investigation.
-                  </Text>
-                </Box>
-                <Box
-                  p={5}
-                  shadow="none"
-                  borderWidth="1px"
-                  borderColor="gray.200"
-                  borderRadius="none"
-                  bg="white"
-                >
-                  <Text
-                    fontWeight="bold"
-                    fontSize="lg"
-                    mb={2}
-                    color="orange.700"
-                  >
-                    Jane Smith - Temporary Suspension
-                  </Text>
-                  <Text fontSize="sm" color="gray.600">
-                    Employee ID: 44556. Suspended for 5 business days due to
-                    attendance issues.
-                  </Text>
-                </Box>
-              </VStack>
+              <DocumentSection data={suspendedData} color="orange.700" />
             </TabPanel>
           </TabPanels>
         </Tabs>
       </Box>
 
-      {/* Add New Document Modal */}
-      <Modal isOpen={isOpen} onClose={onClose}>
+      {/* --- Modal --- */}
+      <Modal
+        isOpen={isOpen}
+        onClose={() => {
+          onClose();
+          resetForm();
+        }}
+      >
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>
@@ -402,90 +249,37 @@ const Documents = () => {
           </ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            {/* Form for Policies & Memos */}
             {tabIndex === 0 && (
-              <VStack spacing={4}>
-                <FormControl id="document-title">
-                  <FormLabel>Document Title</FormLabel>
-                  <Input placeholder="e.g., New Remote Work Policy" />
-                </FormControl>
-                <FormControl id="document-description">
-                  <FormLabel>Description</FormLabel>
-                  <Textarea placeholder="Brief description of the document" />
-                </FormControl>
-                {/* Add other fields relevant to policies/memos */}
-              </VStack>
+              <PolicyForm formData={formData} setFormData={setFormData} />
             )}
-
-            {/* Form for Offenses and Suspensions */}
-            {(tabIndex === 1 || tabIndex === 2) && (
-              <VStack spacing={4}>
-                <FormControl id="employee-name">
-                  <FormLabel>Employee Name</FormLabel>
-                  <Input
-                    placeholder="Type employee name..."
-                    value={employeeName}
-                    onChange={handleNameChange} // Debounced handler
-                  />
-                  {nameSuggestions.length > 0 && (
-                    <Box
-                      borderWidth="1px"
-                      borderColor="gray.200"
-                      borderRadius="md"
-                      mt={1}
-                      maxH="150px"
-                      overflowY="auto"
-                      zIndex="dropdown"
-                      bg="white"
-                    >
-                      {nameSuggestions.map((employee) => (
-                        <Text
-                          key={employee.id}
-                          p={2}
-                          cursor="pointer"
-                          _hover={{ bg: "gray.100" }}
-                          onClick={() => handleSelectName(employee)}
-                        >
-                          {employee.name}
-                        </Text>
-                      ))}
-                    </Box>
-                  )}
-                </FormControl>
-                <FormControl id="employee-department">
-                  <FormLabel>Department</FormLabel>
-                  <Select
-                    placeholder="Select Department"
-                    value={employeeDepartment}
-                    onChange={(e) => setEmployeeDepartment(e.target.value)}
-                  >
-                    <option value="Engineering">Engineering</option>
-                    <option value="Human Resources">Human Resources</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Sales">Sales</option>
-                    <option value="Finance">Finance</option>
-                  </Select>
-                </FormControl>
-                <FormControl id="offense-details">
-                  <FormLabel>
-                    {tabIndex === 1 ? "Offense Details" : "Suspension Details"}
-                  </FormLabel>
-                  <Textarea
-                    placeholder={
-                      tabIndex === 1
-                        ? "Describe the offense..."
-                        : "Describe the reason for suspension and duration..."
-                    }
-                    value={offenseDetails}
-                    onChange={(e) => setOffenseDetails(e.target.value)}
-                  />
-                </FormControl>
-              </VStack>
+            {tabIndex === 1 && (
+              <OffenseForm
+                formData={formData}
+                setFormData={setFormData}
+                nameSuggestions={nameSuggestions}
+                handleNameChange={handleNameChange}
+                handleSelectName={handleSelectName}
+              />
+            )}
+            {tabIndex === 2 && (
+              <SuspensionForm
+                formData={formData}
+                setFormData={setFormData}
+                nameSuggestions={nameSuggestions}
+                handleNameChange={handleNameChange}
+                handleSelectName={handleSelectName}
+              />
             )}
           </ModalBody>
-
           <ModalFooter>
-            <Button variant="ghost" onClick={onClose} mr={3}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                onClose();
+                resetForm();
+              }}
+              mr={3}
+            >
               Cancel
             </Button>
             <Button colorScheme="blue" onClick={handleSubmit}>
