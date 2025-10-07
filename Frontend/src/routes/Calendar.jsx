@@ -167,7 +167,7 @@ const Calendar = () => {
             selectable
             events={events}
             eventClick={handleEventClick}
-            height="100%"
+            height="100vh"
           />
         </Box>
 
