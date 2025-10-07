@@ -38,7 +38,8 @@ app.use(cors(corsOptions));
 // This replaces bodyParser, as it's built-in since Express 4.16
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "src/uploads")));
+
 // Middleware for parsing cookies
 app.use(cookieParser());
 

@@ -1,19 +1,11 @@
 const mongoose = require("mongoose");
 
-const documents = mongoose.Schema({
-  employee: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "user",
-  },
+const policySchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String },
-  fileUrl: { type: String, required: true },
-  createdAt: { type: Date },
-  uploadedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "user",
-    required: true,
-  },
+  filePath: { type: String, required: true },
+  uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  uploadedAt: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model("document", documents);
+module.exports = mongoose.model("Policy", policySchema);

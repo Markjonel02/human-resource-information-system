@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   Box,
   Tabs,
@@ -18,10 +18,11 @@ import {
   ModalOverlay,
   ModalContent,
   ModalHeader,
-  ModalFooter,
   ModalBody,
   ModalCloseButton,
   useDisclosure,
+  Spinner,
+  Center,
 } from "@chakra-ui/react";
 import {
   FaFileAlt,
@@ -29,6 +30,7 @@ import {
   FaBan,
   FaPlusCircle,
 } from "react-icons/fa";
+import axiosInstance from "../lib/axiosInstance";
 
 // --- Local Components ---
 import DocumentSection from "../components/documents/DocumentSection";
@@ -36,7 +38,6 @@ import PolicyForm from "../components/documents/PolicyForm";
 import OffenseForm from "../components/documents/OffenseForm";
 import SuspensionForm from "../components/documents/SuspensionForm";
 
-// --- Sample Employee Data ---
 const employees = [
   { id: "12345", name: "John Doe", department: "Engineering" },
   { id: "67890", name: "Jane Smith", department: "Human Resources" },
@@ -49,6 +50,8 @@ const Documents = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [tabIndex, setTabIndex] = useState(0);
   const [nameSuggestions, setNameSuggestions] = useState([]);
+  const [policyData, setPolicyData] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const debounceTimeout = useRef(null);
 
   const [formData, setFormData] = useState({
@@ -59,7 +62,39 @@ const Documents = () => {
     offenseDetails: "",
   });
 
-  // --- Debounced Suggestion Logic ---
+  // --- Fetch all uploaded policy PDFs ---
+  const fetchPolicies = async () => {
+    try {
+      setIsLoading(true);
+      const res = await axiosInstance.get("/documents/getall-uploaded");
+
+      // Ensure it's always an array
+      const data = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data.documents)
+        ? res.data.documents
+        : [];
+
+      setPolicyData(data);
+    } catch (err) {
+      console.error("Failed to fetch policies:", err);
+      setPolicyData([]); // avoid crashes
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // --- Fetch once on mount ---
+  useEffect(() => {
+    fetchPolicies();
+  }, []);
+
+  // --- Refresh after successful upload ---
+  const handleSuccessUpload = () => {
+    fetchPolicies();
+  };
+
+  // --- Debounce for name suggestions ---
   const filterNameSuggestions = useCallback((value) => {
     if (value.length > 1) {
       const filtered = employees.filter((employee) =>
@@ -102,26 +137,7 @@ const Documents = () => {
     setNameSuggestions([]);
   };
 
-  const handleSubmit = () => {
-    console.log("Submitted Data:", { tabIndex, ...formData });
-    resetForm();
-    onClose();
-  };
-
-  // --- Mock Data ---
-  const policyData = [
-    {
-      title: "Employee Handbook V2.0",
-      description:
-        "Updated guidelines on remote work policy and leave applications.",
-    },
-    {
-      title: "Q3 Performance Review Memo",
-      description:
-        "Details regarding performance review cycle and submission deadlines.",
-    },
-  ];
-
+  // --- Mock Data for other tabs (temporary) ---
   const offenseData = [
     {
       title: "Late Submission - Project Alpha",
@@ -220,11 +236,30 @@ const Documents = () => {
 
           <TabPanels>
             <TabPanel>
-              <DocumentSection data={policyData} color="blue.700" />
+              {isLoading ? (
+                <Center py={10}>
+                  <Spinner size="lg" color="blue.500" />
+                </Center>
+              ) : policyData.length === 0 ? (
+                <Center py={10}>
+                  <Text color="gray.500">No policies uploaded yet.</Text>
+                </Center>
+              ) : (
+                <DocumentSection
+                  data={policyData.map((item) => ({
+                    title: item.title,
+                    description: item.description || "No description provided.",
+                    filePath: item.filePath,
+                  }))}
+                  color="blue.700"
+                />
+              )}
             </TabPanel>
+
             <TabPanel>
               <DocumentSection data={offenseData} color="red.700" />
             </TabPanel>
+
             <TabPanel>
               <DocumentSection data={suspendedData} color="orange.700" />
             </TabPanel>
@@ -250,7 +285,12 @@ const Documents = () => {
           <ModalCloseButton />
           <ModalBody>
             {tabIndex === 0 && (
-              <PolicyForm formData={formData} setFormData={setFormData} />
+              <PolicyForm
+                formData={formData}
+                setFormData={setFormData}
+                onClose={onClose}
+                onSuccess={handleSuccessUpload}
+              />
             )}
             {tabIndex === 1 && (
               <OffenseForm
@@ -271,21 +311,6 @@ const Documents = () => {
               />
             )}
           </ModalBody>
-          <ModalFooter>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                onClose();
-                resetForm();
-              }}
-              mr={3}
-            >
-              Cancel
-            </Button>
-            <Button colorScheme="blue" onClick={handleSubmit}>
-              Submit
-            </Button>
-          </ModalFooter>
         </ModalContent>
       </Modal>
     </Box>
