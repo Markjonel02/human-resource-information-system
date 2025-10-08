@@ -63,22 +63,24 @@ const Documents = () => {
   });
 
   // --- Fetch all uploaded policy PDFs ---
+
   const fetchPolicies = async () => {
     try {
       setIsLoading(true);
-      const res = await axiosInstance.get("/documents/getall-uploaded");
+      const res = await axiosInstance.get("/policy/getall-uploaded");
 
-      // Ensure it's always an array
-      const data = Array.isArray(res.data)
-        ? res.data
-        : Array.isArray(res.data.documents)
-        ? res.data.documents
-        : [];
+      console.log("Full response:", res.data); // Debug
 
-      setPolicyData(data);
+      // Handle the nested response structure
+      const data = res.data.policies || res.data || [];
+
+      console.log("Extracted policies:", data); // Debug
+
+      setPolicyData(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to fetch policies:", err);
-      setPolicyData([]); // avoid crashes
+      console.error("Error response:", err.response); // Better debugging
+      setPolicyData([]);
     } finally {
       setIsLoading(false);
     }

@@ -18,37 +18,61 @@ const DocumentSection = ({ data, color }) => {
 
   const handleDownload = async (filePath) => {
     try {
-      // Extract just the filename from the path
       const filename = filePath.split("/").pop();
 
-      console.log("=== DOWNLOAD DEBUG ===");
-      console.log("Original filePath:", filePath);
-      console.log("Extracted filename:", filename);
-      console.log("API endpoint:", `/documents/download/${filename}`);
-      console.log("=====================");
+      console.log("=== DOWNLOAD ATTEMPT ===");
+      console.log("Filename:", filename);
+      console.log("Full path:", filePath);
 
-      // Make API request using axiosInstance with responseType blob
-      const response = await axiosInstance.get(
-        `/documents/download/${filename}`,
-        {
-          responseType: "blob", // Important: tell axios to expect binary data
-        }
-      );
+      // Use axiosInstance with blob response
+      const response = await axiosInstance.get(`/policy/download/${filename}`, {
+        responseType: "blob",
+      });
 
-      // Create a blob URL from the response
+      console.log("=== RESPONSE DETAILS ===");
+      console.log("Status:", response.status);
+      console.log("Headers:", response.headers);
+      console.log("Data:", response.data);
+      console.log("Data type:", typeof response.data);
+      console.log("Data size:", response.data?.size);
+      console.log("========================");
+
+      // Validate response
+      if (!response.data) {
+        throw new Error("No data received from server");
+      }
+
+      if (response.data.size === 0) {
+        throw new Error("Empty file received from server");
+      }
+
+      // Create blob
       const blob = new Blob([response.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
+      console.log("Created blob size:", blob.size);
 
-      // Create and trigger download link
+      if (blob.size === 0) {
+        throw new Error("Failed to create blob from response");
+      }
+
+      // Create download URL
+      const url = window.URL.createObjectURL(blob);
+      console.log("Created URL:", url);
+
+      // Create and trigger download
       const link = document.createElement("a");
       link.href = url;
       link.download = filename;
+      link.style.display = "none";
+
       document.body.appendChild(link);
       link.click();
 
       // Cleanup
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        console.log("Cleanup completed");
+      }, 100);
 
       toast({
         title: "Download successful",
@@ -58,10 +82,28 @@ const DocumentSection = ({ data, color }) => {
         isClosable: true,
       });
     } catch (err) {
-      console.error("Download failed:", err);
+      console.error("=== DOWNLOAD ERROR ===");
+      console.error("Error object:", err);
+      console.error("Error message:", err.message);
+      console.error("Error response:", err.response);
+      console.error("Response status:", err.response?.status);
+      console.error("Response data:", err.response?.data);
+      console.error("Response headers:", err.response?.headers);
+      console.error("========================");
 
-      const errorMessage =
-        err.response?.data?.message || err.message || "Unable to download file";
+      let errorMessage = "Unable to download file";
+
+      if (err.response?.status === 404) {
+        errorMessage = "File not found on server";
+      } else if (err.response?.status === 401) {
+        errorMessage = "Authentication required";
+      } else if (err.response?.status === 403) {
+        errorMessage = "Access denied";
+      } else if (err.response?.status === 500) {
+        errorMessage = "Server error occurred";
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
 
       toast({
         title: "Download failed",
