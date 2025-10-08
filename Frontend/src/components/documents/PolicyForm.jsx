@@ -46,7 +46,7 @@ const PolicyForm = ({ onClose, onSuccess }) => {
 
     setIsSubmitting(true);
     try {
-      const res = await axiosInstance.post("/documents/upload", data, {
+      const res = await axiosInstance.post("/policy/upload", data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
