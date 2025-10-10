@@ -1,3 +1,4 @@
+// routes/Admin/documents/policyRoutes.js
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
@@ -5,76 +6,72 @@ const path = require("path");
 const fs = require("fs");
 const authorizeRoles = require("../../../middlewares/authorizeRole");
 const verifyJWT = require("../../../middlewares/verifyJWT");
-const docu = require("../../../controllers/Admin/dcuments/policiesMemo");
+const {
+  uploadPolicy,
+  getAllPolicies,
+  getPolicyById,
+  downloadPolicy,
+  viewPolicy,
+  updatePolicy,
+  deletePolicy,
+} = require("../../../controllers/Admin/dcuments/policiesMemo");
 
 router.use(verifyJWT);
 
-// Ensure uploads directory exists - now points to root level uploads
-const uploadDir = path.join(__dirname, "../../../../uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+// === Ensure uploads directory exists ===
+const uploadsDir = global.uploadsDir;
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// === Multer config ===
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Points to root level uploads folder
-    const uploadPath = path.join(__dirname, "../../../../uploads");
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
-  },
+  destination: (req, file, cb) => cb(null, uploadsDir),
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, uniqueSuffix + path.extname(file.originalname));
   },
 });
 
-// Only allow PDF
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype === "application/pdf") {
-    cb(null, true);
-  } else {
-    cb(new Error("Only PDF files are allowed!"), false);
-  }
+  if (file.mimetype === "application/pdf") cb(null, true);
+  else cb(new Error("Only PDF files are allowed"), false);
 };
 
 const upload = multer({
   storage,
   fileFilter,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });
 
-// Routes
+// === Routes ===
+
+// Upload policy (Admin, HR)
 router.post(
-  "/upload",
+  "/upload-policy",
+  verifyJWT,
   authorizeRoles("admin", "hr"),
-  upload.single("file"),
-  docu.uploadPdf
+  upload.single("policyFile"),
+  uploadPolicy
 );
 
-router.get("/getall-uploaded", docu.getAllPdfs);
-router.get("/download/:filename", docu.downloadPdf);
+// Get all policies
+router.get("/getall-uploaded", verifyJWT, getAllPolicies);
 
-// Error handling middleware for multer errors
-router.use((error, req, res, next) => {
-  if (error instanceof multer.MulterError) {
-    if (error.code === "LIMIT_FILE_SIZE") {
-      return res.status(400).json({
-        message: "File is too large. Maximum size is 10MB",
-      });
-    }
-    return res.status(400).json({
-      message: error.message,
-    });
-  } else if (error) {
-    return res.status(400).json({
-      message: error.message,
-    });
-  }
-  next();
-});
+// Get single policy
+router.get("/get-uploaded/:id", verifyJWT, getPolicyById);
+
+// View policy in browser
+router.get("/view/:id", verifyJWT, viewPolicy);
+
+// Download policy
+router.get("/download-policy/:policyId", downloadPolicy);
+
+// Update policy details (Admin, HR)
+router.put("/:id", verifyJWT, authorizeRoles("admin", "hr"), updatePolicy);
+
+// Delete policy (Admin only)
+router.delete("/:id", verifyJWT, authorizeRoles("admin"), deletePolicy);
 
 module.exports = router;

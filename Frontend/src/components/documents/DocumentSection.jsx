@@ -16,100 +16,35 @@ const DocumentSection = ({ data, color }) => {
   const border = useColorModeValue("gray.200", "gray.700");
   const toast = useToast();
 
-  const handleDownload = async (filePath) => {
+  const handleDownload = async (policyId, title) => {
     try {
-      const filename = filePath.split("/").pop();
-
-      console.log("=== DOWNLOAD ATTEMPT ===");
-      console.log("Filename:", filename);
-      console.log("Full path:", filePath);
-
-      // Use axiosInstance with blob response
-      const response = await axiosInstance.get(`/policy/download/${filename}`, {
-        responseType: "blob",
-      });
-
-      console.log("=== RESPONSE DETAILS ===");
-      console.log("Status:", response.status);
-      console.log("Headers:", response.headers);
-      console.log("Data:", response.data);
-      console.log("Data type:", typeof response.data);
-      console.log("Data size:", response.data?.size);
-      console.log("========================");
+      const response = await axiosInstance.get(
+        `/policy/download-policy/${policyId}`,
+        { responseType: "blob" }
+      );
 
       // Validate response
-      if (!response.data) {
-        throw new Error("No data received from server");
-      }
+      if (!response.data) throw new Error("Empty file response");
 
-      if (response.data.size === 0) {
-        throw new Error("Empty file received from server");
-      }
-
-      // Create blob
+      // Create blob and download link
       const blob = new Blob([response.data], { type: "application/pdf" });
-      console.log("Created blob size:", blob.size);
-
-      if (blob.size === 0) {
-        throw new Error("Failed to create blob from response");
-      }
-
-      // Create download URL
       const url = window.URL.createObjectURL(blob);
-      console.log("Created URL:", url);
-
-      // Create and trigger download
       const link = document.createElement("a");
       link.href = url;
-      link.download = filename;
-      link.style.display = "none";
-
+      link.download = `${title}.pdf`;
       document.body.appendChild(link);
       link.click();
+      link.remove();
 
-      // Cleanup
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        console.log("Cleanup completed");
-      }, 100);
-
-      toast({
-        title: "Download successful",
-        description: `${filename} has been downloaded`,
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-    } catch (err) {
-      console.error("=== DOWNLOAD ERROR ===");
-      console.error("Error object:", err);
-      console.error("Error message:", err.message);
-      console.error("Error response:", err.response);
-      console.error("Response status:", err.response?.status);
-      console.error("Response data:", err.response?.data);
-      console.error("Response headers:", err.response?.headers);
-      console.error("========================");
-
-      let errorMessage = "Unable to download file";
-
-      if (err.response?.status === 404) {
-        errorMessage = "File not found on server";
-      } else if (err.response?.status === 401) {
-        errorMessage = "Authentication required";
-      } else if (err.response?.status === 403) {
-        errorMessage = "Access denied";
-      } else if (err.response?.status === 500) {
-        errorMessage = "Server error occurred";
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-
+      // Clean up
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Download failed:", error);
       toast({
         title: "Download failed",
-        description: errorMessage,
+        description: error.response?.data?.error || "Unable to download file.",
         status: "error",
-        duration: 5000,
+        duration: 3000,
         isClosable: true,
       });
     }
@@ -147,7 +82,7 @@ const DocumentSection = ({ data, color }) => {
             {item.filePath && (
               <HStack
                 as="button"
-                onClick={() => handleDownload(item.filePath)}
+                onClick={() => handleDownload(item._id, item.title)}
                 px={3}
                 py={2}
                 bg="blue.50"
