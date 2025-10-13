@@ -23,28 +23,55 @@ const PolicyForm = ({ onClose, onSuccess }) => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const toast = useToast();
-
   const border = useColorModeValue("gray.200", "gray.700");
 
+  // ========================
+  // Handle form submit
+  // ========================
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!formData.title.trim()) {
+      toast({
+        title: "Title required",
+        description: "Please enter a document title.",
+        status: "warning",
+        duration: 2500,
+        isClosable: true,
+      });
+      return;
+    }
+
     if (!formData.file) {
       toast({
         title: "Missing file",
         description: "Please upload a PDF before submitting.",
         status: "warning",
+        duration: 2500,
+        isClosable: true,
+      });
+      return;
+    }
+
+    if (formData.file.type !== "application/pdf") {
+      toast({
+        title: "Invalid file type",
+        description: "Only PDF files are allowed.",
+        status: "error",
         duration: 3000,
         isClosable: true,
       });
       return;
     }
 
+    // Construct FormData
     const data = new FormData();
     data.append("title", formData.title);
     data.append("description", formData.description);
-    data.append("file", formData.file);
+    data.append("policyFile", formData.file); // ✅ MATCH backend field
 
     setIsSubmitting(true);
+
     try {
       const res = await axiosInstance.post("/policy/upload-policy", data, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -52,7 +79,7 @@ const PolicyForm = ({ onClose, onSuccess }) => {
 
       toast({
         title: "Uploaded successfully!",
-        description: res.data.message,
+        description: res.data.message || "Policy uploaded successfully.",
         status: "success",
         duration: 3000,
         isClosable: true,
@@ -139,7 +166,10 @@ const PolicyForm = ({ onClose, onSuccess }) => {
               left="0"
               cursor="pointer"
               onChange={(e) =>
-                setFormData((prev) => ({ ...prev, file: e.target.files[0] }))
+                setFormData((prev) => ({
+                  ...prev,
+                  file: e.target.files[0] || null,
+                }))
               }
             />
             <Icon

@@ -7,6 +7,8 @@ const cookieParser = require("cookie-parser");
 const connectDB = require("./config/connection.js");
 const path = require("path");
 
+// Global uploads directory
+global.uploadsDir = path.join(__dirname, "../uploads");
 // Import Routes
 const userRoutes = require("./routes/userRoutes.js");
 const testRoutes = require("./routes/admin&hr/testRoutes.js");
@@ -26,9 +28,6 @@ const PolicyRoutes = require("./routes/admin&hr/document-routes/PoliciesMemosRou
 // =======================
 const app = express();
 const port = process.env.PORT || 5000;
-
-// Global uploads directory
-global.uploadsDir = path.join(__dirname, "../uploads");
 
 // =======================
 //   MIDDLEWARES

@@ -8,23 +8,25 @@ const uploadsDir = global.uploadsDir;
 // @access  Private (Admin, HR)
 const uploadPolicy = async (req, res) => {
   try {
-    if (!req.file) {
+    // Multer may provide req.file (single) or req.files (array) depending on middleware used.
+    const file = req.file || (Array.isArray(req.files) && req.files[0]);
+    if (!file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
     const { title, description } = req.body;
-    const uploadedBy = req.user.id; // From JWT token
+    const uploadedBy = req.user?.id || req.user?._id; // From JWT token
 
     if (!title) {
       // Delete uploaded file if validation fails
-      fs.unlinkSync(req.file.path);
+      if (file.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
       return res.status(400).json({ error: "Title is required" });
     }
 
     const policy = new Policy({
       title,
       description: description || "",
-      filePath: req.file.filename,
+      filePath: file.filename,
       uploadedBy,
     });
 
@@ -42,8 +44,9 @@ const uploadPolicy = async (req, res) => {
     });
   } catch (error) {
     // Clean up file if database save fails
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+    const file = req.file || (Array.isArray(req.files) && req.files[0]);
+    if (file && fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
     }
     console.error("Upload Policy Error:", error);
     res.status(500).json({ error: error.message });
