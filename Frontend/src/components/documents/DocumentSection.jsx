@@ -16,6 +16,8 @@ const DocumentSection = ({ data, color }) => {
   const border = useColorModeValue("gray.200", "gray.700");
   const toast = useToast();
 
+  const sanitizeFileName = (name) => name.replace(/[\/\\?%*:|"<>]/g, "_").trim() || "file";
+
   const handleDownload = async (policyId, title) => {
     try {
       const response = await axiosInstance.get(
@@ -23,15 +25,31 @@ const DocumentSection = ({ data, color }) => {
         { responseType: "blob" }
       );
 
-      // Validate response
+      // Determine content type (either from headers or blob)
+      const contentType = response.headers?.["content-type"] || response.data?.type || "";
+
+      // If server returned JSON (error), parse it from the blob and show message
+      if (!contentType.includes("pdf") && contentType.includes("application/json")) {
+        const text = await response.data.text();
+        let msg = "Unable to download file.";
+        try {
+          const parsed = JSON.parse(text);
+          msg = parsed.error || parsed.message || text;
+        } catch {
+          msg = text;
+        }
+        throw new Error(msg);
+      }
+
       if (!response.data) throw new Error("Empty file response");
 
       // Create blob and download link
-      const blob = new Blob([response.data], { type: "application/pdf" });
+      const blob = new Blob([response.data], { type: contentType || "application/pdf" });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${title}.pdf`;
+      const safeTitle = sanitizeFileName(title);
+      link.download = `${safeTitle}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -42,9 +60,12 @@ const DocumentSection = ({ data, color }) => {
       console.error("Download failed:", error);
       toast({
         title: "Download failed",
-        description: error.response?.data?.error || "Unable to download file.",
+        description:
+          (error.response?.data && (error.response.data.error || error.response.data.message)) ||
+          error.message ||
+          "Unable to download file.",
         status: "error",
-        duration: 3000,
+        duration: 4000,
         isClosable: true,
       });
     }
