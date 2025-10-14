@@ -1,7 +1,9 @@
 const Policy = require("../../../models/document/documentModel");
 const path = require("path");
 const fs = require("fs");
-const uploadsDir = global.uploadsDir;
+// const uploadsDir = global.uploadsDir; <-- old, incorrect
+// Use the same folder multer stores files in (global.uploadsDir + '/policies')
+const uploadsDir = path.join(global.uploadsDir, "policies");
 
 // @desc    Upload policy PDF
 // @route   POST /api/policies/upload
