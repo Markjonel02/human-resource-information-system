@@ -6,6 +6,7 @@ const path = require("path");
 const fs = require("fs");
 const authorizeRoles = require("../../../middlewares/authorizeRole");
 const verifyJWT = require("../../../middlewares/verifyJWT");
+
 const {
   uploadPolicy,
   getAllPolicies,
@@ -14,7 +15,7 @@ const {
   viewPolicy,
   updatePolicy,
   deletePolicy,
-  downloadPolicyByFilename, // import the new function
+  downloadPolicyByFilename,
 } = require("../../../controllers/Admin/dcuments/policiesMemo");
 
 // =======================
@@ -76,10 +77,10 @@ router.get("/get-uploaded/:id", getPolicyById);
 router.get("/view/:id", viewPolicy);
 
 // Download a policy PDF file
-router.get("/download-policy/:policyId", downloadPolicy);
+router.get("/download-policy/:policyId", verifyJWT, downloadPolicy);
 
 // Download by filename (fallback)
-router.get("/download-by-filename/:filename", downloadPolicyByFilename);
+router.get("/download-by-filename/:filename", verifyJWT, downloadPolicyByFilename);
 
 // Update policy metadata (Admin / HR)
 router.put("/:id", authorizeRoles("admin", "hr"), updatePolicy);

@@ -247,46 +247,68 @@ const deletePolicy = async (req, res) => {
 // New: download by filename (fallback when frontend doesn't have ID)
 const downloadPolicyByFilename = async (req, res) => {
   try {
-    const rawFilename = req.params.filename;
-    if (!rawFilename) return res.status(400).json({ error: "Filename is required" });
+    const raw = req.params.filename;
+    if (!raw) {
+      return res.status(400).json({ success: false, error: "Filename parameter is required" });
+    }
 
-    const filename = decodeURIComponent(rawFilename);
+    // decode and sanitize
+    const filename = decodeURIComponent(raw).trim();
+    if (!filename) {
+      return res.status(400).json({ success: false, error: "Invalid filename" });
+    }
 
-    // Try exact match first, then suffix match
+    // first, try to find a policy document by exact filePath
     let policy = await Policy.findOne({ filePath: filename });
+
+    // if not found, try suffix match (filePath may contain directories)
     if (!policy) {
-      // match when filePath stores a full path or prefixed name
-      policy = await Policy.findOne({ filePath: { $regex: `${filename}$` } });
+      const escaped = filename.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&"); // escape for regex
+      policy = await Policy.findOne({ filePath: { $regex: `${escaped}$`, $options: "i" } });
     }
 
-    if (!policy) {
-      return res.status(404).json({ error: "Policy not found for given filename" });
+    // If still not found, try direct filesystem check: uploadsDir/filename
+    let filePath;
+    if (policy && policy.filePath) {
+      filePath = path.join(uploadsDir, policy.filePath);
+    } else {
+      // fallback: direct file path under uploads/policies
+      filePath = path.join(uploadsDir, filename);
+      if (!fs.existsSync(filePath)) {
+        // try to find any file that ends with filename
+        const files = fs.readdirSync(uploadsDir);
+        const match = files.find((f) => f.endsWith(filename));
+        if (match) filePath = path.join(uploadsDir, match);
+      }
     }
 
-    const filePath = path.join(uploadsDir, policy.filePath);
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: "File not found on server" });
+      console.warn("Download by filename: file not found", { filename, resolved: filePath });
+      return res.status(404).json({ success: false, error: "File not found on server" });
     }
 
+    // set headers (CORS already applied globally in server.js)
     res.setHeader("Content-Type", "application/pdf");
-    const safeTitle = (policy.title || "policy").replace(/["\\\/]/g, "_");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${safeTitle}.pdf"; filename*=UTF-8''${encodeURIComponent(safeTitle)}.pdf`
-    );
-    res.setHeader("Access-Control-Allow-Origin", process.env.CLIENT_URL || "*");
-    res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Type");
 
-    const fileStream = fs.createReadStream(filePath);
-    fileStream.on("error", (error) => {
-      console.error("File Stream Error:", error);
-      if (!res.headersSent) res.status(500).json({ error: "Error streaming file" });
+    // safe filename for download
+    const safeTitle = (policy?.title || path.basename(filePath)).replace(/["\\\/]/g, "_");
+    const downloadName = `${safeTitle.endsWith(".pdf") ? safeTitle : safeTitle + ".pdf"}`;
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${downloadName}"; filename*=UTF-8''${encodeURIComponent(downloadName)}`
+    );
+
+    const stream = fs.createReadStream(filePath);
+    stream.on("error", (err) => {
+      console.error("File stream error (downloadPolicyByFilename):", err);
+      if (!res.headersSent) res.status(500).json({ success: false, error: "Error streaming file" });
     });
-    fileStream.pipe(res);
-  } catch (error) {
-    console.error("Download by filename Error:", error);
-    res.status(500).json({ error: error.message });
+    stream.pipe(res);
+  } catch (err) {
+    console.error("downloadPolicyByFilename error:", err);
+    res.status(500).json({ success: false, error: err.message || "Server error" });
   }
 };
 
@@ -298,5 +320,5 @@ module.exports = {
   viewPolicy,
   updatePolicy,
   deletePolicy,
-  downloadPolicyByFilename, // <-- export new handler
+  downloadPolicyByFilename, // ensure exported
 };

@@ -37,65 +37,7 @@ const DocumentSection = ({ data, color }) => {
 
     // fallback: try to use filename from filePath
     const filename = item?.filePath?.split("/").pop();
-    if (!filename) {
-      toast({
-        title: "Download failed",
-        description: "Missing policy id and filename. Cannot download.",
-        status: "error",
-        duration: 4000,
-        isClosable: true,
-      });
-      return;
-    }
-
-    try {
-      const response = await axiosInstance.get(
-        `/policy/download-by-filename/${encodeURIComponent(filename)}`,
-        { responseType: "blob" }
-      );
-
-      const contentType =
-        (response.headers && (response.headers["content-type"] || response.headers["Content-Type"])) ||
-        (response.data && response.data.type) ||
-        "";
-
-      if (contentType.includes("application/json")) {
-        const text = await response.data.text();
-        let msg = "Unable to download file.";
-        try {
-          const parsed = JSON.parse(text);
-          msg = parsed.error || parsed.message || text;
-        } catch {
-          msg = text;
-        }
-        throw new Error(msg);
-      }
-
-      const ext = getFileExtension(item.filePath);
-      const blob = new Blob([response.data], { type: contentType || "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      const safeTitle = sanitizeFileName(item.title || filename);
-      link.download = `${safeTitle}${ext}`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Download by filename failed:", error);
-      const errMsg =
-        (error.response && (error.response.data?.error || error.response.data?.message)) ||
-        error.message ||
-        "Unable to download file.";
-      toast({
-        title: "Download failed",
-        description: errMsg,
-        status: "error",
-        duration: 4000,
-        isClosable: true,
-      });
-    }
+    await axiosInstance.get(`/policy/download-by-filename/${encodeURIComponent(filename)}`, { responseType: "blob" });
   };
 
   // helper used above to download by id (keeps code DRY)
