@@ -16,20 +16,50 @@ const DocumentSection = ({ data, color }) => {
   const border = useColorModeValue("gray.200", "gray.700");
   const toast = useToast();
 
-  const sanitizeFileName = (name) => name.replace(/[\/\\?%*:|"<>]/g, "_").trim() || "file";
+  const sanitizeFileName = (name) =>
+    (name || "file").replace(/[\/\\?%*:|"<>]/g, "_").trim() || "file";
 
-  const handleDownload = async (policyId, title) => {
+  const getFileExtension = (filePath) => {
+    try {
+      const ext = filePath?.split(".").pop();
+      return ext ? `.${ext}` : ".pdf";
+    } catch {
+      return ".pdf";
+    }
+  };
+
+  const handleDownload = async (item) => {
+    const policyId = item?._id || item?.id;
+    // if id present -> download by id
+    if (policyId) {
+      return downloadById(policyId, item);
+    }
+
+    // fallback: try to use filename from filePath
+    const filename = item?.filePath?.split("/").pop();
+    if (!filename) {
+      toast({
+        title: "Download failed",
+        description: "Missing policy id and filename. Cannot download.",
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+      return;
+    }
+
     try {
       const response = await axiosInstance.get(
-        `/policy/download-policy/${policyId}`,
+        `/policy/download-by-filename/${encodeURIComponent(filename)}`,
         { responseType: "blob" }
       );
 
-      // Determine content type (either from headers or blob)
-      const contentType = response.headers?.["content-type"] || response.data?.type || "";
+      const contentType =
+        (response.headers && (response.headers["content-type"] || response.headers["Content-Type"])) ||
+        (response.data && response.data.type) ||
+        "";
 
-      // If server returned JSON (error), parse it from the blob and show message
-      if (!contentType.includes("pdf") && contentType.includes("application/json")) {
+      if (contentType.includes("application/json")) {
         const text = await response.data.text();
         let msg = "Unable to download file.";
         try {
@@ -41,29 +71,78 @@ const DocumentSection = ({ data, color }) => {
         throw new Error(msg);
       }
 
-      if (!response.data) throw new Error("Empty file response");
-
-      // Create blob and download link
+      const ext = getFileExtension(item.filePath);
       const blob = new Blob([response.data], { type: contentType || "application/pdf" });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      const safeTitle = sanitizeFileName(title);
-      link.download = `${safeTitle}.pdf`;
+      const safeTitle = sanitizeFileName(item.title || filename);
+      link.download = `${safeTitle}${ext}`;
       document.body.appendChild(link);
       link.click();
       link.remove();
-
-      // Clean up
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("Download failed:", error);
+      console.error("Download by filename failed:", error);
+      const errMsg =
+        (error.response && (error.response.data?.error || error.response.data?.message)) ||
+        error.message ||
+        "Unable to download file.";
       toast({
         title: "Download failed",
-        description:
-          (error.response?.data && (error.response.data.error || error.response.data.message)) ||
-          error.message ||
-          "Unable to download file.",
+        description: errMsg,
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // helper used above to download by id (keeps code DRY)
+  const downloadById = async (policyId, item) => {
+    try {
+      const response = await axiosInstance.get(
+        `/policy/download-policy/${encodeURIComponent(policyId)}`,
+        { responseType: "blob" }
+      );
+
+      const contentType =
+        (response.headers && (response.headers["content-type"] || response.headers["Content-Type"])) ||
+        (response.data && response.data.type) ||
+        "";
+
+      if (contentType.includes("application/json")) {
+        const text = await response.data.text();
+        let msg = "Unable to download file.";
+        try {
+          const parsed = JSON.parse(text);
+          msg = parsed.error || parsed.message || text;
+        } catch {
+          msg = text;
+        }
+        throw new Error(msg);
+      }
+
+      const ext = getFileExtension(item.filePath);
+      const blob = new Blob([response.data], { type: contentType || "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const safeTitle = sanitizeFileName(item.title || item.filePath || "policy");
+      link.download = `${safeTitle}${ext}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Download by id failed:", error);
+      const errMsg =
+        (error.response && (error.response.data?.error || error.response.data?.message)) ||
+        error.message ||
+        "Unable to download file.";
+      toast({
+        title: "Download failed",
+        description: errMsg,
         status: "error",
         duration: 4000,
         isClosable: true,
@@ -75,7 +154,7 @@ const DocumentSection = ({ data, color }) => {
     <VStack align="stretch" spacing={4}>
       {data.map((item, index) => (
         <Box
-          key={index}
+          key={item?._id || item?.id || index}
           p={5}
           borderWidth="1px"
           borderColor={border}
@@ -100,10 +179,10 @@ const DocumentSection = ({ data, color }) => {
               )}
             </Box>
 
-            {item.filePath && (
+            {item.filePath ? (
               <HStack
                 as="button"
-                onClick={() => handleDownload(item._id, item.title)}
+                onClick={() => handleDownload(item)}
                 px={3}
                 py={2}
                 bg="blue.50"
@@ -118,7 +197,7 @@ const DocumentSection = ({ data, color }) => {
                   Download
                 </Text>
               </HStack>
-            )}
+            ) : null}
           </HStack>
         </Box>
       ))}
