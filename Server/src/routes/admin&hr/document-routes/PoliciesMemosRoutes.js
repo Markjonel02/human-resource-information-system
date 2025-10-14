@@ -14,6 +14,7 @@ const {
   viewPolicy,
   updatePolicy,
   deletePolicy,
+  downloadPolicyByFilename, // import the new function
 } = require("../../../controllers/Admin/dcuments/policiesMemo");
 
 // =======================
@@ -76,6 +77,9 @@ router.get("/view/:id", viewPolicy);
 
 // Download a policy PDF file
 router.get("/download-policy/:policyId", downloadPolicy);
+
+// Download by filename (fallback)
+router.get("/download-by-filename/:filename", downloadPolicyByFilename);
 
 // Update policy metadata (Admin / HR)
 router.put("/:id", authorizeRoles("admin", "hr"), updatePolicy);

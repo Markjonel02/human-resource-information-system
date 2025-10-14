@@ -1,8 +1,7 @@
 const Policy = require("../../../models/document/documentModel");
 const path = require("path");
 const fs = require("fs");
-// const uploadsDir = global.uploadsDir; <-- old, incorrect
-// Use the same folder multer stores files in (global.uploadsDir + '/policies')
+const mongoose = require("mongoose");
 const uploadsDir = path.join(global.uploadsDir, "policies");
 
 // @desc    Upload policy PDF
@@ -104,13 +103,15 @@ const getPolicyById = async (req, res) => {
 // @access  Private
 const downloadPolicy = async (req, res) => {
   try {
-    const { policyId } = req.params;
+    // support both /:id and /:policyId route params
+    const policyId = req.params.policyId || req.params.id || req.params.policy_id;
 
-    if (!policyId) {
-      return res.status(400).json({ error: "Policy ID is required" });
+    if (!policyId || !mongoose.Types.ObjectId.isValid(policyId)) {
+      return res.status(400).json({ error: "Valid policy ID is required" });
     }
 
     const policy = await Policy.findById(policyId);
+
     if (!policy) {
       return res.status(404).json({ error: "Policy not found" });
     }
@@ -122,10 +123,15 @@ const downloadPolicy = async (req, res) => {
     }
 
     res.setHeader("Content-Type", "application/pdf");
+    // sanitize and fallback filename
+    const safeTitle = (policy.title || "policy").replace(/["\\\/]/g, "_");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${policy.title}.pdf"`
+      `attachment; filename="${safeTitle}.pdf"; filename*=UTF-8''${encodeURIComponent(safeTitle)}.pdf`
     );
+    res.setHeader("Access-Control-Allow-Origin", process.env.CLIENT_URL || "*");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Type");
 
     const fileStream = fs.createReadStream(filePath);
     fileStream.on("error", (error) => {
@@ -144,12 +150,13 @@ const downloadPolicy = async (req, res) => {
 // @access  Private
 const viewPolicy = async (req, res) => {
   try {
-    const policy = await Policy.findById(req.params.id);
-
-    if (!policy) {
-      return res.status(404).json({ error: "Policy not found" });
+    const policyId = req.params.policyId || req.params.id || req.params.policy_id;
+    if (!policyId || !mongoose.Types.ObjectId.isValid(policyId)) {
+      return res.status(400).json({ error: "Valid policy ID is required" });
     }
 
+    const policy = await Policy.findById(policyId);
+    if (!policy) return res.status(404).json({ error: "Policy not found" });
     const filePath = path.join(uploadsDir, policy.filePath);
 
     // Check if file exists
@@ -237,6 +244,52 @@ const deletePolicy = async (req, res) => {
   }
 };
 
+// New: download by filename (fallback when frontend doesn't have ID)
+const downloadPolicyByFilename = async (req, res) => {
+  try {
+    const rawFilename = req.params.filename;
+    if (!rawFilename) return res.status(400).json({ error: "Filename is required" });
+
+    const filename = decodeURIComponent(rawFilename);
+
+    // Try exact match first, then suffix match
+    let policy = await Policy.findOne({ filePath: filename });
+    if (!policy) {
+      // match when filePath stores a full path or prefixed name
+      policy = await Policy.findOne({ filePath: { $regex: `${filename}$` } });
+    }
+
+    if (!policy) {
+      return res.status(404).json({ error: "Policy not found for given filename" });
+    }
+
+    const filePath = path.join(uploadsDir, policy.filePath);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "File not found on server" });
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    const safeTitle = (policy.title || "policy").replace(/["\\\/]/g, "_");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${safeTitle}.pdf"; filename*=UTF-8''${encodeURIComponent(safeTitle)}.pdf`
+    );
+    res.setHeader("Access-Control-Allow-Origin", process.env.CLIENT_URL || "*");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Type");
+
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.on("error", (error) => {
+      console.error("File Stream Error:", error);
+      if (!res.headersSent) res.status(500).json({ error: "Error streaming file" });
+    });
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error("Download by filename Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   uploadPolicy,
   getAllPolicies,
@@ -245,4 +298,5 @@ module.exports = {
   viewPolicy,
   updatePolicy,
   deletePolicy,
+  downloadPolicyByFilename, // <-- export new handler
 };
