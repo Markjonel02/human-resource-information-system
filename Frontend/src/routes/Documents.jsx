@@ -67,7 +67,7 @@ const Documents = () => {
   const fetchPolicies = async () => {
     try {
       setIsLoading(true);
-      const res = await axiosInstance.get("/policy/getall-uploaded");
+      const res = await axiosInstance.get("/policy/get-policy");
 
       console.log("Full response:", res.data); // Debug
 
@@ -249,6 +249,7 @@ const Documents = () => {
               ) : (
                 <DocumentSection
                   data={policyData.map((item) => ({
+                    _id: item._id,
                     title: item.title,
                     description: item.description || "No description provided.",
                     filePath: item.filePath,

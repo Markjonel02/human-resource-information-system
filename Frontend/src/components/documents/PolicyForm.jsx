@@ -68,12 +68,12 @@ const PolicyForm = ({ onClose, onSuccess }) => {
     const data = new FormData();
     data.append("title", formData.title);
     data.append("description", formData.description);
-    data.append("policyFile", formData.file); // ✅ MATCH backend field
+    data.append("file", formData.file); // ✅ FIXED: Changed from "policyFile" to "file"
 
     setIsSubmitting(true);
 
     try {
-      const res = await axiosInstance.post("/policy/upload-policy", data, {
+      const res = await axiosInstance.post("/policy/upload", data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
