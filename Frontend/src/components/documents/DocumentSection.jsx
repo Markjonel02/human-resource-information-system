@@ -16,75 +16,91 @@ const DocumentSection = ({ data, color }) => {
   const border = useColorModeValue("gray.200", "gray.700");
   const toast = useToast();
 
-  const sanitizeFileName = (name) =>
-    (name || "file").replace(/[\/\\?%*:|"<>]/g, "_").trim() || "file";
-
-  const getFileExtension = (filePath) => {
-    try {
-      const ext = filePath?.split(".").pop();
-      return ext ? `.${ext}` : ".pdf";
-    } catch {
-      return ".pdf";
-    }
-  };
-
   const handleDownload = async (item) => {
     const policyId = item?._id || item?.id;
-    // if id present -> download by id
-    if (policyId) {
-      return downloadById(policyId, item);
+
+    if (!policyId) {
+      toast({
+        title: "Download failed",
+        description: "Policy ID not found.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
     }
 
-    // fallback: try to use filename from filePath
-    const filename = item?.filePath?.split("/").pop();
-    await axiosInstance.get(`/policy/download-by-filename/${encodeURIComponent(filename)}`, { responseType: "blob" });
-  };
-
-  // helper used above to download by id (keeps code DRY)
-  const downloadById = async (policyId, item) => {
     try {
-      const response = await axiosInstance.get(
-        `/policy/download-policy/${encodeURIComponent(policyId)}`,
-        { responseType: "blob" }
-      );
+      // Call the correct backend endpoint: GET /api/policy/:id/download
+      const response = await axiosInstance.get(`/policy/${policyId}/download`, {
+        responseType: "blob",
+      });
 
+      // Check if response is actually an error (JSON instead of PDF)
       const contentType =
-        (response.headers && (response.headers["content-type"] || response.headers["Content-Type"])) ||
-        (response.data && response.data.type) ||
+        response.headers["content-type"] ||
+        response.headers["Content-Type"] ||
+        response.data.type ||
         "";
 
       if (contentType.includes("application/json")) {
         const text = await response.data.text();
-        let msg = "Unable to download file.";
+        let errorMessage = "Unable to download file.";
         try {
           const parsed = JSON.parse(text);
-          msg = parsed.error || parsed.message || text;
+          errorMessage = parsed.message || parsed.error || text;
         } catch {
-          msg = text;
+          errorMessage = text;
         }
-        throw new Error(msg);
+        throw new Error(errorMessage);
       }
 
-      const ext = getFileExtension(item.filePath);
-      const blob = new Blob([response.data], { type: contentType || "application/pdf" });
+      // Extract the original filename from Content-Disposition header
+      let filename = "document.pdf";
+      const contentDisposition =
+        response.headers["content-disposition"] ||
+        response.headers["Content-Disposition"];
+
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1];
+        }
+      } else if (item.filePath) {
+        // Fallback: use filename from filePath
+        filename = item.filePath.split("/").pop();
+      }
+
+      // Create blob and trigger download
+      const blob = new Blob([response.data], {
+        type: contentType || "application/pdf",
+      });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      const safeTitle = sanitizeFileName(item.title || item.filePath || "policy");
-      link.download = `${safeTitle}${ext}`;
+      link.download = filename; // Uses original filename
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Download successful",
+        description: `Downloaded: ${filename}`,
+        status: "success",
+        duration: 2500,
+        isClosable: true,
+      });
     } catch (error) {
-      console.error("Download by id failed:", error);
-      const errMsg =
-        (error.response && (error.response.data?.error || error.response.data?.message)) ||
+      console.error("Download failed:", error);
+      const errorMessage =
+        error.response?.data?.message ||
         error.message ||
         "Unable to download file.";
+
       toast({
         title: "Download failed",
-        description: errMsg,
+        description: errorMessage,
         status: "error",
         duration: 4000,
         isClosable: true,
