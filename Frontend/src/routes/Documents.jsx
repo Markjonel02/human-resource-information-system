@@ -63,7 +63,6 @@ const Documents = () => {
   });
 
   // --- Fetch all uploaded policy PDFs ---
-
   const fetchPolicies = async () => {
     try {
       setIsLoading(true);
@@ -94,6 +93,11 @@ const Documents = () => {
   // --- Refresh after successful upload ---
   const handleSuccessUpload = () => {
     fetchPolicies();
+  };
+
+  // --- Refresh after successful update (for Edit Modal) ---
+  const handleDataRefresh = async () => {
+    await fetchPolicies();
   };
 
   // --- Debounce for name suggestions ---
@@ -255,6 +259,7 @@ const Documents = () => {
                     filePath: item.filePath,
                   }))}
                   color="blue.700"
+                  refreshData={handleDataRefresh}
                 />
               )}
             </TabPanel>
