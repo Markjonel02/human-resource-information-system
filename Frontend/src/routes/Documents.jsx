@@ -31,11 +31,11 @@ import {
   FaPlusCircle,
 } from "react-icons/fa";
 import axiosInstance from "../lib/axiosInstance";
-
+import OffenseSection from "../components/documents/offenses/OffenseSection";
 // --- Local Components ---
 import DocumentSection from "../components/documents/DocumentSection";
 import PolicyForm from "../components/documents/PolicyForm";
-import OffenseForm from "../components/documents/offenses/OffenseForm";
+import AddOffenseModal from "../components/documents/offenses/AddOffenseModal";
 import SuspensionForm from "../components/documents/SuspensionForm";
 
 const employees = [
@@ -164,13 +164,13 @@ const Documents = () => {
   };
 
   // --- Mock Data for other tabs (temporary) ---
-  const offenseData = [
+  /*   const offenseData = [
     {
       title: "Late Submission - Project Alpha",
       description:
         "Employee ID: 12345. Deliverables submitted 3 days past deadline.",
     },
-  ];
+  ]; */
 
   const suspendedData = [
     {
@@ -285,7 +285,11 @@ const Documents = () => {
             </TabPanel>
 
             <TabPanel>
-              <DocumentSection data={offenseData} color="red.700" />
+              <OffenseSection
+                data={offenseData}
+                color="red.700"
+                refreshData={handleOffenseRefresh}
+              />
             </TabPanel>
 
             <TabPanel>
@@ -321,12 +325,10 @@ const Documents = () => {
               />
             )}
             {tabIndex === 1 && (
-              <OffenseForm
-                formData={formData}
-                setFormData={setFormData}
-                nameSuggestions={nameSuggestions}
-                handleNameChange={handleNameChange}
-                handleSelectName={handleSelectName}
+              <AddOffenseModal
+                isOpen={isOpen}
+                onClose={onClose}
+                onSuccess={handleOffenseRefresh}
               />
             )}
             {tabIndex === 2 && (

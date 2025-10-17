@@ -16,7 +16,7 @@ import {
   Select,
   useToast,
 } from "@chakra-ui/react";
-import axiosInstance from "../../lib/axiosInstance";
+import axiosInstance from "../../../lib/axiosInstance";
 
 const EditOffenseModal = ({ isOpen, onClose, item, onUpdate }) => {
   const [title, setTitle] = useState("");
