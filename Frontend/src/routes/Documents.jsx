@@ -35,7 +35,7 @@ import axiosInstance from "../lib/axiosInstance";
 // --- Local Components ---
 import DocumentSection from "../components/documents/DocumentSection";
 import PolicyForm from "../components/documents/PolicyForm";
-import OffenseForm from "../components/documents/OffenseForm";
+import OffenseForm from "../components/documents/offenses/OffenseForm";
 import SuspensionForm from "../components/documents/SuspensionForm";
 
 const employees = [
@@ -53,6 +53,7 @@ const Documents = () => {
   const [policyData, setPolicyData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const debounceTimeout = useRef(null);
+  const [offenseData, setOffenseData] = useState([]);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -61,6 +62,25 @@ const Documents = () => {
     employeeDepartment: "",
     offenseDetails: "",
   });
+
+  // Add fetch function
+  const fetchOffenses = async () => {
+    try {
+      const res = await axiosInstance.get("/offense");
+      setOffenseData(res.data.offenses || res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch offenses:", err);
+      setOffenseData([]);
+    }
+  };
+
+  // Add refresh handler
+  const handleOffenseRefresh = async () => {
+    await fetchOffenses();
+  };
+  useEffect(() => {
+    fetchOffenses();
+  }, []);
 
   // --- Fetch all uploaded policy PDFs ---
   const fetchPolicies = async () => {

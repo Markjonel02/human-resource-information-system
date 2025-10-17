@@ -176,9 +176,9 @@ const DocumentSection = ({ data, color, onDataUpdate, refreshData }) => {
                   cursor="pointer"
                 >
                   <Icon as={Edit2} color="orange.600" boxSize={4} />
-                  {/*   <Text fontSize="sm" color="orange.600" fontWeight="medium">
+                  <Text fontSize="sm" color="orange.600" fontWeight="medium">
                     Edit
-                  </Text> */}
+                  </Text>
                 </HStack>
 
                 {item.filePath && (
