@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Box,
   Text,
@@ -6,15 +6,40 @@ import {
   HStack,
   Icon,
   useColorModeValue,
+  useDisclosure,
   useToast,
 } from "@chakra-ui/react";
-import { Download } from "lucide-react";
+import { Download, Edit2 } from "lucide-react";
 import axiosInstance from "../../lib/axiosInstance";
+import EditPolicy from "./EditPolicyModal";
 
-const DocumentSection = ({ data, color }) => {
+const DocumentSection = ({ data, color, onDataUpdate, refreshData }) => {
   const cardBg = useColorModeValue("white", "gray.800");
   const border = useColorModeValue("gray.200", "gray.700");
   const toast = useToast();
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  const handleEdit = (item) => {
+    setSelectedItem(item);
+    onOpen();
+  };
+
+  const handleUpdate = async (updatedPolicy) => {
+    // If parent provides a refresh function, use it
+    if (refreshData) {
+      await refreshData();
+    } else if (onDataUpdate) {
+      // Fallback: update local data array
+      const updatedData = data.map((item) => {
+        if ((item._id || item.id) === (updatedPolicy._id || updatedPolicy.id)) {
+          return updatedPolicy;
+        }
+        return item;
+      });
+      onDataUpdate(updatedData);
+    }
+  };
 
   const handleDownload = async (item) => {
     const policyId = item?._id || item?.id;
@@ -109,57 +134,84 @@ const DocumentSection = ({ data, color }) => {
   };
 
   return (
-    <VStack align="stretch" spacing={4}>
-      {data.map((item, index) => (
-        <Box
-          key={item?._id || item?.id || index}
-          p={5}
-          borderWidth="1px"
-          borderColor={border}
-          borderRadius="md"
-          bg={cardBg}
-          _hover={{ shadow: "md", transform: "translateY(-2px)" }}
-          transition="all 0.2s ease"
-        >
-          <HStack justify="space-between" align="flex-start">
-            <Box flex="1">
-              <Text fontWeight="bold" fontSize="lg" color={color}>
-                {item.title}
-              </Text>
-              <Text fontSize="sm" color="gray.600" mt={1}>
-                {item.description || "No description available."}
-              </Text>
-
-              {item.filePath && (
-                <Text fontSize="sm" mt={2} color="gray.500" noOfLines={1}>
-                  📄 {item.filePath.split("/").pop()}
+    <>
+      <VStack align="stretch" spacing={4}>
+        {data.map((item, index) => (
+          <Box
+            key={item?._id || item?.id || index}
+            p={5}
+            borderWidth="1px"
+            borderColor={border}
+            borderRadius="md"
+            bg={cardBg}
+            _hover={{ shadow: "md", transform: "translateY(-2px)" }}
+            transition="all 0.2s ease"
+          >
+            <HStack justify="space-between" align="flex-start">
+              <Box flex="1">
+                <Text fontWeight="bold" fontSize="lg" color={color}>
+                  {item.title}
                 </Text>
-              )}
-            </Box>
-
-            {item.filePath ? (
-              <HStack
-                as="button"
-                onClick={() => handleDownload(item)}
-                px={3}
-                py={2}
-                bg="blue.50"
-                borderRadius="md"
-                _hover={{ bg: "blue.100" }}
-                _active={{ bg: "blue.200" }}
-                cursor="pointer"
-                flexShrink={0}
-              >
-                <Icon as={Download} color="blue.600" boxSize={4} />
-                <Text fontSize="sm" color="blue.600" fontWeight="medium">
-                  Download
+                <Text fontSize="sm" color="gray.600" mt={1}>
+                  {item.description || "No description available."}
                 </Text>
+
+                {item.filePath && (
+                  <Text fontSize="sm" mt={2} color="gray.500" noOfLines={1}>
+                    📄 {item.filePath.split("/").pop()}
+                  </Text>
+                )}
+              </Box>
+
+              <HStack spacing={2} flexShrink={0}>
+                <HStack
+                  as="button"
+                  onClick={() => handleEdit(item)}
+                  px={3}
+                  py={2}
+                  bg="orange.50"
+                  borderRadius="md"
+                  _hover={{ bg: "orange.100" }}
+                  _active={{ bg: "orange.200" }}
+                  cursor="pointer"
+                >
+                  <Icon as={Edit2} color="orange.600" boxSize={4} />
+                  {/*   <Text fontSize="sm" color="orange.600" fontWeight="medium">
+                    Edit
+                  </Text> */}
+                </HStack>
+
+                {item.filePath && (
+                  <HStack
+                    as="button"
+                    onClick={() => handleDownload(item)}
+                    px={3}
+                    py={2}
+                    bg="blue.50"
+                    borderRadius="md"
+                    _hover={{ bg: "blue.100" }}
+                    _active={{ bg: "blue.200" }}
+                    cursor="pointer"
+                  >
+                    <Icon as={Download} color="blue.600" boxSize={4} />
+                    <Text fontSize="sm" color="blue.600" fontWeight="medium">
+                      Download
+                    </Text>
+                  </HStack>
+                )}
               </HStack>
-            ) : null}
-          </HStack>
-        </Box>
-      ))}
-    </VStack>
+            </HStack>
+          </Box>
+        ))}
+      </VStack>
+
+      <EditPolicy
+        isOpen={isOpen}
+        onClose={onClose}
+        item={selectedItem}
+        onUpdate={handleUpdate}
+      />
+    </>
   );
 };
 
