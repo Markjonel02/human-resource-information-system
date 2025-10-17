@@ -11,9 +11,9 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import { Edit2, Trash2, User } from "lucide-react";
-import axiosInstance from "../../lib/axiosInstance";
+import axiosInstance from "../../../lib/axiosInstance";
 import EditOffenseModal from "./EditOffenseModal";
-import DeleteConfirmModal from "./DeleteConfirmModal";
+import DeleteConfirmModal from "./DeleteOffenseModal";
 
 const OffenseSection = ({ data, color, refreshData }) => {
   const cardBg = useColorModeValue("white", "gray.800");

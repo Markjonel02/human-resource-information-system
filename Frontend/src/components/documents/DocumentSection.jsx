@@ -12,7 +12,7 @@ import {
 import { Download, Edit2 } from "lucide-react";
 import axiosInstance from "../../lib/axiosInstance";
 import EditPolicy from "./EditPolicyModal";
-
+import AddOffenseModal from "./offenses/AddOffenseModal";
 const DocumentSection = ({ data, color, onDataUpdate, refreshData }) => {
   const cardBg = useColorModeValue("white", "gray.800");
   const border = useColorModeValue("gray.200", "gray.700");

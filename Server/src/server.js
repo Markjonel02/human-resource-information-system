@@ -22,7 +22,7 @@ const adminLeaveRoutes = require("./routes/admin&hr/leaveRoutes.js");
 const calendarRoutes = require("./routes/admin&hr/calendarRoutes/upcomingEventsRoutes.js");
 const employeeCalendar = require("./routes/employee/employeeCalendarRoutes.js");
 const PolicyRoutes = require("./routes/admin&hr/document-routes/PoliciesMemosRoutes.js");
-
+const OffenseRoutes = require("./routes/admin&hr/document-routes/offenseRoutes.js");
 // =======================
 //   INITIALIZATION
 // =======================
@@ -35,7 +35,7 @@ const port = process.env.PORT || 5000;
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env.CLIENT_ORIGIN || '*',
+  origin: process.env.CLIENT_ORIGIN || "*",
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
@@ -83,7 +83,7 @@ app.use("/api/adminOfficialBusiness", adminObroutes);
 app.use("/api/calendar", calendarRoutes);
 app.use("/api/employeeCalendar", employeeCalendar);
 app.use("/api/policy", PolicyRoutes);
-
+app.use("/api/offense", OffenseRoutes);
 // =======================
 //   ERROR HANDLING
 // =======================
