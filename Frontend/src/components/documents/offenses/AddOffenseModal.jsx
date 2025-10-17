@@ -58,8 +58,9 @@ const AddOffenseModal = ({ isOpen, onClose, onSuccess }) => {
       setIsSearching(true);
       try {
         const response = await axiosInstance.get(
-          `/employee/search?q=${searchQuery}`
+          `/offense/searchEmployees?q=${searchQuery}`
         );
+
         setEmployees(response.data.employees || []);
         setShowSuggestions(true);
       } catch (error) {
@@ -78,7 +79,14 @@ const AddOffenseModal = ({ isOpen, onClose, onSuccess }) => {
     setIsLoadingLate(true);
     try {
       const response = await axiosInstance.get(`/attendance/late/${empId}`);
-      setLateRecords(response.data.lateRecords || []);
+      const records = response.data.lateRecords || [];
+      setLateRecords(records);
+
+      // Get suggested title and severity from backend
+      if (response.data.suggestedOffense && !title) {
+        setTitle(response.data.suggestedOffense.title);
+        setSeverity(response.data.suggestedOffense.severity);
+      }
     } catch (error) {
       console.error("Failed to fetch late records:", error);
       setLateRecords([]);
@@ -89,13 +97,9 @@ const AddOffenseModal = ({ isOpen, onClose, onSuccess }) => {
 
   const handleSelectEmployee = (employee) => {
     setEmployeeId(employee._id);
-    setEmployeeName(
-      employee.name || `${employee.firstName} ${employee.lastName}`
-    );
+    setEmployeeName(employee.name);
     setEmployeeDepartment(employee.department || "");
-    setSearchQuery(
-      employee.name || `${employee.firstName} ${employee.lastName}`
-    );
+    setSearchQuery(employee.name);
     setShowSuggestions(false);
     fetchLateRecords(employee._id);
   };
@@ -231,9 +235,7 @@ const AddOffenseModal = ({ isOpen, onClose, onSuccess }) => {
                       onClick={() => handleSelectEmployee(emp)}
                       borderBottomWidth="1px"
                     >
-                      <Text fontWeight="medium">
-                        {emp.name || `${emp.firstName} ${emp.lastName}`}
-                      </Text>
+                      <Text fontWeight="medium">{emp.name}</Text>
                       <Text fontSize="sm" color="gray.600">
                         {emp.department || "No department"}
                       </Text>

@@ -1,150 +1,323 @@
 const Attendance = require("../../../models/attendance");
-const getLateRecordsByEmployee = async (req, res) => {
+const Offenses = require("../../../models/document/OffensesModel");
+const Employee = require("../../../models/user");
+const createOffense = async (req, res) => {
   try {
-    const { employeeId } = req.params;
+    const { title, severity, date, description, employeeId } = req.body;
 
-    // Find all attendance records where status is 'late' for this employee
-    const lateRecords = await Attendance.find({
+    if (!title || !severity || !employeeId) {
+      return res.status(400).json({
+        success: false,
+        message: "Title, severity, and employee are required.",
+      });
+    }
+
+    const offense = new Offenses({
       employee: employeeId,
-      status: "late",
-    })
-      .sort({ date: -1 }) // Most recent first
-      .populate("employee", "firstName lastName name email department")
-      .select("date checkIn checkOut tardinessMinutes hoursRendered");
+      title,
+      severity,
+      date: date || new Date(),
+      description: description || "",
+    });
 
-    res.status(200).json({
+    await offense.save();
+
+    // Populate employee data before sending response
+    await offense.populate("employee", "firstName lastName employeeId");
+
+    res.status(201).json({
       success: true,
-      count: lateRecords.length,
-      lateRecords,
+      message: "Offense created successfully",
+      offense,
     });
   } catch (error) {
-    console.error("Get late records error:", error);
+    console.error("Create offense error:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to fetch late records",
+      message: "Failed to create offense",
       error: error.message,
     });
   }
 };
 
-// @desc    Get late statistics for an employee
-// @route   GET /api/attendance/late-stats/:employeeId
+// @desc    Get all offenses
+// @route   GET /api/offense
 // @access  Private
-const getLateStatsByEmployee = async (req, res) => {
+const getAllOffenses = async (req, res) => {
   try {
-    const { employeeId } = req.params;
-    const { startDate, endDate } = req.query;
-
-    let query = {
-      employee: employeeId,
-      status: "late",
-    };
-
-    // Optional date range filter
-    if (startDate || endDate) {
-      query.date = {};
-      if (startDate) query.date.$gte = new Date(startDate);
-      if (endDate) query.date.$lte = new Date(endDate);
-    }
-
-    const lateRecords = await Attendance.find(query);
-
-    // Calculate statistics
-    const totalLateInstances = lateRecords.length;
-    const totalTardinessMinutes = lateRecords.reduce(
-      (sum, record) => sum + (record.tardinessMinutes || 0),
-      0
-    );
-    const averageTardinessMinutes =
-      totalLateInstances > 0 ? totalTardinessMinutes / totalLateInstances : 0;
-
-    res.status(200).json({
-      success: true,
-      statistics: {
-        totalLateInstances,
-        totalTardinessMinutes,
-        averageTardinessMinutes: Math.round(averageTardinessMinutes),
-        totalTardinessHours: (totalTardinessMinutes / 60).toFixed(2),
-      },
-      lateRecords,
-    });
-  } catch (error) {
-    console.error("Get late stats error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch late statistics",
-      error: error.message,
-    });
-  }
-};
-
-// @desc    Get all employees with late records (for admin view)
-// @route   GET /api/attendance/late-employees
-// @access  Private (Admin only)
-const getAllEmployeesWithLate = async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
-
-    let query = { status: "late" };
-
-    // Optional date range filter
-    if (startDate || endDate) {
-      query.date = {};
-      if (startDate) query.date.$gte = new Date(startDate);
-      if (endDate) query.date.$lte = new Date(endDate);
-    }
-
-    const lateRecords = await Attendance.find(query)
+    const offenses = await Offenses.find()
       .populate("employee", "firstName lastName name email department")
       .sort({ date: -1 });
 
-    // Group by employee
-    const employeeStats = {};
+    res.status(200).json({
+      success: true,
+      count: offenses.length,
+      offenses,
+    });
+  } catch (error) {
+    console.error("Get all offenses error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch offenses",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Get single offense by ID
+// @route   GET /api/offense/:id
+// @access  Private
+const getOffenseById = async (req, res) => {
+  try {
+    const offense = await Offenses.findById(req.params.id).populate(
+      "employee",
+      "firstName lastName name email department"
+    );
+
+    if (!offense) {
+      return res.status(404).json({
+        success: false,
+        message: "Offense not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      offense,
+    });
+  } catch (error) {
+    console.error("Get offense by ID error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch offense",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Update offense
+// @route   PUT /api/offense/:id
+// @access  Private (Admin, HR)
+const updateOffense = async (req, res) => {
+  try {
+    const { title, severity, date, description } = req.body;
+
+    const offense = await Offenses.findById(req.params.id);
+
+    if (!offense) {
+      return res.status(404).json({
+        success: false,
+        message: "Offense not found",
+      });
+    }
+
+    if (title) offense.title = title;
+    if (severity) offense.severity = severity;
+    if (date) offense.date = date;
+    if (description !== undefined) offense.description = description;
+
+    await offense.save();
+    await offense.populate(
+      "employee",
+      "firstName lastName name email department"
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Offense updated successfully",
+      offense,
+    });
+  } catch (error) {
+    console.error("Update offense error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update offense",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Delete offense
+// @route   DELETE /api/offense/:id
+// @access  Private (Admin)
+const deleteOffense = async (req, res) => {
+  try {
+    const offense = await Offenses.findById(req.params.id);
+
+    if (!offense) {
+      return res.status(404).json({
+        success: false,
+        message: "Offense not found",
+      });
+    }
+
+    await Offenses.findByIdAndDelete(req.params.id);
+
+    res.status(200).json({
+      success: true,
+      message: "Offense deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete offense error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete offense",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Get employees with 3 or more late records (potential offense candidates)
+// @route   GET /api/offense/check-late-employees
+// @access  Private (Admin, HR)
+const getEmployeesWithMultipleLates = async (req, res) => {
+  try {
+    const { minLateCount = 3, days = 30 } = req.query;
+
+    // Calculate date range (default: last 30 days)
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(days));
+
+    // Find all late attendance records in the date range
+    const lateRecords = await Attendance.find({
+      status: "late",
+      date: { $gte: startDate },
+    })
+      .populate("employee", "firstName lastName employeeId ")
+      .sort({ date: -1 });
+
+    // Group by employee and count lates
+    const employeeLateStats = {};
 
     lateRecords.forEach((record) => {
       const empId = record.employee._id.toString();
 
-      if (!employeeStats[empId]) {
-        employeeStats[empId] = {
+      if (!employeeLateStats[empId]) {
+        employeeLateStats[empId] = {
           employee: record.employee,
           lateCount: 0,
           totalTardinessMinutes: 0,
-          records: [],
+          lateRecords: [],
         };
       }
 
-      employeeStats[empId].lateCount++;
-      employeeStats[empId].totalTardinessMinutes +=
+      employeeLateStats[empId].lateCount++;
+      employeeLateStats[empId].totalTardinessMinutes +=
         record.tardinessMinutes || 0;
-      employeeStats[empId].records.push({
+      employeeLateStats[empId].lateRecords.push({
         date: record.date,
         checkIn: record.checkIn,
         tardinessMinutes: record.tardinessMinutes,
       });
     });
 
-    // Convert to array and sort by late count
-    const result = Object.values(employeeStats).sort(
-      (a, b) => b.lateCount - a.lateCount
-    );
+    // Filter employees with 3 or more lates
+    const employeesWithMultipleLates = Object.values(employeeLateStats)
+      .filter((emp) => emp.lateCount >= parseInt(minLateCount))
+      .sort((a, b) => b.lateCount - a.lateCount);
 
     res.status(200).json({
       success: true,
-      count: result.length,
-      employees: result,
+      count: employeesWithMultipleLates.length,
+      threshold: parseInt(minLateCount),
+      dateRange: {
+        startDate,
+        endDate: new Date(),
+        days: parseInt(days),
+      },
+      employees: employeesWithMultipleLates,
     });
   } catch (error) {
-    console.error("Get all late employees error:", error);
+    console.error("Get employees with multiple lates error:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to fetch late employees",
+      message: "Failed to fetch employees with multiple lates",
       error: error.message,
     });
   }
 };
 
+// @desc    Get offenses for a specific employee
+// @route   GET /api/offense/employee/:employeeId
+// @access  Private
+const getOffensesByEmployee = async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+
+    const offenses = await Offenses.find({ employee: employeeId })
+      .populate("employee", "firstName lastName name email department")
+      .sort({ date: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: offenses.length,
+      offenses,
+    });
+  } catch (error) {
+    console.error("Get offenses by employee error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch employee offenses",
+      error: error.message,
+    });
+  }
+};
+
+const searchEmployees = async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: "Search query must be at least 2 characters long",
+      });
+    }
+
+    const regex = new RegExp(q.trim(), "i"); // case-insensitive match
+
+    const employees = await Employee.find({
+      $or: [
+        { firstname: regex },
+        { lastname: regex },
+        { employeeId: regex },
+        { department: regex },
+      ],
+    })
+      .select("_id firstname lastname employeeId department") // Match your exact schema
+      .limit(10)
+      .lean();
+
+    // Map results to match frontend expectations
+    const mappedEmployees = employees.map((emp) => ({
+      _id: emp._id,
+      name: `${emp.firstname} ${emp.lastname}`,
+      firstname: emp.firstname,
+      lastname: emp.lastname,
+      department: emp.department || "No Department",
+      employeeId: emp.employeeId,
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: mappedEmployees.length,
+      employees: mappedEmployees,
+    });
+  } catch (error) {
+    console.error("Search employees error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to search employees",
+      error: error.message,
+    });
+  }
+};
 module.exports = {
-  getLateRecordsByEmployee,
-  getLateStatsByEmployee,
-  getAllEmployeesWithLate,
+  createOffense,
+  getAllOffenses,
+  getOffenseById,
+  updateOffense,
+  deleteOffense,
+  getEmployeesWithMultipleLates,
+  getOffensesByEmployee,
+  searchEmployees,
 };
