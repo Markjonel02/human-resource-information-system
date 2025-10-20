@@ -1,5 +1,5 @@
 import React from "react";
-import OffenseForm from "./offenses/OffenseForm";
+import OffenseForm from "../offenses/OffenseForm";
 
 const SuspensionForm = (props) => (
   <OffenseForm

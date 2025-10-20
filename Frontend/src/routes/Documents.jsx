@@ -32,11 +32,12 @@ import {
 } from "react-icons/fa";
 import axiosInstance from "../lib/axiosInstance";
 import OffenseSection from "../components/documents/offenses/OffenseSection";
+import SuspensionSection from "../components/documents/suspended/SuspentionSection";
 // --- Local Components ---
 import DocumentSection from "../components/documents/DocumentSection";
 import PolicyForm from "../components/documents/PolicyForm";
 import AddOffenseModal from "../components/documents/offenses/AddOffenseModal";
-import SuspensionForm from "../components/documents/SuspensionForm";
+import SuspensionForm from "../components/documents/suspended/SuspensionForm";
 
 const employees = [
   { id: "12345", name: "John Doe", department: "Engineering" },
@@ -162,15 +163,6 @@ const Documents = () => {
     });
     setNameSuggestions([]);
   };
-
-  // --- Mock Data for other tabs (temporary) ---
-  /*   const offenseData = [
-    {
-      title: "Late Submission - Project Alpha",
-      description:
-        "Employee ID: 12345. Deliverables submitted 3 days past deadline.",
-    },
-  ]; */
 
   const suspendedData = [
     {
