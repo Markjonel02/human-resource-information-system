@@ -37,7 +37,7 @@ import SuspensionSection from "../components/documents/suspended/SuspentionSecti
 import DocumentSection from "../components/documents/DocumentSection";
 import PolicyForm from "../components/documents/PolicyForm";
 import AddOffenseModal from "../components/documents/offenses/AddOffenseModal";
-import SuspensionForm from "../components/documents/suspended/SuspensionForm";
+import AddSuspensionModal from "../components/documents/suspended/AddSuspensionModal";
 
 const employees = [
   { id: "12345", name: "John Doe", department: "Engineering" },
@@ -285,7 +285,7 @@ const Documents = () => {
             </TabPanel>
 
             <TabPanel>
-              <DocumentSection data={suspendedData} color="orange.700" />
+              <SuspensionSection data={suspendedData} color="orange.700" />
             </TabPanel>
           </TabPanels>
         </Tabs>

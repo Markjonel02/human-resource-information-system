@@ -23,6 +23,7 @@ const calendarRoutes = require("./routes/admin&hr/calendarRoutes/upcomingEventsR
 const employeeCalendar = require("./routes/employee/employeeCalendarRoutes.js");
 const PolicyRoutes = require("./routes/admin&hr/document-routes/PoliciesMemosRoutes.js");
 const OffenseRoutes = require("./routes/admin&hr/document-routes/offenseRoutes.js");
+const SuspensionRoutes = require("./routes/admin&hr/document-routes/suspendedRoutes");
 // =======================
 //   INITIALIZATION
 // =======================
@@ -84,6 +85,8 @@ app.use("/api/calendar", calendarRoutes);
 app.use("/api/employeeCalendar", employeeCalendar);
 app.use("/api/policy", PolicyRoutes);
 app.use("/api/offense", OffenseRoutes);
+app.use("/api/Suspension", SuspensionRoutes);
+
 // =======================
 //   ERROR HANDLING
 // =======================
