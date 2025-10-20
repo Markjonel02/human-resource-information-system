@@ -1,24 +1,33 @@
 import React, { useState } from "react";
 import {
   Box,
-  Text,
-  VStack,
-  HStack,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
   Icon,
   Badge,
+  HStack,
   useColorModeValue,
   useDisclosure,
   useToast,
+  IconButton,
+  Tooltip,
 } from "@chakra-ui/react";
-import { Edit2, Trash2, User } from "lucide-react";
+import { Edit2, Trash2 } from "lucide-react";
 import axiosInstance from "../../../lib/axiosInstance";
 import EditOffenseModal from "./EditOffenseModal";
 import DeleteConfirmModal from "./DeleteOffenseModal";
 
 const OffenseSection = ({ data, color, refreshData }) => {
-  const cardBg = useColorModeValue("white", "gray.800");
+  const tableBg = useColorModeValue("white", "gray.800");
+  const headerBg = useColorModeValue("gray.50", "gray.700");
   const border = useColorModeValue("gray.200", "gray.700");
+  const hoverBg = useColorModeValue("gray.50", "gray.700");
   const toast = useToast();
+
   const {
     isOpen: isEditOpen,
     onOpen: onEditOpen,
@@ -29,6 +38,7 @@ const OffenseSection = ({ data, color, refreshData }) => {
     onOpen: onDeleteOpen,
     onClose: onDeleteClose,
   } = useDisclosure();
+
   const [selectedItem, setSelectedItem] = useState(null);
 
   const handleEdit = (item) => {
@@ -108,94 +118,115 @@ const OffenseSection = ({ data, color, refreshData }) => {
 
   return (
     <>
-      <VStack align="stretch" spacing={4}>
-        {data.map((item, index) => (
-          <Box
-            key={item?._id || item?.id || index}
-            p={5}
-            borderWidth="1px"
-            borderColor={border}
-            borderRadius="md"
-            bg={cardBg}
-            _hover={{ shadow: "md", transform: "translateY(-2px)" }}
-            transition="all 0.2s ease"
+      <Box
+        borderWidth="1px"
+        borderColor={border}
+        borderRadius="lg"
+        overflow="hidden"
+        bg={tableBg}
+        boxShadow="sm"
+      >
+        <Table variant="simple">
+          <Thead
+            bg={headerBg}
+            borderBottomWidth="2px"
+            borderBottomColor={border}
           >
-            <HStack justify="space-between" align="flex-start">
-              <Box flex="1">
-                <HStack spacing={3} mb={2}>
-                  <Text fontWeight="bold" fontSize="lg" color={color}>
-                    {item.title || "Untitled Offense"}
-                  </Text>
+            <Tr>
+              <Th color={color} fontWeight="bold" fontSize="sm">
+                Title
+              </Th>
+              <Th color={color} fontWeight="bold" fontSize="sm">
+                Severity
+              </Th>
+              <Th color={color} fontWeight="bold" fontSize="sm">
+                Description
+              </Th>
+              <Th color={color} fontWeight="bold" fontSize="sm">
+                Employee
+              </Th>
+              <Th color={color} fontWeight="bold" fontSize="sm">
+                Date
+              </Th>
+              <Th color={color} fontWeight="bold" fontSize="sm" isNumeric>
+                Actions
+              </Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {data.map((item, index) => (
+              <Tr
+                key={item?._id || item?.id || index}
+                _hover={{ bg: hoverBg }}
+                transition="background-color 0.2s ease"
+                borderBottomWidth="1px"
+                borderBottomColor={border}
+              >
+                <Td fontWeight="600" color={color} maxW="150px">
+                  {item.title || "Untitled Offense"}
+                </Td>
+                <Td>
                   {item.severity && (
-                    <Badge colorScheme={getSeverityColor(item.severity)}>
+                    <Badge
+                      colorScheme={getSeverityColor(item.severity)}
+                      borderRadius="full"
+                      px={2}
+                    >
                       {item.severity}
                     </Badge>
                   )}
-                </HStack>
-
-                <Text fontSize="sm" color="gray.600" mt={1}>
+                </Td>
+                <Td fontSize="sm" color="gray.600" maxW="250px" noOfLines={2}>
                   {item.description ||
                     item.offenseDetails ||
                     "No description available."}
-                </Text>
-
-                {item.employeeName && (
-                  <HStack mt={3} spacing={2}>
-                    <Icon as={User} boxSize={4} color="gray.500" />
-                    <Text fontSize="sm" color="gray.600">
-                      <strong>Employee:</strong> {item.employeeName}
-                      {item.employeeDepartment &&
-                        ` (${item.employeeDepartment})`}
-                    </Text>
+                </Td>
+                <Td fontSize="sm">
+                  {item.employeeName ? (
+                    <Box>
+                      <Box fontWeight="600">{item.employeeName}</Box>
+                      {item.employeeDepartment && (
+                        <Box fontSize="xs" color="gray.500">
+                          {item.employeeDepartment}
+                        </Box>
+                      )}
+                    </Box>
+                  ) : (
+                    <span>—</span>
+                  )}
+                </Td>
+                <Td fontSize="sm" color="gray.600">
+                  {item.date ? new Date(item.date).toLocaleDateString() : "—"}
+                </Td>
+                <Td isNumeric>
+                  <HStack spacing={2} justify="flex-end">
+                    <Tooltip label="Edit offense" placement="top">
+                      <IconButton
+                        aria-label="Edit"
+                        icon={<Edit2 size={18} />}
+                        size="sm"
+                        colorScheme="orange"
+                        variant="ghost"
+                        onClick={() => handleEdit(item)}
+                      />
+                    </Tooltip>
+                    <Tooltip label="Delete offense" placement="top">
+                      <IconButton
+                        aria-label="Delete"
+                        icon={<Trash2 size={18} />}
+                        size="sm"
+                        colorScheme="red"
+                        variant="ghost"
+                        onClick={() => handleDelete(item)}
+                      />
+                    </Tooltip>
                   </HStack>
-                )}
-
-                {item.date && (
-                  <Text fontSize="xs" color="gray.500" mt={2}>
-                    Date: {new Date(item.date).toLocaleDateString()}
-                  </Text>
-                )}
-              </Box>
-
-              <HStack spacing={2} flexShrink={0}>
-                <HStack
-                  as="button"
-                  onClick={() => handleEdit(item)}
-                  px={3}
-                  py={2}
-                  bg="orange.50"
-                  borderRadius="md"
-                  _hover={{ bg: "orange.100" }}
-                  _active={{ bg: "orange.200" }}
-                  cursor="pointer"
-                >
-                  <Icon as={Edit2} color="orange.600" boxSize={4} />
-                  <Text fontSize="sm" color="orange.600" fontWeight="medium">
-                    Edit
-                  </Text>
-                </HStack>
-
-                <HStack
-                  as="button"
-                  onClick={() => handleDelete(item)}
-                  px={3}
-                  py={2}
-                  bg="red.50"
-                  borderRadius="md"
-                  _hover={{ bg: "red.100" }}
-                  _active={{ bg: "red.200" }}
-                  cursor="pointer"
-                >
-                  <Icon as={Trash2} color="red.600" boxSize={4} />
-                  <Text fontSize="sm" color="red.600" fontWeight="medium">
-                    Delete
-                  </Text>
-                </HStack>
-              </HStack>
-            </HStack>
-          </Box>
-        ))}
-      </VStack>
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      </Box>
 
       <EditOffenseModal
         isOpen={isEditOpen}

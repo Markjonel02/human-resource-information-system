@@ -1,6 +1,22 @@
 const Attendance = require("../../../models/attendance");
 const Offenses = require("../../../models/document/OffensesModel");
 const Employee = require("../../../models/user");
+
+// Helper function to format offense data
+const formatOffenseData = (offense) => {
+  const offenseObj = offense.toObject();
+  return {
+    ...offenseObj,
+    employeeName: offense.employee
+      ? `${offense.employee.firstname} ${offense.employee.lastname}`.trim()
+      : "",
+    employeeDepartment: offense.employee?.department || "",
+  };
+};
+
+// @desc    Create offense
+// @route   POST /api/offense
+// @access  Private
 const createOffense = async (req, res) => {
   try {
     const { title, severity, date, description, employeeId } = req.body;
@@ -22,13 +38,13 @@ const createOffense = async (req, res) => {
 
     await offense.save();
 
-    // Populate employee data before sending response
-    await offense.populate("employee", "firstName lastName employeeId");
+    // Populate employee data with correct field names
+    await offense.populate("employee", "firstname lastname department");
 
     res.status(201).json({
       success: true,
       message: "Offense created successfully",
-      offense,
+      offense: formatOffenseData(offense),
     });
   } catch (error) {
     console.error("Create offense error:", error);
@@ -46,13 +62,15 @@ const createOffense = async (req, res) => {
 const getAllOffenses = async (req, res) => {
   try {
     const offenses = await Offenses.find()
-      .populate("employee", "firstName lastName name email department")
+      .populate("employee", "firstname lastname email department employeeId")
       .sort({ date: -1 });
+
+    const formattedOffenses = offenses.map(formatOffenseData);
 
     res.status(200).json({
       success: true,
-      count: offenses.length,
-      offenses,
+      count: formattedOffenses.length,
+      offenses: formattedOffenses,
     });
   } catch (error) {
     console.error("Get all offenses error:", error);
@@ -71,7 +89,7 @@ const getOffenseById = async (req, res) => {
   try {
     const offense = await Offenses.findById(req.params.id).populate(
       "employee",
-      "firstName lastName name email department"
+      "firstname lastname email department employeeId"
     );
 
     if (!offense) {
@@ -83,7 +101,7 @@ const getOffenseById = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      offense,
+      offense: formatOffenseData(offense),
     });
   } catch (error) {
     console.error("Get offense by ID error:", error);
@@ -119,13 +137,13 @@ const updateOffense = async (req, res) => {
     await offense.save();
     await offense.populate(
       "employee",
-      "firstName lastName name email department"
+      "firstname lastname department employeeId"
     );
 
     res.status(200).json({
       success: true,
       message: "Offense updated successfully",
-      offense,
+      offense: formatOffenseData(offense),
     });
   } catch (error) {
     console.error("Update offense error:", error);
@@ -183,7 +201,7 @@ const getEmployeesWithMultipleLates = async (req, res) => {
       status: "late",
       date: { $gte: startDate },
     })
-      .populate("employee", "firstName lastName employeeId ")
+      .populate("employee", "firstname lastname employeeId ")
       .sort({ date: -1 });
 
     // Group by employee and count lates
@@ -245,13 +263,15 @@ const getOffensesByEmployee = async (req, res) => {
     const { employeeId } = req.params;
 
     const offenses = await Offenses.find({ employee: employeeId })
-      .populate("employee", "firstName lastName name email department")
+      .populate("employee", "firstname lastname email department")
       .sort({ date: -1 });
+
+    const formattedOffenses = offenses.map(formatOffenseData);
 
     res.status(200).json({
       success: true,
-      count: offenses.length,
-      offenses,
+      count: formattedOffenses.length,
+      offenses: formattedOffenses,
     });
   } catch (error) {
     console.error("Get offenses by employee error:", error);
@@ -283,7 +303,7 @@ const searchEmployees = async (req, res) => {
         { department: regex },
       ],
     })
-      .select("_id firstname lastname employeeId department") // Match your exact schema
+      .select("_id firstname lastname employeeId department")
       .limit(10)
       .lean();
 
@@ -311,6 +331,7 @@ const searchEmployees = async (req, res) => {
     });
   }
 };
+
 module.exports = {
   createOffense,
   getAllOffenses,
