@@ -1,4 +1,3 @@
-// ===== DELETE SUSPENSION MODAL COMPONENT =====
 import React from "react";
 import {
   Modal,

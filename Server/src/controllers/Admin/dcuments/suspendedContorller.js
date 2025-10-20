@@ -1,6 +1,9 @@
 const Suspension = require("../../../controllers/Admin/dcuments/suspendedContorller");
 
 // Get all suspensions with populated references
+// Get all suspensions with populated references
+
+// Get all suspensions with populated references
 exports.getAllSuspensions = async (req, res) => {
   try {
     const suspensions = await Suspension.find()
@@ -29,8 +32,8 @@ exports.getSuspensionById = async (req, res) => {
     const { id } = req.params;
 
     const suspension = await Suspension.findById(id)
-      .populate("employee", "firstname lastname email department")
-      .populate("suspendBy", "firstname lastname  email role");
+      .populate("employee", "name email department")
+      .populate("suspendBy", "name email");
 
     if (!suspension) {
       return res.status(404).json({
@@ -57,7 +60,8 @@ exports.getSuspensionById = async (req, res) => {
 // Create new suspension
 exports.createSuspension = async (req, res) => {
   try {
-    const { title, descriptions, employee } = req.body;
+    const { title, descriptions, employee, startDate, endDate, status } =
+      req.body;
     const suspendBy = req.user?.id || req.user?._id;
 
     // Validate required fields
@@ -77,11 +81,26 @@ exports.createSuspension = async (req, res) => {
       });
     }
 
+    // Validate dates if provided
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      if (start > end) {
+        return res.status(400).json({
+          success: false,
+          message: "Start date must be before end date",
+        });
+      }
+    }
+
     const newSuspension = new Suspension({
       title,
       descriptions,
       employee,
       suspendBy,
+      startDate: startDate || new Date(),
+      endDate: endDate || null,
+      status: status || "active",
     });
 
     await newSuspension.save();
@@ -217,6 +236,60 @@ exports.getSuspensionsByEmployee = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to retrieve employee suspensions",
+      error: error.message,
+    });
+  }
+};
+
+// Update suspension status
+exports.updateSuspensionStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    // Validate status
+    const validStatuses = ["active", "pending", "completed", "cancelled"];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid status. Must be one of: ${validStatuses.join(", ")}`,
+      });
+    }
+
+    // Verify suspension exists
+    const suspension = await Suspension.findById(id);
+    if (!suspension) {
+      return res.status(404).json({
+        success: false,
+        message: "Suspension record not found",
+      });
+    }
+
+    // Update status
+    suspension.status = status;
+    suspension.updatedAt = new Date();
+
+    if (status === "completed") {
+      suspension.endDate = new Date();
+    }
+
+    await suspension.save();
+
+    // Populate references before returning
+    const updatedSuspension = await Suspension.findById(id)
+      .populate("employee", "name email department")
+      .populate("suspendBy", "name email");
+
+    res.status(200).json({
+      success: true,
+      data: updatedSuspension,
+      message: `Suspension status updated to ${status}`,
+    });
+  } catch (error) {
+    console.error("Update suspension status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update suspension status",
       error: error.message,
     });
   }
