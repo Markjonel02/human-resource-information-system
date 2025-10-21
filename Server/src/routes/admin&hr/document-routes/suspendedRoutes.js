@@ -44,6 +44,10 @@ router.put(
 );
 
 // Delete suspension
-router.delete("/delete/:suspensionId", suspensionController.deleteSuspension);
+router.delete(
+  "/delete/:suspensionId",
+  authorizeRoles("admin", "hr"),
+  suspensionController.deleteSuspension
+);
 
 module.exports = router;
