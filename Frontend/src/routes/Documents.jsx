@@ -55,6 +55,7 @@ const Documents = () => {
   const [isLoading, setIsLoading] = useState(false);
   const debounceTimeout = useRef(null);
   const [offenseData, setOffenseData] = useState([]);
+  const [suspensionData, setSuspensionData] = useState([]);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -64,7 +65,7 @@ const Documents = () => {
     offenseDetails: "",
   });
 
-  // Add fetch function
+  // --- Fetch Offenses ---
   const fetchOffenses = async () => {
     try {
       const res = await axiosInstance.get("/offense");
@@ -75,12 +76,30 @@ const Documents = () => {
     }
   };
 
-  // Add refresh handler
+  // --- Fetch Suspensions ---
+  const fetchSuspensions = async () => {
+    try {
+      const res = await axiosInstance.get("/suspension");
+      setSuspensionData(res.data.data || res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch suspensions:", err);
+      setSuspensionData([]);
+    }
+  };
+
+  // --- Refresh Handlers ---
   const handleOffenseRefresh = async () => {
     await fetchOffenses();
   };
+
+  const handleSuspensionRefresh = async () => {
+    await fetchSuspensions();
+  };
+
+  // --- Fetch Offenses and Suspensions on Mount ---
   useEffect(() => {
     fetchOffenses();
+    fetchSuspensions();
   }, []);
 
   // --- Fetch all uploaded policy PDFs ---
@@ -89,17 +108,17 @@ const Documents = () => {
       setIsLoading(true);
       const res = await axiosInstance.get("/policy/get-policy");
 
-      console.log("Full response:", res.data); // Debug
+      console.log("Full response:", res.data);
 
       // Handle the nested response structure
       const data = res.data.policies || res.data || [];
 
-      console.log("Extracted policies:", data); // Debug
+      console.log("Extracted policies:", data);
 
       setPolicyData(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to fetch policies:", err);
-      console.error("Error response:", err.response); // Better debugging
+      console.error("Error response:", err.response);
       setPolicyData([]);
     } finally {
       setIsLoading(false);
@@ -116,7 +135,7 @@ const Documents = () => {
     fetchPolicies();
   };
 
-  // --- Refresh after successful update (for Edit Modal) ---
+  // --- Refresh after successful update ---
   const handleDataRefresh = async () => {
     await fetchPolicies();
   };
@@ -163,14 +182,6 @@ const Documents = () => {
     });
     setNameSuggestions([]);
   };
-
-  const suspendedData = [
-    {
-      title: "John Doe - Administrative Leave",
-      description:
-        "Employee ID: 11223. On administrative leave pending investigation.",
-    },
-  ];
 
   return (
     <Box
@@ -238,7 +249,7 @@ const Documents = () => {
             <Tab
               _selected={{
                 color: "orange.600",
-                borderBottom: "2px solid orange.600",
+                borderBottom: "2px orange.600",
               }}
             >
               <Tooltip label="Suspended Employees">
@@ -285,7 +296,11 @@ const Documents = () => {
             </TabPanel>
 
             <TabPanel>
-              <SuspensionSection data={suspendedData} color="orange.700" />
+              <SuspensionSection
+                data={suspensionData}
+                color="orange.700"
+                refreshData={handleSuspensionRefresh}
+              />
             </TabPanel>
           </TabPanels>
         </Tabs>
@@ -324,12 +339,10 @@ const Documents = () => {
               />
             )}
             {tabIndex === 2 && (
-              <SuspensionForm
-                formData={formData}
-                setFormData={setFormData}
-                nameSuggestions={nameSuggestions}
-                handleNameChange={handleNameChange}
-                handleSelectName={handleSelectName}
+              <AddSuspensionModal
+                isOpen={isOpen}
+                onClose={onClose}
+                onSuspensionAdded={handleSuspensionRefresh}
               />
             )}
           </ModalBody>

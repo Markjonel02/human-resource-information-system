@@ -1,14 +1,10 @@
 const Suspension = require("../../../controllers/Admin/dcuments/suspendedContorller");
 
-// Get all suspensions with populated references
-// Get all suspensions with populated references
-
-// Get all suspensions with populated references
 exports.getAllSuspensions = async (req, res) => {
   try {
     const suspensions = await Suspension.find()
-      .populate("employee", "name email department")
-      .populate("suspendBy", "name email")
+      .populate("employee", "firstname lastname email department employeeId")
+      .populate("suspendBy", "firstname lastname email employeeId")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -26,14 +22,16 @@ exports.getAllSuspensions = async (req, res) => {
   }
 };
 
-// Get suspension by ID
+// =============================
+// 📌 Get suspension by ID
+// =============================
 exports.getSuspensionById = async (req, res) => {
   try {
     const { id } = req.params;
 
     const suspension = await Suspension.findById(id)
-      .populate("employee", "name email department")
-      .populate("suspendBy", "name email");
+      .populate("employee", "firstname lastname email department employeeId")
+      .populate("suspendBy", "firstname lastname email employeeId");
 
     if (!suspension) {
       return res.status(404).json({
@@ -57,14 +55,15 @@ exports.getSuspensionById = async (req, res) => {
   }
 };
 
-// Create new suspension
+// =============================
+// 📌 Create new suspension
+// =============================
 exports.createSuspension = async (req, res) => {
   try {
     const { title, descriptions, employee, startDate, endDate, status } =
       req.body;
     const suspendBy = req.user?.id || req.user?._id;
 
-    // Validate required fields
     if (!title || !descriptions || !employee) {
       return res.status(400).json({
         success: false,
@@ -72,7 +71,6 @@ exports.createSuspension = async (req, res) => {
       });
     }
 
-    // Verify employee exists
     const employeeExists = await User.findById(employee);
     if (!employeeExists) {
       return res.status(404).json({
@@ -81,16 +79,11 @@ exports.createSuspension = async (req, res) => {
       });
     }
 
-    // Validate dates if provided
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      if (start > end) {
-        return res.status(400).json({
-          success: false,
-          message: "Start date must be before end date",
-        });
-      }
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      return res.status(400).json({
+        success: false,
+        message: "Start date must be before end date",
+      });
     }
 
     const newSuspension = new Suspension({
@@ -105,10 +98,9 @@ exports.createSuspension = async (req, res) => {
 
     await newSuspension.save();
 
-    // Populate references before returning
     const populatedSuspension = await Suspension.findById(newSuspension._id)
-      .populate("employee", "name email department")
-      .populate("suspendBy", "name email");
+      .populate("employee", "firstname lastname email department employeeId")
+      .populate("suspendBy", "firstname lastname email employeeId");
 
     res.status(201).json({
       success: true,
@@ -125,13 +117,14 @@ exports.createSuspension = async (req, res) => {
   }
 };
 
-// Update suspension
+// =============================
+// 📌 Update suspension
+// =============================
 exports.updateSuspension = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, descriptions, employee } = req.body;
 
-    // Validate required fields
     if (!title || !descriptions || !employee) {
       return res.status(400).json({
         success: false,
@@ -139,7 +132,6 @@ exports.updateSuspension = async (req, res) => {
       });
     }
 
-    // Verify suspension exists
     const suspension = await Suspension.findById(id);
     if (!suspension) {
       return res.status(404).json({
@@ -148,7 +140,6 @@ exports.updateSuspension = async (req, res) => {
       });
     }
 
-    // Verify employee exists
     const employeeExists = await User.findById(employee);
     if (!employeeExists) {
       return res.status(404).json({
@@ -157,7 +148,6 @@ exports.updateSuspension = async (req, res) => {
       });
     }
 
-    // Update fields
     suspension.title = title;
     suspension.descriptions = descriptions;
     suspension.employee = employee;
@@ -165,10 +155,9 @@ exports.updateSuspension = async (req, res) => {
 
     await suspension.save();
 
-    // Populate references before returning
     const updatedSuspension = await Suspension.findById(id)
-      .populate("employee", "name email department")
-      .populate("suspendBy", "name email");
+      .populate("employee", "firstname lastname email department employeeId")
+      .populate("suspendBy", "firstname lastname email employeeId");
 
     res.status(200).json({
       success: true,
@@ -185,12 +174,13 @@ exports.updateSuspension = async (req, res) => {
   }
 };
 
-// Delete suspension
+// =============================
+// 📌 Delete suspension
+// =============================
 exports.deleteSuspension = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Verify suspension exists
     const suspension = await Suspension.findById(id);
     if (!suspension) {
       return res.status(404).json({
@@ -199,7 +189,6 @@ exports.deleteSuspension = async (req, res) => {
       });
     }
 
-    // Delete the suspension
     await Suspension.findByIdAndDelete(id);
 
     res.status(200).json({
@@ -216,14 +205,16 @@ exports.deleteSuspension = async (req, res) => {
   }
 };
 
-// Get suspensions by employee
+// =============================
+// 📌 Get suspensions by employee
+// =============================
 exports.getSuspensionsByEmployee = async (req, res) => {
   try {
     const { employeeId } = req.params;
 
     const suspensions = await Suspension.find({ employee: employeeId })
-      .populate("employee", "name email department")
-      .populate("suspendBy", "name email")
+      .populate("employee", "firstname lastname email department employeeId")
+      .populate("suspendBy", "firstname lastname email employeeId")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -241,13 +232,14 @@ exports.getSuspensionsByEmployee = async (req, res) => {
   }
 };
 
-// Update suspension status
+// =============================
+// 📌 Update suspension status
+// =============================
 exports.updateSuspensionStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
-    // Validate status
     const validStatuses = ["active", "pending", "completed", "cancelled"];
     if (!status || !validStatuses.includes(status)) {
       return res.status(400).json({
@@ -256,7 +248,6 @@ exports.updateSuspensionStatus = async (req, res) => {
       });
     }
 
-    // Verify suspension exists
     const suspension = await Suspension.findById(id);
     if (!suspension) {
       return res.status(404).json({
@@ -265,20 +256,14 @@ exports.updateSuspensionStatus = async (req, res) => {
       });
     }
 
-    // Update status
     suspension.status = status;
     suspension.updatedAt = new Date();
-
-    if (status === "completed") {
-      suspension.endDate = new Date();
-    }
-
+    if (status === "completed") suspension.endDate = new Date();
     await suspension.save();
 
-    // Populate references before returning
     const updatedSuspension = await Suspension.findById(id)
-      .populate("employee", "name email department")
-      .populate("suspendBy", "name email");
+      .populate("employee", "firstname lastname email department employeeId")
+      .populate("suspendBy", "firstname lastname email employeeId");
 
     res.status(200).json({
       success: true,
@@ -290,6 +275,58 @@ exports.updateSuspensionStatus = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to update suspension status",
+      error: error.message,
+    });
+  }
+};
+
+// =============================
+// 📌 Search employees
+// =============================
+exports.searchEmployees = async (req, res) => {
+  try {
+    const { q, department, status } = req.query;
+
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: "Search term must be at least 2 characters long",
+      });
+    }
+
+    let searchQuery = {
+      $or: [
+        { firstname: { $regex: q, $options: "i" } },
+        { lastname: { $regex: q, $options: "i" } },
+        { email: { $regex: q, $options: "i" } },
+        { employeeId: { $regex: q, $options: "i" } },
+      ],
+    };
+
+    if (department)
+      searchQuery.department = { $regex: department, $options: "i" };
+    if (status && ["active", "inactive"].includes(status.toLowerCase()))
+      searchQuery.status = status.toLowerCase();
+
+    const employees = await User.find(searchQuery)
+      .select("_id firstname lastname email employeeId department phone status")
+      .limit(10)
+      .sort({ firstname: 1 });
+
+    res.status(200).json({
+      success: true,
+      data: employees,
+      count: employees.length,
+      message:
+        employees.length === 0
+          ? "No employees found matching your search criteria"
+          : `Found ${employees.length} employee(s)`,
+    });
+  } catch (error) {
+    console.error("Search employees error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to search employees",
       error: error.message,
     });
   }
