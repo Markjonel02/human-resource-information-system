@@ -38,7 +38,15 @@ const AddSuspensionModal = ({ isOpen, onClose, onSuspensionAdded }) => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
   const toast = useToast();
+
+  // Get current user ID from localStorage or your auth context
+  const getCurrentUserId = () => {
+    // Adjust this based on where you store the current user ID
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    return user._id || user.id;
+  };
 
   // Reset when modal opens
   useEffect(() => {
@@ -58,6 +66,7 @@ const AddSuspensionModal = ({ isOpen, onClose, onSuspensionAdded }) => {
     });
     setSearch("");
     setSearchResults([]);
+    setSelectedEmployee(null);
   };
 
   // Fetch matching employees dynamically
@@ -77,19 +86,24 @@ const AddSuspensionModal = ({ isOpen, onClose, onSuspensionAdded }) => {
     setLoading(true);
     try {
       const response = await axiosInstance.get(
-        `/Suspension/searchEmployees?q=${query}`
+        `/Suspension/search-employees?q=${encodeURIComponent(query)}`
       );
-      setSearchResults(response.data.data || []); // Access 'data' property from API
+
+      const employees = response.data.data || [];
+      setSearchResults(employees);
       setShowResults(true);
     } catch (error) {
       console.error("Failed to search employees:", error);
-      toast({
-        title: "Error",
-        description: "Failed to search employees.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+      // Don't show error toast for every search, only on critical errors
+      if (error.response?.status !== 404) {
+        toast({
+          title: "Error",
+          description: "Failed to search employees.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -100,7 +114,11 @@ const AddSuspensionModal = ({ isOpen, onClose, onSuspensionAdded }) => {
       ...prev,
       employee: employee._id,
     }));
-    setSearch(employee.name || employee.email);
+    setSelectedEmployee(employee);
+    setSearch(
+      `${employee.firstname || ""} ${employee.lastname || ""}`.trim() ||
+        employee.employeeEmail
+    );
     setShowResults(false);
   };
 
@@ -138,6 +156,20 @@ const AddSuspensionModal = ({ isOpen, onClose, onSuspensionAdded }) => {
 
     setSubmitting(true);
     try {
+      const currentUserId = getCurrentUserId();
+
+      if (!currentUserId) {
+        toast({
+          title: "Error",
+          description: "User information not found. Please login again.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+        setSubmitting(false);
+        return;
+      }
+
       const payload = {
         title: formData.title,
         descriptions: formData.descriptions,
@@ -145,9 +177,10 @@ const AddSuspensionModal = ({ isOpen, onClose, onSuspensionAdded }) => {
         startDate: formData.startDate || new Date(),
         endDate: formData.endDate || null,
         status: formData.status,
+        suspendBy: currentUserId,
       };
 
-      await axiosInstance.post("/suspension/create-suspension", payload);
+      await axiosInstance.post("/suspension/create", payload);
 
       toast({
         title: "Success",
@@ -204,10 +237,10 @@ const AddSuspensionModal = ({ isOpen, onClose, onSuspensionAdded }) => {
             <FormControl isRequired position="relative">
               <FormLabel fontWeight="600">Employee</FormLabel>
               <Input
-                placeholder="Search employee by name or email"
+                placeholder="Search employee by firstname, lastname, or email"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                onFocus={() => setShowResults(true)}
+                onFocus={() => setShowResults(searchResults.length > 0)}
                 isDisabled={submitting}
               />
               {loading && (
@@ -224,11 +257,11 @@ const AddSuspensionModal = ({ isOpen, onClose, onSuspensionAdded }) => {
                   borderRadius="md"
                   mt={1}
                   width="100%"
-                  maxH="150px"
+                  maxH="200px"
                   overflowY="auto"
                   boxShadow="md"
                 >
-                  <List spacing={1}>
+                  <List spacing={0}>
                     {searchResults.map((emp) => (
                       <ListItem
                         key={emp._id}
@@ -236,15 +269,52 @@ const AddSuspensionModal = ({ isOpen, onClose, onSuspensionAdded }) => {
                         py={2}
                         _hover={{ bg: "gray.100", cursor: "pointer" }}
                         onClick={() => handleEmployeeSelect(emp)}
+                        borderBottom="1px solid"
+                        borderColor="gray.200"
                       >
-                        <strong>{emp.name || emp.email}</strong>{" "}
-                        <Box as="span" fontSize="sm" color="gray.600">
-                          {emp.department ? `(${emp.department})` : ""}
+                        <strong>
+                          {`${emp.firstname || ""} ${
+                            emp.lastname || ""
+                          }`.trim() || emp.employeeEmail}
+                        </strong>
+                        <Box as="div" fontSize="sm" color="gray.600">
+                          {emp.employeeEmail}
+                        </Box>
+                        <Box as="div" fontSize="xs" color="gray.500">
+                          {emp.department && `Dept: ${emp.department}`}
+                          {emp.jobposition && ` | Position: ${emp.jobposition}`}
                         </Box>
                       </ListItem>
                     ))}
                   </List>
                 </Box>
+              )}
+              {showResults &&
+                searchResults.length === 0 &&
+                !loading &&
+                search.trim().length >= 2 && (
+                  <Box
+                    position="absolute"
+                    zIndex="1000"
+                    bg="white"
+                    borderWidth="1px"
+                    borderRadius="md"
+                    mt={1}
+                    width="100%"
+                    px={3}
+                    py={2}
+                    boxShadow="md"
+                    fontSize="sm"
+                    color="gray.500"
+                  >
+                    No employees found
+                  </Box>
+                )}
+              {selectedEmployee && (
+                <FormHelperText>
+                  Selected: {selectedEmployee.firstname}{" "}
+                  {selectedEmployee.lastname}
+                </FormHelperText>
               )}
             </FormControl>
 
@@ -268,7 +338,7 @@ const AddSuspensionModal = ({ isOpen, onClose, onSuspensionAdded }) => {
             </FormControl>
 
             {/* Dates */}
-            <HStack width="100%">
+            <HStack width="100%" spacing={4}>
               <FormControl>
                 <FormLabel fontWeight="600">Start Date</FormLabel>
                 <Input
