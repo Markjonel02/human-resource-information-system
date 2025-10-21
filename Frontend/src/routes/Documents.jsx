@@ -79,7 +79,7 @@ const Documents = () => {
   // --- Fetch Suspensions ---
   const fetchSuspensions = async () => {
     try {
-      const res = await axiosInstance.get("/suspension");
+      const res = await axiosInstance.get("/Suspension/suspension");
       setSuspensionData(res.data.data || res.data || []);
     } catch (err) {
       console.error("Failed to fetch suspensions:", err);
