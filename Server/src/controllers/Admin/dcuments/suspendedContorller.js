@@ -1,5 +1,5 @@
-const Suspension = require("../../../controllers/Admin/dcuments/suspendedContorller");
-// Create a suspension
+const Suspension = require("../../../models/document/suspensionModel");
+const User = require("../../../models/user");
 // Create a suspension
 exports.createSuspension = async (req, res) => {
   try {
@@ -109,6 +109,40 @@ exports.searchEmployeeSuspensions = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Error searching suspensions",
+      error: error.message,
+    });
+  }
+};
+
+// Get all suspensions
+exports.getAllSuspensions = async (req, res) => {
+  try {
+    const suspensions = await Suspension.find()
+      .populate(
+        "employee",
+        "firstname lastname employeeEmail department jobposition"
+      )
+      .populate("suspendBy", "firstname lastname employeeEmail")
+      .sort({ createdAt: -1 });
+
+    if (suspensions.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No suspensions found",
+        data: [],
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Suspensions retrieved successfully",
+      count: suspensions.length,
+      data: suspensions,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Error retrieving suspensions",
       error: error.message,
     });
   }
