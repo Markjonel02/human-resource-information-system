@@ -1,4 +1,3 @@
-// components/AddSuspensionModal.jsx
 import React, { useState, useEffect } from "react";
 import {
   Modal,
@@ -13,13 +12,14 @@ import {
   FormLabel,
   Input,
   Textarea,
-  Select,
   useToast,
   Spinner,
   Box,
   VStack,
   HStack,
   FormHelperText,
+  List,
+  ListItem,
 } from "@chakra-ui/react";
 import axiosInstance from "../../../lib/axiosInstance";
 
@@ -33,36 +33,19 @@ const AddSuspensionModal = ({ isOpen, onClose, onSuspensionAdded }) => {
     status: "active",
   });
 
-  const [employees, setEmployees] = useState([]);
+  const [search, setSearch] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showResults, setShowResults] = useState(false);
   const toast = useToast();
 
+  // Reset when modal opens
   useEffect(() => {
     if (isOpen) {
-      fetchEmployees();
       resetForm();
     }
   }, [isOpen]);
-
-  const fetchEmployees = async () => {
-    setLoading(true);
-    try {
-      const response = await axiosInstance.get("/users");
-      setEmployees(response.data);
-    } catch (error) {
-      console.error("Failed to fetch employees:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load employees.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const resetForm = () => {
     setFormData({
@@ -73,18 +56,55 @@ const AddSuspensionModal = ({ isOpen, onClose, onSuspensionAdded }) => {
       endDate: "",
       status: "active",
     });
+    setSearch("");
+    setSearchResults([]);
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  // Fetch matching employees dynamically
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      if (search.trim().length >= 2) {
+        fetchEmployees(search);
+      } else {
+        setSearchResults([]);
+      }
+    }, 400); // debounce search 400ms
+
+    return () => clearTimeout(delayDebounce);
+  }, [search]);
+
+  const fetchEmployees = async (query) => {
+    setLoading(true);
+    try {
+      const response = await axiosInstance.get(
+        `/Suspension/searchEmployees?q=${query}`
+      );
+      setSearchResults(response.data.data || []); // Access 'data' property from API
+      setShowResults(true);
+    } catch (error) {
+      console.error("Failed to search employees:", error);
+      toast({
+        title: "Error",
+        description: "Failed to search employees.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEmployeeSelect = (employee) => {
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      employee: employee._id,
     }));
+    setSearch(employee.name || employee.email);
+    setShowResults(false);
   };
 
   const handleSubmit = async () => {
-    // Validation
     if (
       !formData.title.trim() ||
       !formData.descriptions.trim() ||
@@ -127,7 +147,7 @@ const AddSuspensionModal = ({ isOpen, onClose, onSuspensionAdded }) => {
         status: formData.status,
       };
 
-      const response = await axiosInstance.post("/suspension", payload);
+      await axiosInstance.post("/suspension/create-suspension", payload);
 
       toast({
         title: "Success",
@@ -146,7 +166,6 @@ const AddSuspensionModal = ({ isOpen, onClose, onSuspensionAdded }) => {
         error.response?.data?.message ||
         error.message ||
         "Failed to create suspension record.";
-
       toast({
         title: "Error",
         description: errorMessage,
@@ -166,99 +185,141 @@ const AddSuspensionModal = ({ isOpen, onClose, onSuspensionAdded }) => {
         <ModalHeader>Create New Suspension Record</ModalHeader>
         <ModalCloseButton isDisabled={submitting} />
         <ModalBody>
-          {loading ? (
-            <Box display="flex" justifyContent="center" py={8}>
-              <Spinner />
-            </Box>
-          ) : (
-            <VStack spacing={4}>
-              <FormControl isRequired>
-                <FormLabel fontWeight="600">Title</FormLabel>
+          <VStack spacing={4}>
+            {/* Title */}
+            <FormControl isRequired>
+              <FormLabel fontWeight="600">Title</FormLabel>
+              <Input
+                name="title"
+                value={formData.title}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, title: e.target.value }))
+                }
+                placeholder="e.g., Unauthorized Absence"
+                isDisabled={submitting}
+              />
+            </FormControl>
+
+            {/* Employee Search */}
+            <FormControl isRequired position="relative">
+              <FormLabel fontWeight="600">Employee</FormLabel>
+              <Input
+                placeholder="Search employee by name or email"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onFocus={() => setShowResults(true)}
+                isDisabled={submitting}
+              />
+              {loading && (
+                <Box position="absolute" top="12px" right="12px">
+                  <Spinner size="sm" />
+                </Box>
+              )}
+              {showResults && searchResults.length > 0 && (
+                <Box
+                  position="absolute"
+                  zIndex="1000"
+                  bg="white"
+                  borderWidth="1px"
+                  borderRadius="md"
+                  mt={1}
+                  width="100%"
+                  maxH="150px"
+                  overflowY="auto"
+                  boxShadow="md"
+                >
+                  <List spacing={1}>
+                    {searchResults.map((emp) => (
+                      <ListItem
+                        key={emp._id}
+                        px={3}
+                        py={2}
+                        _hover={{ bg: "gray.100", cursor: "pointer" }}
+                        onClick={() => handleEmployeeSelect(emp)}
+                      >
+                        <strong>{emp.name || emp.email}</strong>{" "}
+                        <Box as="span" fontSize="sm" color="gray.600">
+                          {emp.department ? `(${emp.department})` : ""}
+                        </Box>
+                      </ListItem>
+                    ))}
+                  </List>
+                </Box>
+              )}
+            </FormControl>
+
+            {/* Description */}
+            <FormControl isRequired>
+              <FormLabel fontWeight="600">Description/Reason</FormLabel>
+              <Textarea
+                name="descriptions"
+                value={formData.descriptions}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    descriptions: e.target.value,
+                  }))
+                }
+                placeholder="Describe the reason for suspension"
+                rows={4}
+                resize="vertical"
+                isDisabled={submitting}
+              />
+            </FormControl>
+
+            {/* Dates */}
+            <HStack width="100%">
+              <FormControl>
+                <FormLabel fontWeight="600">Start Date</FormLabel>
                 <Input
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  placeholder="e.g., Unauthorized Absence"
-                  size="md"
+                  type="date"
+                  name="startDate"
+                  value={formData.startDate}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      startDate: e.target.value,
+                    }))
+                  }
                   isDisabled={submitting}
                 />
-                <FormHelperText>Brief title for the suspension</FormHelperText>
               </FormControl>
 
-              <FormControl isRequired>
-                <FormLabel fontWeight="600">Employee</FormLabel>
-                <Select
-                  name="employee"
-                  value={formData.employee}
-                  onChange={handleChange}
-                  placeholder="Select an employee"
-                  isDisabled={submitting}
-                >
-                  {employees.map((emp) => (
-                    <option key={emp._id} value={emp._id}>
-                      {emp.name || emp.email} - {emp.department || "N/A"}
-                    </option>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl isRequired>
-                <FormLabel fontWeight="600">Description/Reason</FormLabel>
-                <Textarea
-                  name="descriptions"
-                  value={formData.descriptions}
-                  onChange={handleChange}
-                  placeholder="Describe the reason for suspension"
-                  rows={4}
-                  resize="vertical"
+              <FormControl>
+                <FormLabel fontWeight="600">End Date</FormLabel>
+                <Input
+                  type="date"
+                  name="endDate"
+                  value={formData.endDate}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      endDate: e.target.value,
+                    }))
+                  }
                   isDisabled={submitting}
                 />
-                <FormHelperText>
-                  Provide detailed information about the suspension
-                </FormHelperText>
               </FormControl>
+            </HStack>
 
-              <HStack width="100%" spacing={4}>
-                <FormControl>
-                  <FormLabel fontWeight="600">Start Date</FormLabel>
-                  <Input
-                    type="date"
-                    name="startDate"
-                    value={formData.startDate}
-                    onChange={handleChange}
-                    isDisabled={submitting}
-                  />
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel fontWeight="600">End Date</FormLabel>
-                  <Input
-                    type="date"
-                    name="endDate"
-                    value={formData.endDate}
-                    onChange={handleChange}
-                    isDisabled={submitting}
-                  />
-                  <FormHelperText>Leave empty if indefinite</FormHelperText>
-                </FormControl>
-              </HStack>
-
-              <FormControl isRequired>
-                <FormLabel fontWeight="600">Status</FormLabel>
-                <Select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  isDisabled={submitting}
-                >
-                  <option value="active">Active</option>
-                  <option value="pending">Pending</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </Select>
-              </FormControl>
-            </VStack>
-          )}
+            {/* Status */}
+            <FormControl isRequired>
+              <FormLabel fontWeight="600">Status</FormLabel>
+              <Input
+                as="select"
+                value={formData.status}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, status: e.target.value }))
+                }
+                isDisabled={submitting}
+              >
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </Input>
+            </FormControl>
+          </VStack>
         </ModalBody>
 
         <ModalFooter>

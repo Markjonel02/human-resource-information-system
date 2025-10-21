@@ -80,4 +80,9 @@ router.delete(
   suspensionController.deleteSuspension
 );
 
+router.get(
+  "/searchEmployees",
+  authorizeRoles("admin", "hr"),
+  suspensionController.searchEmployees
+);
 module.exports = router;
