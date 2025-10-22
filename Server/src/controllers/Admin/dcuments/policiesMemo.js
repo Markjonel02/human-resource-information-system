@@ -8,7 +8,7 @@ const fsPromises = fs.promises;
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = path.join(global.uploadsDir, "policies");
-    
+
     // Create directory if it doesn't exist (using sync method in callback)
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
@@ -92,7 +92,7 @@ const uploadPolicy = async (req, res) => {
 const getAllPolicies = async (req, res) => {
   try {
     const policies = await Policy.find()
-      .populate("uploadedBy", "name email")
+      .populate("uploadedBy", "firstname lastname employeeEmail employeeId")
       .sort({ uploadedAt: -1 });
 
     res.status(200).json({
@@ -114,7 +114,7 @@ const getPolicyById = async (req, res) => {
   try {
     const policy = await Policy.findById(req.params.id).populate(
       "uploadedBy",
-      "name email"
+      "firstname lastname employeeId employeeEmail"
     );
 
     if (!policy) {

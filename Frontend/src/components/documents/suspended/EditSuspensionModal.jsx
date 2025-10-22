@@ -13,12 +13,12 @@ import {
   Input,
   Textarea,
   useToast,
-  Spinner,
   Box,
   VStack,
-  List,
-  ListItem,
-  FormHelperText,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription,
 } from "@chakra-ui/react";
 import axiosInstance from "../../../lib/axiosInstance";
 
@@ -31,12 +31,8 @@ const EditSuspensionModal = ({ isOpen, onClose, item, onUpdate }) => {
     status: "active",
   });
 
-  const [search, setSearch] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [showResults, setShowResults] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [userRole, setUserRole] = useState(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -49,81 +45,27 @@ const EditSuspensionModal = ({ isOpen, onClose, item, onUpdate }) => {
         status: item.status || "active",
       });
 
-      // Set selected employee for display
-      if (item.employee && typeof item.employee === "object") {
-        const empName = `${item.employee.firstname || ""} ${
-          item.employee.lastname || ""
-        }`.trim();
-        setSearch(empName || item.employee.employeeEmail || "");
-        setSelectedEmployee(item.employee);
-      }
-    } else {
-      setFormData({
-        title: "",
-        descriptions: "",
-        employee: "",
-        endDate: "",
-        status: "active",
-      });
-      setSearch("");
-      setSelectedEmployee(null);
+      // Get user role from localStorage
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      setUserRole(user.role || null);
     }
   }, [isOpen, item]);
 
-  // Search employees with debounce
-  useEffect(() => {
-    const delayDebounce = setTimeout(() => {
-      if (search.trim().length >= 2) {
-        fetchEmployees(search);
-      } else {
-        setSearchResults([]);
-      }
-    }, 400);
-
-    return () => clearTimeout(delayDebounce);
-  }, [search]);
-
-  const fetchEmployees = async (query) => {
-    setLoading(true);
-    try {
-      const response = await axiosInstance.get(
-        `/Suspension/search-employees?q=${encodeURIComponent(query)}`
-      );
-      const employees = response.data.data || [];
-      setSearchResults(employees);
-      setShowResults(true);
-    } catch (error) {
-      console.error("Failed to fetch employees:", error);
-      if (error.response?.status !== 404) {
-        toast({
-          title: "Error",
-          description: "Failed to search employees.",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEmployeeSelect = (employee) => {
-    setFormData((prev) => ({
-      ...prev,
-      employee: employee._id,
-    }));
-    setSelectedEmployee(employee);
-    const empName =
-      `${employee.firstname || ""} ${employee.lastname || ""}`.trim() ||
-      employee.employeeEmail;
-    setSearch(empName);
-    setSearchResults([]); // Clear results after selection
-    setShowResults(false);
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    // If HR user tries to edit fields other than status, show warning
+    if (userRole === "hr" && name !== "status") {
+      toast({
+        title: "Edit Restricted",
+        description: "HR users can only edit the Status field.",
+        status: "warning",
+        duration: 2000,
+        isClosable: true,
+      });
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -142,7 +84,6 @@ const EditSuspensionModal = ({ isOpen, onClose, item, onUpdate }) => {
       return;
     }
 
-    // Validate required fields
     if (!formData.status) {
       toast({
         title: "Validation Error",
@@ -156,29 +97,26 @@ const EditSuspensionModal = ({ isOpen, onClose, item, onUpdate }) => {
 
     setSubmitting(true);
     try {
-      // Admin can update all fields, HR only status
-      const payload = {
-        title: formData.title,
-        descriptions: formData.descriptions,
-        employee: formData.employee,
-        endDate: formData.endDate || null,
-        status: formData.status,
-      };
+      let payload;
+      let endpoint;
 
-      // Try admin endpoint first, fallback to HR endpoint
-      try {
-        await axiosInstance.put(`/Suspension/update-full/${item._id}`, payload);
-      } catch (error) {
-        if (error.response?.status === 403) {
-          // If admin endpoint fails, try HR status-only endpoint
-          await axiosInstance.put(`/Suspension/update/${item._id}`, {
-            status: formData.status,
-          });
-        } else {
-          throw error;
-        }
+      if (userRole === "hr") {
+        // HR can only update status
+        payload = { status: formData.status };
+        endpoint = `/Suspension/update/${item._id}`;
+      } else {
+        // Admin can update all fields
+        payload = {
+          title: formData.title,
+          descriptions: formData.descriptions,
+          employee: formData.employee,
+          endDate: formData.endDate || null,
+          status: formData.status,
+        };
+        endpoint = `/Suspension/update-full/${item._id}`;
       }
 
+      await axiosInstance.put(endpoint, payload);
       toast({
         title: "Success",
         description: "Suspension record updated successfully.",
@@ -208,138 +146,85 @@ const EditSuspensionModal = ({ isOpen, onClose, item, onUpdate }) => {
     }
   };
 
-  const isEditMode = item && item._id;
-  const modalTitle = isEditMode
-    ? "Edit Suspension Record"
-    : "Add New Suspension";
+  const isHR = userRole === "hr";
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg">
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>{modalTitle}</ModalHeader>
+        <ModalHeader>Edit Suspension Record</ModalHeader>
         <ModalCloseButton isDisabled={submitting} />
         <ModalBody>
           <VStack spacing={4}>
+            {/* HR Permission Alert */}
+            {isHR && (
+              <Alert
+                status="info"
+                variant="subtle"
+                flexDirection="column"
+                alignItems="flex-start"
+                borderRadius="md"
+                mb={2}
+              >
+                <Box display="flex" alignItems="center" mb={2}>
+                  <AlertIcon mr={2} />
+                  <AlertTitle>HR User - Limited Access</AlertTitle>
+                </Box>
+                <AlertDescription>
+                  As an HR user, you can only edit the <strong>Status</strong>{" "}
+                  field. Other fields are read-only.
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Title */}
-            <FormControl isRequired>
+            <FormControl>
               <FormLabel fontWeight="600">Title</FormLabel>
               <Input
                 name="title"
                 value={formData.title}
                 onChange={handleChange}
-                placeholder="Enter suspension title"
-                isDisabled={submitting}
+                placeholder="Suspension title"
+                isReadOnly={isHR}
+                bg={isHR ? "gray.100" : "white"}
+                cursor={isHR ? "not-allowed" : "text"}
               />
             </FormControl>
 
-            {/* Employee Search */}
-            <FormControl isRequired position="relative">
+            {/* Employee (Read-only for HR) */}
+            <FormControl>
               <FormLabel fontWeight="600">Employee</FormLabel>
               <Input
-                placeholder="Search employee by name or email"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onFocus={() => {
-                  setShowResults(true);
-                  if (search.trim().length >= 2) {
-                    fetchEmployees(search);
-                  }
-                }}
-                isDisabled={submitting}
+                value={
+                  typeof formData.employee === "object"
+                    ? `${formData.employee.firstname || ""} ${
+                        formData.employee.lastname || ""
+                      }`.trim() || formData.employee.employeeEmail
+                    : formData.employee
+                }
+                isReadOnly={true}
+                bg="gray.100"
+                cursor="not-allowed"
               />
-              {loading && (
-                <Box position="absolute" top="32px" right="12px">
-                  <Spinner size="sm" />
-                </Box>
-              )}
-              {showResults && searchResults.length > 0 && (
-                <Box
-                  position="absolute"
-                  zIndex="1000"
-                  bg="white"
-                  borderWidth="1px"
-                  borderRadius="md"
-                  mt={1}
-                  width="100%"
-                  maxH="200px"
-                  overflowY="auto"
-                  boxShadow="md"
-                  top="100%"
-                >
-                  <List spacing={0}>
-                    {searchResults.map((emp) => (
-                      <ListItem
-                        key={emp._id}
-                        px={3}
-                        py={2}
-                        _hover={{ bg: "gray.100", cursor: "pointer" }}
-                        onClick={() => handleEmployeeSelect(emp)}
-                        borderBottom="1px solid"
-                        borderColor="gray.200"
-                      >
-                        <strong>
-                          {`${emp.firstname || ""} ${
-                            emp.lastname || ""
-                          }`.trim() || emp.employeeEmail}
-                        </strong>
-                        <Box as="div" fontSize="sm" color="gray.600">
-                          {emp.employeeEmail}
-                        </Box>
-                        <Box as="div" fontSize="xs" color="gray.500">
-                          {emp.department && `Dept: ${emp.department}`}
-                          {emp.jobposition && ` | Position: ${emp.jobposition}`}
-                        </Box>
-                      </ListItem>
-                    ))}
-                  </List>
-                </Box>
-              )}
-              {showResults &&
-                searchResults.length === 0 &&
-                !loading &&
-                search.trim().length >= 2 && (
-                  <Box
-                    position="absolute"
-                    zIndex="1000"
-                    bg="white"
-                    borderWidth="1px"
-                    borderRadius="md"
-                    mt={1}
-                    width="100%"
-                    px={3}
-                    py={2}
-                    boxShadow="md"
-                    fontSize="sm"
-                    color="gray.500"
-                    top="100%"
-                  >
-                    No employees found
-                  </Box>
-                )}
-              {selectedEmployee && (
-                <FormHelperText>
-                  Selected: {selectedEmployee.firstname}{" "}
-                  {selectedEmployee.lastname}
-                </FormHelperText>
-              )}
             </FormControl>
 
-            {/* Description */}
-            <FormControl isRequired>
+            {/* Description (Read-only for HR) */}
+            <FormControl>
               <FormLabel fontWeight="600">Description</FormLabel>
               <Textarea
                 name="descriptions"
                 value={formData.descriptions}
                 onChange={handleChange}
-                placeholder="Enter suspension reason/description"
+                placeholder="Suspension reason"
                 rows={4}
                 resize="vertical"
-                isDisabled={submitting}
+                isReadOnly={isHR}
+                bg={isHR ? "gray.100" : "white"}
+                cursor={isHR ? "not-allowed" : "text"}
               />
             </FormControl>
 
-            {/* End Date */}
+            {/* End Date (Read-only for HR) */}
             <FormControl>
               <FormLabel fontWeight="600">End Date</FormLabel>
               <Input
@@ -347,19 +232,26 @@ const EditSuspensionModal = ({ isOpen, onClose, item, onUpdate }) => {
                 name="endDate"
                 value={formData.endDate}
                 onChange={handleChange}
-                isDisabled={submitting}
+                isReadOnly={isHR}
+                bg={isHR ? "gray.100" : "white"}
+                cursor={isHR ? "not-allowed" : "text"}
               />
             </FormControl>
 
-            {/* Status */}
+            {/* Status - Editable for both HR and Admin */}
             <FormControl isRequired>
-              <FormLabel fontWeight="600">Status</FormLabel>
+              <FormLabel fontWeight="600">
+                Status{" "}
+                {isHR && <span style={{ color: "green" }}>(Editable)</span>}
+              </FormLabel>
               <Input
                 as="select"
                 name="status"
                 value={formData.status}
                 onChange={handleChange}
                 isDisabled={submitting}
+                borderColor={isHR ? "green.400" : "inherit"}
+                borderWidth={isHR ? "2px" : "1px"}
               >
                 <option value="active">Active</option>
                 <option value="pending">Pending</option>
@@ -385,7 +277,7 @@ const EditSuspensionModal = ({ isOpen, onClose, item, onUpdate }) => {
             isLoading={submitting}
             loadingText="Saving..."
           >
-            {isEditMode ? "Update" : "Create"}
+            Update
           </Button>
         </ModalFooter>
       </ModalContent>
