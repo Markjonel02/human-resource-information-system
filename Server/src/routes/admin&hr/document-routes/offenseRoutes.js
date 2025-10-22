@@ -20,7 +20,12 @@ router.use(verifyJWT);
 // ✅ Always define specific routes BEFORE parameter-based routes like `/:id`
 
 // 🔍 Search employees (must come first!)
-router.get("/searchEmployees", authorizeRoles("admin", "hr"), searchEmployees);
+router.get(
+  "/searchEmployees",
+  authorizeRoles("admin", "hr"),
+
+  searchEmployees
+);
 
 // 🕒 Check employees with multiple late records
 router.get(
@@ -33,7 +38,7 @@ router.get(
 router.post("/create", authorizeRoles("admin", "hr"), createOffense);
 
 // 📂 Get all offenses
-router.get("/", getAllOffenses);
+router.get("/", authorizeRoles("admin", "hr"), getAllOffenses);
 
 // 👤 Get offenses for specific employee
 router.get("/employee/:employeeId", getOffensesByEmployee);
