@@ -69,7 +69,7 @@ const SuspensionSection = ({ data, color, refreshData }) => {
     }
 
     try {
-      await axiosInstance.delete(`/suspension/${suspensionId}`);
+      await axiosInstance.delete(`/Suspension/delete/${suspensionId}`);
 
       toast({
         title: "Success",
@@ -102,6 +102,8 @@ const SuspensionSection = ({ data, color, refreshData }) => {
     switch (status?.toLowerCase()) {
       case "active":
         return "yellow";
+      case "pending":
+        return "blue";
       case "completed":
         return "green";
       case "cancelled":
@@ -109,6 +111,24 @@ const SuspensionSection = ({ data, color, refreshData }) => {
       default:
         return "gray";
     }
+  };
+
+  // Helper function to get employee name from populated object
+  const getEmployeeName = (employee) => {
+    if (!employee) return "—";
+
+    if (typeof employee === "object") {
+      const first = employee.firstname || "";
+      const last = employee.lastname || "";
+      return `${first} ${last}`.trim() || employee.employeeEmail || "—";
+    }
+    return employee;
+  };
+
+  // Helper function to get employee department from populated object
+  const getEmployeeDepartment = (employee) => {
+    if (!employee || typeof employee !== "object") return null;
+    return employee.department;
   };
 
   return (
@@ -149,80 +169,90 @@ const SuspensionSection = ({ data, color, refreshData }) => {
             </Tr>
           </Thead>
           <Tbody>
-            {data.map((item, index) => (
-              <Tr
-                key={item?._id || item?.id || index}
-                _hover={{ bg: hoverBg }}
-                transition="background-color 0.2s ease"
-                borderBottomWidth="1px"
-                borderBottomColor={border}
-              >
-                <Td fontWeight="600" color={color} maxW="150px">
-                  {item.title || "Untitled Suspension"}
-                </Td>
-                <Td>
-                  {item.status && (
-                    <Badge
-                      colorScheme={getStatusColor(item.status)}
-                      borderRadius="full"
-                      px={2}
-                    >
-                      {item.status}
-                    </Badge>
-                  )}
-                </Td>
-                <Td fontSize="sm" color="gray.600" maxW="250px" noOfLines={2}>
-                  {item.reason || item.description || "No reason provided."}
-                </Td>
-                <Td fontSize="sm">
-                  {item.employeeName ? (
+            {data && data.length > 0 ? (
+              data.map((item, index) => (
+                <Tr
+                  key={item?._id || item?.id || index}
+                  _hover={{ bg: hoverBg }}
+                  transition="background-color 0.2s ease"
+                  borderBottomWidth="1px"
+                  borderBottomColor={border}
+                >
+                  <Td fontWeight="600" color={color} maxW="150px">
+                    {item.title || "Untitled Suspension"}
+                  </Td>
+                  <Td>
+                    {item.status && (
+                      <Badge
+                        colorScheme={getStatusColor(item.status)}
+                        px={2}
+                      >
+                        {item.status}
+                      </Badge>
+                    )}
+                  </Td>
+                  <Td fontSize="sm" color="gray.600" maxW="250px" noOfLines={2}>
+                    {item.descriptions ||
+                      item.reason ||
+                      item.description ||
+                      "No reason provided."}
+                  </Td>
+                  <Td fontSize="sm">
                     <Box>
-                      <Box fontWeight="600">{item.employeeName}</Box>
-                      {item.employeeDepartment && (
+                      <Box fontWeight="600">
+                        {getEmployeeName(item.employee)}
+                      </Box>
+                      {getEmployeeDepartment(item.employee) && (
                         <Box fontSize="xs" color="gray.500">
-                          {item.employeeDepartment}
+                          {getEmployeeDepartment(item.employee)}
                         </Box>
                       )}
                     </Box>
-                  ) : (
-                    <span>—</span>
-                  )}
-                </Td>
-                <Td fontSize="sm" color="gray.600">
-                  {item.startDate && item.endDate
-                    ? `${new Date(
-                        item.startDate
-                      ).toLocaleDateString()} - ${new Date(
-                        item.endDate
-                      ).toLocaleDateString()}`
-                    : "—"}
-                </Td>
-                <Td isNumeric>
-                  <HStack spacing={2} justify="flex-end">
-                    <Tooltip label="Edit suspension" placement="top">
-                      <IconButton
-                        aria-label="Edit"
-                        icon={<Edit2 size={18} />}
-                        size="sm"
-                        colorScheme="orange"
-                        variant="ghost"
-                        onClick={() => handleEdit(item)}
-                      />
-                    </Tooltip>
-                    <Tooltip label="Delete suspension" placement="top">
-                      <IconButton
-                        aria-label="Delete"
-                        icon={<Trash2 size={18} />}
-                        size="sm"
-                        colorScheme="red"
-                        variant="ghost"
-                        onClick={() => handleDelete(item)}
-                      />
-                    </Tooltip>
-                  </HStack>
+                  </Td>
+                  <Td fontSize="sm" color="gray.600">
+                    {item.startDate && item.endDate
+                      ? `${new Date(
+                          item.startDate
+                        ).toLocaleDateString()} - ${new Date(
+                          item.endDate
+                        ).toLocaleDateString()}`
+                      : item.startDate
+                      ? `From ${new Date(item.startDate).toLocaleDateString()}`
+                      : "—"}
+                  </Td>
+                  <Td isNumeric>
+                    <HStack spacing={2} justify="flex-end">
+                      <Tooltip label="Edit suspension" placement="top">
+                        <IconButton
+                          aria-label="Edit"
+                          icon={<Edit2 size={18} />}
+                          size="sm"
+                          colorScheme="orange"
+                          variant="ghost"
+                          onClick={() => handleEdit(item)}
+                        />
+                      </Tooltip>
+                      <Tooltip label="Delete suspension" placement="top">
+                        <IconButton
+                          aria-label="Delete"
+                          icon={<Trash2 size={18} />}
+                          size="sm"
+                          colorScheme="red"
+                          variant="ghost"
+                          onClick={() => handleDelete(item)}
+                        />
+                      </Tooltip>
+                    </HStack>
+                  </Td>
+                </Tr>
+              ))
+            ) : (
+              <Tr>
+                <Td colSpan={6} textAlign="center" py={8} color="gray.500">
+                  No suspension records found
                 </Td>
               </Tr>
-            ))}
+            )}
           </Tbody>
         </Table>
       </Box>

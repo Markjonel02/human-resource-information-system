@@ -125,21 +125,17 @@ exports.getAllSuspensions = async (req, res) => {
       .populate("suspendBy", "firstname lastname employeeEmail")
       .sort({ createdAt: -1 });
 
-    if (suspensions.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No suspensions found",
-        data: [],
-      });
-    }
-
     return res.status(200).json({
       success: true,
-      message: "Suspensions retrieved successfully",
+      message:
+        suspensions.length === 0
+          ? "No suspensions found"
+          : "Suspensions retrieved successfully",
       count: suspensions.length,
       data: suspensions,
     });
   } catch (error) {
+    console.log(error);
     return res.status(500).json({
       success: false,
       message: "Error retrieving suspensions",
@@ -147,7 +143,6 @@ exports.getAllSuspensions = async (req, res) => {
     });
   }
 };
-
 // Get all suspensions for a specific employee
 exports.getEmployeeSuspensions = async (req, res) => {
   try {
@@ -200,7 +195,10 @@ exports.updateSuspensionStatus = async (req, res) => {
       { status, updatedAt: Date.now() },
       { new: true }
     )
-      .populate("employee", "firstname lastname employeeEmail")
+      .populate(
+        "employee",
+        "firstname lastname employeeEmail department jobposition"
+      )
       .populate("suspendBy", "firstname lastname employeeEmail");
 
     if (!suspension) {
@@ -216,6 +214,7 @@ exports.updateSuspensionStatus = async (req, res) => {
       data: suspension,
     });
   } catch (error) {
+    console.log(error);
     return res.status(500).json({
       success: false,
       message: "Error updating suspension status",
@@ -224,6 +223,66 @@ exports.updateSuspensionStatus = async (req, res) => {
   }
 };
 
+// Full update - for admin only (if needed)
+exports.updateSuspension = async (req, res) => {
+  try {
+    const { suspensionId } = req.params;
+    const { title, descriptions, employee, endDate, status } = req.body;
+
+    // Validate status if provided
+    if (status) {
+      const validStatuses = ["active", "pending", "completed", "cancelled"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid status",
+        });
+      }
+    }
+
+    // Build update object - only allow certain fields
+    const updateData = {
+      updatedAt: Date.now(),
+    };
+
+    if (title) updateData.title = title;
+    if (descriptions) updateData.descriptions = descriptions;
+    if (employee) updateData.employee = employee;
+    if (endDate) updateData.endDate = endDate;
+    if (status) updateData.status = status;
+
+    const suspension = await Suspension.findByIdAndUpdate(
+      suspensionId,
+      updateData,
+      { new: true }
+    )
+      .populate(
+        "employee",
+        "firstname lastname employeeEmail department jobposition"
+      )
+      .populate("suspendBy", "firstname lastname employeeEmail");
+
+    if (!suspension) {
+      return res.status(404).json({
+        success: false,
+        message: "Suspension not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Suspension updated successfully",
+      data: suspension,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      success: false,
+      message: "Error updating suspension",
+      error: error.message,
+    });
+  }
+};
 // Delete suspension
 exports.deleteSuspension = async (req, res) => {
   try {

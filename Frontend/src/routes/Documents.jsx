@@ -39,14 +39,6 @@ import PolicyForm from "../components/documents/PolicyForm";
 import AddOffenseModal from "../components/documents/offenses/AddOffenseModal";
 import AddSuspensionModal from "../components/documents/suspended/AddSuspensionModal";
 
-const employees = [
-  { id: "12345", name: "John Doe", department: "Engineering" },
-  { id: "67890", name: "Jane Smith", department: "Human Resources" },
-  { id: "11223", name: "Peter Jones", department: "Marketing" },
-  { id: "44556", name: "Alice Brown", department: "Sales" },
-  { id: "77889", name: "Bob White", department: "Engineering" },
-];
-
 const Documents = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [tabIndex, setTabIndex] = useState(0);
@@ -79,14 +71,21 @@ const Documents = () => {
   // --- Fetch Suspensions ---
   const fetchSuspensions = async () => {
     try {
-      const res = await axiosInstance.get("/Suspension/suspension");
+      console.log("Fetching suspensions...");
+      const res = await axiosInstance.get("/Suspension/suspension-all");
+      console.log("Response:", res);
+      console.log("Response data:", res.data);
+      console.log("Response data.data:", res.data.data);
+
       setSuspensionData(res.data.data || res.data || []);
+      console.log("Suspension data set:", res.data.data || res.data || []);
     } catch (err) {
       console.error("Failed to fetch suspensions:", err);
+      console.error("Error status:", err.response?.status);
+      console.error("Error message:", err.response?.data?.message);
       setSuspensionData([]);
     }
   };
-
   // --- Refresh Handlers ---
   const handleOffenseRefresh = async () => {
     await fetchOffenses();

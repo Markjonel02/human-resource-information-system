@@ -15,13 +15,6 @@ router.post(
   suspensionController.createSuspension
 );
 
-// Search suspensions
-router.get(
-  "/search",
-  authorizeRoles("admin", "hr"),
-  suspensionController.searchEmployeeSuspensions
-);
-
 // Search employees
 router.get(
   "/search-employees",
@@ -29,20 +22,40 @@ router.get(
   suspensionController.searchEmployees
 );
 
-// Get suspensions for specific employee
+// Search suspensions
+router.get(
+  "/search",
+  authorizeRoles("admin", "hr"),
+  suspensionController.searchEmployeeSuspensions
+);
+
+// Get all suspensions - MUST BE BEFORE /:employeeId
+router.get(
+  "/suspension-all",
+  authorizeRoles("admin", "hr"),
+  suspensionController.getAllSuspensions
+);
+
+// Get suspensions for specific employee - GENERIC ROUTES LAST
 router.get(
   "/:employeeId",
   authorizeRoles("admin", "hr"),
   suspensionController.getEmployeeSuspensions
 );
 
-// Update suspension status
+// HR can only update status
 router.put(
   "/update/:suspensionId",
-  authorizeRoles("admin", "hr"),
+  authorizeRoles("hr"),
   suspensionController.updateSuspensionStatus
 );
 
+// Admin can update everything
+router.put(
+  "/update-full/:suspensionId",
+  authorizeRoles("admin"),
+  suspensionController.updateSuspension
+);
 // Delete suspension
 router.delete(
   "/delete/:suspensionId",
