@@ -11,7 +11,54 @@ const formatOffenseData = (offense) => {
       ? `${offense.employee.firstname} ${offense.employee.lastname}`.trim()
       : "",
     employeeDepartment: offense.employee?.department || "",
+    recordedBy: offense.recordedBy
+      ? `${offense.recordedBy.firstname} ${offense.recordedBy.lastname}`.trim()
+      : "Admin",
   };
+};
+
+const getMyOffenses = async (req, res) => {
+  try {
+    // Get the current user's ID from the JWT token
+    const userId = req.user._id || req.user.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
+    const offenses = await Offenses.find({ employee: userId })
+      .populate("employee", "firstname lastname email department employeeId")
+      .populate("recordedBy", "firstname lastname email")
+      .sort({ date: -1 });
+
+    if (offenses.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No offenses found for you",
+        count: 0,
+        offenses: [],
+      });
+    }
+
+    const formattedOffenses = offenses.map(formatOffenseData);
+
+    res.status(200).json({
+      success: true,
+      message: "Your offenses retrieved successfully",
+      count: formattedOffenses.length,
+      offenses: formattedOffenses,
+    });
+  } catch (error) {
+    console.error("Get my offenses error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch your offenses",
+      error: error.message,
+    });
+  }
 };
 
 // @desc    Create offense
@@ -39,7 +86,10 @@ const createOffense = async (req, res) => {
     await offense.save();
 
     // Populate employee data with correct field names
-    await offense.populate("employee", "firstname lastname department");
+    await offense.populate(
+      "employee",
+      "firstname lastname department employeeId"
+    );
 
     res.status(201).json({
       success: true,
@@ -341,4 +391,5 @@ module.exports = {
   getEmployeesWithMultipleLates,
   getOffensesByEmployee,
   searchEmployees,
+  getMyOffenses,
 };

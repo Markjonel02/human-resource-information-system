@@ -12,6 +12,7 @@ const {
   getEmployeesWithMultipleLates,
   getOffensesByEmployee,
   searchEmployees,
+  getMyOffenses,
 } = require("../../../controllers/Admin/dcuments/offenses");
 
 // ✅ Apply JWT verification to all routes
@@ -38,7 +39,7 @@ router.get(
 router.post("/create", authorizeRoles("admin", "hr"), createOffense);
 
 // 📂 Get all offenses
-router.get("/", authorizeRoles("admin", "hr"), getAllOffenses);
+router.get("/", getAllOffenses);
 
 // 👤 Get offenses for specific employee
 router.get("/employee/:employeeId", getOffensesByEmployee);
@@ -52,4 +53,5 @@ router.put("/:id", authorizeRoles("admin", "hr"), updateOffense);
 // ❌ Delete offense
 router.delete("/:id", authorizeRoles("admin"), deleteOffense);
 
+router.get("/my-offenses", getMyOffenses);
 module.exports = router;
