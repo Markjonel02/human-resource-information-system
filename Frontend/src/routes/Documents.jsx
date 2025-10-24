@@ -67,6 +67,25 @@ const Documents = () => {
       setOffenseData([]);
     }
   };
+  // --- Fetch Offenses for Logged-in Employee ---
+  const fetchMyOffenses = async (offenseId) => {
+    try {
+      if (!offenseId) {
+        console.warn("No offenseId provided for fetchMyOffenses");
+        return;
+      }
+
+      const res = await axiosInstance.get(`/offense/offenses/${offenseId}`);
+      console.log("Fetched offense by ID:", res.data);
+
+      // assuming your backend returns a single offense object
+      const offense = res.data.offense || res.data;
+      setOffenseData(offense ? [offense] : []);
+    } catch (err) {
+      console.error("Failed to fetch offense by ID:", err);
+      setOffenseData([]);
+    }
+  };
 
   // --- Fetch Suspensions ---
   const fetchSuspensions = async () => {
@@ -96,8 +115,26 @@ const Documents = () => {
   };
 
   // --- Fetch Offenses and Suspensions on Mount ---
-  useEffect(() => {
+  /*   useEffect(() => {
     fetchOffenses();
+    fetchSuspensions();
+  }, []); */
+
+  useEffect(() => {
+    const role = localStorage.getItem("role"); // e.g., "admin" or "employee"
+    const employeeId = localStorage.getItem("employeeId"); // store when user logs in
+
+    if (role === "admin") {
+      fetchOffenses();
+    } else if (role === "employee" && employeeId) {
+      fetchEmployeeOffenses(employeeId);
+    } else {
+      console.warn(
+        "No valid role or employeeId found, fetching all offenses by default"
+      );
+      fetchOffenses();
+    }
+
     fetchSuspensions();
   }, []);
 
