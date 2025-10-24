@@ -32,7 +32,11 @@ const AddOffenseModal = ({ isOpen, onClose, onSuccess }) => {
   const [employeeName, setEmployeeName] = useState("");
   const [employeeDepartment, setEmployeeDepartment] = useState("");
   const [severity, setSeverity] = useState("minor");
+  const [category, setCategory] = useState("other");
+  const [status, setStatus] = useState("pending");
   const [date, setDate] = useState("");
+  const [actionTaken, setActionTaken] = useState("");
+  const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   // For employee search
@@ -86,6 +90,7 @@ const AddOffenseModal = ({ isOpen, onClose, onSuccess }) => {
       if (response.data.suggestedOffense && !title) {
         setTitle(response.data.suggestedOffense.title);
         setSeverity(response.data.suggestedOffense.severity);
+        setCategory("attendance"); // Auto-set category to attendance for late records
       }
     } catch (error) {
       console.error("Failed to fetch late records:", error);
@@ -136,6 +141,10 @@ const AddOffenseModal = ({ isOpen, onClose, onSuccess }) => {
         employeeName: employeeName.trim(),
         employeeDepartment: employeeDepartment.trim(),
         severity,
+        category,
+        status,
+        actionTaken: actionTaken.trim(),
+        notes: notes.trim(),
         date: date || new Date().toISOString(),
       });
 
@@ -178,7 +187,11 @@ const AddOffenseModal = ({ isOpen, onClose, onSuccess }) => {
     setEmployeeName("");
     setEmployeeDepartment("");
     setSeverity("minor");
+    setCategory("other");
+    setStatus("pending");
     setDate("");
+    setActionTaken("");
+    setNotes("");
     setSearchQuery("");
     setEmployees([]);
     setLateRecords([]);
@@ -329,8 +342,35 @@ const AddOffenseModal = ({ isOpen, onClose, onSuccess }) => {
                 onChange={(e) => setSeverity(e.target.value)}
               >
                 <option value="minor">Minor</option>
+                <option value="moderate">Moderate</option>
                 <option value="major">Major</option>
                 <option value="critical">Critical</option>
+              </Select>
+            </FormControl>
+
+            <FormControl isRequired>
+              <FormLabel>Category</FormLabel>
+              <Select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                <option value="attendance">Attendance</option>
+                <option value="conduct">Conduct</option>
+                <option value="performance">Performance</option>
+                <option value="insubordination">Insubordination</option>
+                <option value="other">Other</option>
+              </Select>
+            </FormControl>
+
+            <FormControl isRequired>
+              <FormLabel>Status</FormLabel>
+              <Select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="pending">Pending</option>
+                <option value="acknowledged">Acknowledged</option>
+                <option value="resolved">Resolved</option>
               </Select>
             </FormControl>
 
@@ -344,12 +384,32 @@ const AddOffenseModal = ({ isOpen, onClose, onSuccess }) => {
             </FormControl>
 
             <FormControl>
+              <FormLabel>Action Taken</FormLabel>
+              <Input
+                value={actionTaken}
+                onChange={(e) => setActionTaken(e.target.value)}
+                placeholder="e.g., Verbal warning, Written warning, Suspension"
+              />
+            </FormControl>
+
+            <FormControl>
               <FormLabel>Description / Details</FormLabel>
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Enter offense details..."
-                rows={4}
+                rows={3}
+                resize="vertical"
+              />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Additional Notes</FormLabel>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Any additional notes or observations..."
+                rows={2}
                 resize="vertical"
               />
             </FormControl>

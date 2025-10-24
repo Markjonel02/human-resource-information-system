@@ -61,6 +61,55 @@ const getMyOffenses = async (req, res) => {
   }
 };
 
+// @desc    Get employee offenses (by authenticated employee)
+// @route   GET /api/offense/my-offenses
+// @access  Private (Employee can view their own offenses)
+
+const getEmployeeOffenses = async (req, res) => {
+  try {
+    // Get the current authenticated employee's ID
+    const employeeId = req.user._id || req.user.id;
+
+    if (!employeeId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
+    // Fetch all offenses for the logged-in employee
+    const offenses = await Offenses.find({ employee: employeeId })
+      .populate("employee", "firstname lastname email department employeeId")
+      .populate("recordedBy", "firstname lastname email")
+      .sort({ date: -1 }); // Sort by most recent first
+
+    if (!offenses || offenses.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No offenses found for you",
+        count: 0,
+        offenses: [],
+      });
+    }
+
+    const formattedOffenses = offenses.map(formatOffenseData);
+
+    res.status(200).json({
+      success: true,
+      message: "Your offenses retrieved successfully",
+      count: formattedOffenses.length,
+      offenses: formattedOffenses,
+    });
+  } catch (error) {
+    console.error("Get employee offenses error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve your offenses",
+      error: error.message,
+    });
+  }
+};
+
 // @desc    Create offense
 // @route   POST /api/offense
 // @access  Private
@@ -392,4 +441,5 @@ module.exports = {
   getOffensesByEmployee,
   searchEmployees,
   getMyOffenses,
+  getEmployeeOffenses,
 };
