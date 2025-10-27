@@ -33,85 +33,35 @@ import {
 import axiosInstance from "../../../lib/axiosInstance";
 import EmployeeOffenseSection from "../../../components/documents/employee/employee_offenses/EmployeeOffenseSection";
 import EmployeeDocumentsSection from "../../../components/documents/employee/EmployeeDocuments";
+
 const EmployeeDocuments = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [tabIndex, setTabIndex] = useState(0);
-  const [nameSuggestions, setNameSuggestions] = useState([]);
   const [policyData, setPolicyData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const debounceTimeout = useRef(null);
-  const [offenseData, setOffenseData] = useState([]);
   const [suspensionData, setSuspensionData] = useState([]);
-  const [offenseLoading, setOffenseLoading] = useState(false);
+  const debounceTimeout = useRef(null);
 
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    employeeName: "",
-    employeeDepartment: "",
-    offenseDetails: "",
-  });
-
-  // --- Fetch All Offenses for Logged-in Employee ---
-  /*   const fetchMyOffenses = async () => {
+  // --- Fetch all uploaded policy PDFs ---
+  const fetchPolicies = async () => {
     try {
-      setOffenseLoading(true);
-      console.log("Fetching my offenses...");
+      setIsLoading(true);
+      console.log("Fetching policies...");
+      const res = await axiosInstance.get("/policy/get-policy");
 
-      const res = await axiosInstance.get("/employee/my-offenses");
-      console.log("Fetched my offenses:", res.data);
+      console.log("Full response:", res.data);
 
-      // Get all offense IDs
-      const offenseIds = res.data.offenses?.map((offense) => offense._id) || [];
-      console.log("Offense IDs:", offenseIds);
+      const data = res.data.policies || res.data || [];
 
-      // Fetch detailed data for each offense
-      const detailedOffenses = await Promise.all(
-        offenseIds.map(async (id) => {
-          try {
-            const offenseRes = await axiosInstance.get(
-              `/employee/offenses/${id}`
-            );
-            return offenseRes.data.offense;
-          } catch (err) {
-            console.error(`Failed to fetch offense ${id}:`, err);
-            return null;
-          }
-        })
-      );
+      console.log("Extracted policies:", data);
 
-      // Filter out any null values and set data
-      const validOffenses = detailedOffenses.filter(
-        (offense) => offense !== null
-      );
-      console.log("Detailed offenses:", validOffenses);
-      setOffenseData(validOffenses);
+      setPolicyData(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("Failed to fetch my offenses:", err);
-      console.error("Error status:", err.response?.status);
-      console.error("Error message:", err.response?.data?.message);
-      setOffenseData([]);
+      console.error("Failed to fetch policies:", err);
+      console.error("Error response:", err.response);
+      setPolicyData([]);
     } finally {
-      setOffenseLoading(false);
-    }
-  }; */
-
-  // --- Fetch Specific Offense by ID (if needed) ---
-  const fetchOffenseById = async (offenseId) => {
-    try {
-      if (!offenseId) {
-        console.warn("No offenseId provided");
-        return null;
-      }
-
-      console.log("Fetching offense by ID:", offenseId);
-      const res = await axiosInstance.get(`/employee/offenses/${offenseId}`);
-      console.log("Fetched offense by ID:", res.data);
-
-      return res.data.offense || res.data;
-    } catch (err) {
-      console.error("Failed to fetch offense by ID:", err);
-      return null;
+      setIsLoading(false);
     }
   };
 
@@ -133,112 +83,20 @@ const EmployeeDocuments = () => {
   };
 
   // --- Refresh Handlers ---
-  const handleOffenseRefresh = async () => {
-    await fetchOffenseById();
+  const handleDataRefresh = async () => {
+    await fetchPolicies();
   };
 
   const handleSuspensionRefresh = async () => {
     await fetchSuspensions();
   };
 
-  // --- Fetch Offenses and Suspensions on Mount ---
-  useEffect(() => {
-    const role = localStorage.getItem("role");
-    const employeeId = localStorage.getItem("employeeId");
-
-    // For employees, fetch their own offenses
-    // For admins, you can create a separate admin endpoint
-    if (role === "employee") {
-      fetchMyOffenses();
-    } else if (role === "admin") {
-      // TODO: Create an admin endpoint to fetch all offenses
-      fetchMyOffenses(); // For now, fallback to employee endpoint
-    }
-
-    fetchSuspensions();
-  }, []);
-
-  // --- Fetch all uploaded policy PDFs ---
-  const fetchPolicies = async () => {
-    try {
-      setIsLoading(true);
-      const res = await axiosInstance.get("/policy/get-policy");
-
-      console.log("Full response:", res.data);
-
-      const data = res.data.policies || res.data || [];
-
-      console.log("Extracted policies:", data);
-
-      setPolicyData(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("Failed to fetch policies:", err);
-      console.error("Error response:", err.response);
-      setPolicyData([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // --- Fetch once on mount ---
   useEffect(() => {
+    console.log("EmployeeDocuments mounted, fetching initial data...");
     fetchPolicies();
+    fetchSuspensions();
   }, []);
-
-  // --- Refresh after successful upload ---
-  const handleSuccessUpload = () => {
-    fetchPolicies();
-  };
-
-  // --- Refresh after successful update ---
-  const handleDataRefresh = async () => {
-    await fetchPolicies();
-  };
-
-  // --- Debounce for name suggestions ---
-  const filterNameSuggestions = useCallback((value) => {
-    if (value.length > 1) {
-      // TODO: Replace with actual employees data from your backend
-      const employees = [];
-      const filtered = employees.filter((employee) =>
-        employee.name.toLowerCase().includes(value.toLowerCase())
-      );
-      setNameSuggestions(filtered);
-    } else {
-      setNameSuggestions([]);
-    }
-  }, []);
-
-  const handleNameChange = (e) => {
-    const value = e.target.value;
-    setFormData((prev) => ({ ...prev, employeeName: value }));
-    if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
-    debounceTimeout.current = setTimeout(
-      () => filterNameSuggestions(value),
-      300
-    );
-  };
-
-  const handleSelectName = (employee) => {
-    setFormData((prev) => ({
-      ...prev,
-      employeeName: employee.name,
-      employeeDepartment: employee.department,
-    }));
-    setNameSuggestions([]);
-    if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
-  };
-
-  const resetForm = () => {
-    setFormData({
-      title: "",
-      description: "",
-      employeeName: "",
-      employeeDepartment: "",
-      offenseDetails: "",
-    });
-    setNameSuggestions([]);
-  };
 
   return (
     <Box
@@ -321,6 +179,7 @@ const EmployeeDocuments = () => {
           </TabList>
 
           <TabPanels>
+            {/* --- POLICIES TAB --- */}
             <TabPanel>
               {isLoading ? (
                 <Center py={10}>
@@ -344,30 +203,24 @@ const EmployeeDocuments = () => {
               )}
             </TabPanel>
 
+            {/* --- OFFENSES TAB --- */}
             <TabPanel>
-              {offenseLoading ? (
-                <Center py={10}>
-                  <Spinner size="lg" color="red.500" />
-                </Center>
-              ) : offenseData.length === 0 ? (
-                <Center py={10}>
-                  <Text color="gray.500">No offenses recorded for you.</Text>
-                </Center>
-              ) : (
-                <EmployeeOffenseSection
-                  data={offenseData}
-                  color="red.700"
-                  refreshData={handleOffenseRefresh}
-                />
-              )}
+              {/* EmployeeOffenseSection handles its own data fetching from /employee/my-offenses */}
+              <EmployeeOffenseSection
+                color="red.700"
+                isEmployeeView={true}
+              />
             </TabPanel>
 
+            {/* --- SUSPENSIONS TAB --- */}
             <TabPanel>
-              {/*    <SuspensionSection
-                data={suspensionData}
-                color="orange.700"
-                refreshData={handleSuspensionRefresh}
-              /> */}
+              {suspensionData.length === 0 ? (
+                <Center py={10}>
+                  <Text color="gray.500">No suspensions recorded.</Text>
+                </Center>
+              ) : (
+                <Text>Suspensions section - Add SuspensionSection component here</Text>
+              )}
             </TabPanel>
           </TabPanels>
         </Tabs>

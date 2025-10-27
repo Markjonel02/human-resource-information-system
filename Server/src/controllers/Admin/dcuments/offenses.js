@@ -217,7 +217,16 @@ const getOffenseById = async (req, res) => {
 // @access  Private (Admin, HR)
 const updateOffense = async (req, res) => {
   try {
-    const { title, severity, date, description } = req.body;
+    const {
+      title,
+      severity,
+      date,
+      description,
+      category,
+      status,
+      actionTaken,
+      notes,
+    } = req.body;
 
     const offense = await Offenses.findById(req.params.id);
 
@@ -228,10 +237,15 @@ const updateOffense = async (req, res) => {
       });
     }
 
-    if (title) offense.title = title;
-    if (severity) offense.severity = severity;
-    if (date) offense.date = date;
+    // Update all fields that are provided
+    if (title !== undefined) offense.title = title;
+    if (severity !== undefined) offense.severity = severity;
+    if (date !== undefined) offense.date = date;
     if (description !== undefined) offense.description = description;
+    if (category !== undefined) offense.category = category;
+    if (status !== undefined) offense.status = status;
+    if (actionTaken !== undefined) offense.actionTaken = actionTaken;
+    if (notes !== undefined) offense.notes = notes;
 
     await offense.save();
     await offense.populate(
