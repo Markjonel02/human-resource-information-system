@@ -115,8 +115,17 @@ const getEmployeeOffenses = async (req, res) => {
 // @access  Private
 const createOffense = async (req, res) => {
   try {
-    const { title, severity, date, description, employeeId } = req.body;
+    const {
+      title,
+      severity,
+      date,
+      description,
+      employeeId,
+      actionTaken,
+      notes,
+    } = req.body;
 
+    // ✅ Validate required fields
     if (!title || !severity || !employeeId) {
       return res.status(400).json({
         success: false,
@@ -124,17 +133,20 @@ const createOffense = async (req, res) => {
       });
     }
 
+    // ✅ Create new offense
     const offense = new Offenses({
       employee: employeeId,
       title,
       severity,
       date: date || new Date(),
       description: description || "",
+      actionTaken: actionTaken || "",
+      notes: notes || "",
     });
 
     await offense.save();
 
-    // Populate employee data with correct field names
+    // ✅ Populate employee details
     await offense.populate(
       "employee",
       "firstname lastname department employeeId"

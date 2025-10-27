@@ -3,15 +3,45 @@ const Offenses = require("../../../models/document/OffensesModel");
 // Helper function to format offense data
 const formatOffenseData = (offense) => {
   const offenseObj = offense.toObject();
+
+  // Format employee name
+  const employeeName = offense.employee
+    ? `${offense.employee.firstname} ${offense.employee.lastname}`.trim()
+    : "";
+
+  // Format recorded by name - handle both populated objects and IDs
+  let recordedByName = "system";
+  if (offense.recordedBy) {
+    if (
+      typeof offense.recordedBy === "object" &&
+      offense.recordedBy.firstname
+    ) {
+      recordedByName =
+        `${offense.recordedBy.firstname} ${offense.recordedBy.lastname}`.trim();
+    } else if (typeof offense.recordedBy === "string") {
+      recordedByName = offense.recordedBy; // If it's just an ID
+    }
+  }
+
+  console.log("DEBUG formatOffenseData:", {
+    title: offense.title,
+    recordedBy: offense.recordedBy,
+    recordedByName,
+    actionTaken: offense.actionTaken,
+  });
+
   return {
     ...offenseObj,
-    employeeName: offense.employee
-      ? `${offense.employee.firstname} ${offense.employee.lastname}`.trim()
-      : "",
+    employeeName,
     employeeDepartment: offense.employee?.department || "",
-    recordedByName: offense.recordedBy
-      ? `${offense.recordedBy.firstname} ${offense.recordedBy.lastname}`.trim()
-      : "system",
+    recordedByName,
+    // Ensure these fields are included
+    actionTaken: offense.actionTaken || "",
+    notes: offense.notes || "",
+    description: offense.description || "",
+    date: offense.date,
+    createdAt: offense.createdAt,
+    updatedAt: offense.updatedAt,
   };
 };
 
@@ -23,6 +53,7 @@ const getMyOffenses = async (req, res) => {
     // Get the current authenticated employee's ID
     const employeeId = req.user._id || req.user.id;
 
+    console.log("=== GET MY OFFENSES ===");
     console.log("Current User Full Object:", req.user);
     console.log("Current User ID (_id):", req.user._id);
     console.log("Current User ID (id):", req.user.id);
@@ -40,7 +71,7 @@ const getMyOffenses = async (req, res) => {
       req.user.role === "employee" &&
       req.user._id.toString() !== employeeId.toString()
     ) {
-      return res.status(403).json({
+      return res.status(403).json({ 
         success: false,
         message: "You can only view your own offenses",
       });
@@ -52,6 +83,9 @@ const getMyOffenses = async (req, res) => {
       .populate("recordedBy", "firstname lastname email")
       .sort({ date: -1 }); // Sort by most recent first
 
+    console.log("Found offenses count:", offenses.length);
+    console.log("Offenses data:", offenses);
+
     if (!offenses || offenses.length === 0) {
       return res.status(200).json({
         success: true,
@@ -62,6 +96,8 @@ const getMyOffenses = async (req, res) => {
     }
 
     const formattedOffenses = offenses.map(formatOffenseData);
+
+    console.log("Formatted offenses:", formattedOffenses);
 
     res.status(200).json({
       success: true,

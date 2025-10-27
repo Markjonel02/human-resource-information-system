@@ -118,14 +118,6 @@ const EmployeeDocuments = () => {
             Company Documents
           </Text>
           <Spacer />
-          <Button
-            leftIcon={<FaPlusCircle />}
-            colorScheme="blue"
-            size={{ base: "sm", md: "md" }}
-            onClick={onOpen}
-          >
-            Add New
-          </Button>
         </Flex>
 
         <Tabs
@@ -206,10 +198,7 @@ const EmployeeDocuments = () => {
             {/* --- OFFENSES TAB --- */}
             <TabPanel>
               {/* EmployeeOffenseSection handles its own data fetching from /employee/my-offenses */}
-              <EmployeeOffenseSection
-                color="red.700"
-                isEmployeeView={true}
-              />
+              <EmployeeOffenseSection color="red.700" isEmployeeView={true} />
             </TabPanel>
 
             {/* --- SUSPENSIONS TAB --- */}
@@ -219,7 +208,9 @@ const EmployeeDocuments = () => {
                   <Text color="gray.500">No suspensions recorded.</Text>
                 </Center>
               ) : (
-                <Text>Suspensions section - Add SuspensionSection component here</Text>
+                <Text>
+                  Suspensions section - Add SuspensionSection component here
+                </Text>
               )}
             </TabPanel>
           </TabPanels>
