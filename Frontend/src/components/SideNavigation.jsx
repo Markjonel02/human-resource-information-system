@@ -101,6 +101,9 @@ const SideNavigation = () => {
 
   const calendarPath =
     loggedInUser?.role === "employee" ? "/employee-calendar" : "/calendar";
+
+  const employeeDocumentsPath =
+    loggedInUser?.role === "employee" ? "/employee-documents" : "/documents";
   const menuItems = [
     // Dynamically set the Dashboard path
     { icon: Home, label: "Dashboard", path: dashboardPath },
@@ -115,7 +118,7 @@ const SideNavigation = () => {
     { icon: Calendar, label: "Calendar", path: calendarPath },
     { icon: MdOutlineRequestPage, label: "Request", path: leavePath },
     { icon: DollarSign, label: "Payroll", path: "/payroll" },
-    { icon: FileText, label: "Documents", path: "/documents" },
+    { icon: FileText, label: "Documents", path: employeeDocumentsPath },
     { icon: AiOutlineMonitor, label: "Monitoring", path: "/monitoring" },
   ].filter((item) => {
     // If an item has specific roles defined, only show it if the user's role is included

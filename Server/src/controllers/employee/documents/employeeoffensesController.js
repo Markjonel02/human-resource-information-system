@@ -9,9 +9,9 @@ const formatOffenseData = (offense) => {
       ? `${offense.employee.firstname} ${offense.employee.lastname}`.trim()
       : "",
     employeeDepartment: offense.employee?.department || "",
-    recordedBy: offense.recordedBy
+    recordedByName: offense.recordedBy
       ? `${offense.recordedBy.firstname} ${offense.recordedBy.lastname}`.trim()
-      : "admin",
+      : "system",
   };
 };
 
@@ -22,6 +22,11 @@ const getMyOffenses = async (req, res) => {
   try {
     // Get the current authenticated employee's ID
     const employeeId = req.user._id || req.user.id;
+
+    console.log("Current User Full Object:", req.user);
+    console.log("Current User ID (_id):", req.user._id);
+    console.log("Current User ID (id):", req.user.id);
+    console.log("Query Filter - employee:", employeeId);
 
     if (!employeeId) {
       return res.status(401).json({
@@ -154,7 +159,19 @@ const getOffenseStats = async (req, res) => {
             minor: 0,
             moderate: 0,
             major: 0,
-            severe: 0,
+            critical: 0,
+          },
+          byCategory: {
+            attendance: 0,
+            conduct: 0,
+            performance: 0,
+            insubordination: 0,
+            other: 0,
+          },
+          byStatus: {
+            pending: 0,
+            acknowledged: 0,
+            resolved: 0,
           },
           recentOffenses: [],
         },
@@ -166,13 +183,39 @@ const getOffenseStats = async (req, res) => {
       minor: 0,
       moderate: 0,
       major: 0,
-      severe: 0,
+      critical: 0,
+    };
+
+    // Count offenses by category
+    const byCategory = {
+      attendance: 0,
+      conduct: 0,
+      performance: 0,
+      insubordination: 0,
+      other: 0,
+    };
+
+    // Count offenses by status
+    const byStatus = {
+      pending: 0,
+      acknowledged: 0,
+      resolved: 0,
     };
 
     offenses.forEach((offense) => {
       const severity = offense.severity?.toLowerCase() || "minor";
       if (bySeverity[severity] !== undefined) {
         bySeverity[severity]++;
+      }
+
+      const category = offense.category?.toLowerCase() || "other";
+      if (byCategory[category] !== undefined) {
+        byCategory[category]++;
+      }
+
+      const status = offense.status?.toLowerCase() || "pending";
+      if (byStatus[status] !== undefined) {
+        byStatus[status]++;
       }
     });
 
@@ -181,6 +224,8 @@ const getOffenseStats = async (req, res) => {
       _id: offense._id,
       title: offense.title,
       severity: offense.severity,
+      category: offense.category,
+      status: offense.status,
       date: offense.date,
     }));
 
@@ -190,6 +235,8 @@ const getOffenseStats = async (req, res) => {
       stats: {
         totalOffenses: offenses.length,
         bySeverity,
+        byCategory,
+        byStatus,
         recentOffenses,
       },
     });
