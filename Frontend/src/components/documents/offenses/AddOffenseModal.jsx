@@ -334,54 +334,59 @@ const AddOffenseModal = ({ isOpen, onClose, onSuccess }) => {
                 placeholder="e.g., Multiple Late Arrivals"
               />
             </FormControl>
+            {/* Severity and Category on the same row */}
+            <HStack spacing={4}>
+              <FormControl isRequired>
+                <FormLabel>Severity</FormLabel>
+                <Select
+                  value={severity}
+                  onChange={(e) => setSeverity(e.target.value)}
+                >
+                  <option value="minor">Minor</option>
+                  <option value="moderate">Moderate</option>
+                  <option value="major">Major</option>
+                  <option value="critical">Critical</option>
+                </Select>
+              </FormControl>
 
-            <FormControl isRequired>
-              <FormLabel>Severity</FormLabel>
-              <Select
-                value={severity}
-                onChange={(e) => setSeverity(e.target.value)}
-              >
-                <option value="minor">Minor</option>
-                <option value="moderate">Moderate</option>
-                <option value="major">Major</option>
-                <option value="critical">Critical</option>
-              </Select>
-            </FormControl>
+              <FormControl isRequired>
+                <FormLabel>Category</FormLabel>
+                <Select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                >
+                  <option value="attendance">Attendance</option>
+                  <option value="conduct">Conduct</option>
+                  <option value="performance">Performance</option>
+                  <option value="insubordination">Insubordination</option>
+                  <option value="other">Other</option>
+                </Select>
+              </FormControl>
+            </HStack>
 
-            <FormControl isRequired>
-              <FormLabel>Category</FormLabel>
-              <Select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                <option value="attendance">Attendance</option>
-                <option value="conduct">Conduct</option>
-                <option value="performance">Performance</option>
-                <option value="insubordination">Insubordination</option>
-                <option value="other">Other</option>
-              </Select>
-            </FormControl>
+            {/* Status and Date on the same row */}
+            <HStack spacing={4}>
+              <FormControl isRequired>
+                <FormLabel>Status</FormLabel>
+                <Select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <option value="pending">Pending</option>
+                  <option value="acknowledged">Acknowledged</option>
+                  <option value="resolved">Resolved</option>
+                </Select>
+              </FormControl>
 
-            <FormControl isRequired>
-              <FormLabel>Status</FormLabel>
-              <Select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="pending">Pending</option>
-                <option value="acknowledged">Acknowledged</option>
-                <option value="resolved">Resolved</option>
-              </Select>
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>Date</FormLabel>
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </FormControl>
+              <FormControl>
+                <FormLabel>Date</FormLabel>
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </FormControl>
+            </HStack>
 
             <FormControl>
               <FormLabel>Action Taken</FormLabel>

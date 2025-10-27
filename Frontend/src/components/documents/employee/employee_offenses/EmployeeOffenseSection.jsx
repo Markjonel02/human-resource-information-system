@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Table,
@@ -15,12 +15,14 @@ import {
   useToast,
   IconButton,
   Tooltip,
+  Spinner,
+  Center,
 } from "@chakra-ui/react";
 import { Edit2, Trash2 } from "lucide-react";
 import axiosInstance from "../../../../lib/axiosInstance";
 
 const EmployeeOffenseSection = ({
-  data,
+  data = [],
   color,
   refreshData,
   isEmployeeView,
@@ -30,6 +32,9 @@ const EmployeeOffenseSection = ({
   const border = useColorModeValue("gray.200", "gray.700");
   const hoverBg = useColorModeValue("gray.50", "gray.700");
   const toast = useToast();
+
+  const [offenses, setOffenses] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const {
     isOpen: isEditOpen,
@@ -44,6 +49,62 @@ const EmployeeOffenseSection = ({
 
   const [selectedItem, setSelectedItem] = useState(null);
 
+  // --- Fetch offenses from /employee/my-offenses ---
+  const fetchMyOffenses = async () => {
+    try {
+      setLoading(true);
+      console.log("=== FETCHING MY OFFENSES ===");
+      console.log("Calling: /employee/my-offenses");
+
+      const res = await axiosInstance.get("/employeeOffenses/my-offenses");
+
+      console.log("✅ Response Status:", res.status);
+      console.log("✅ Full Response:", res.data);
+      console.log("✅ Offenses Array:", res.data.offenses);
+      console.log("✅ Offenses Count:", res.data.count);
+
+      const fetchedOffenses = res.data.offenses || [];
+      console.log("📊 Setting", fetchedOffenses.length, "offenses to state");
+
+      // Log each offense to verify data
+      fetchedOffenses.forEach((offense, index) => {
+        console.log(`Offense ${index + 1}:`, {
+          id: offense._id,
+          title: offense.title,
+          employeeName: offense.employeeName,
+          employee: offense.employee,
+          severity: offense.severity,
+          date: offense.date,
+        });
+      });
+
+      setOffenses(fetchedOffenses);
+    } catch (err) {
+      console.error("❌ Error fetching offenses:", err);
+      console.error("Error status:", err.response?.status);
+      console.error("Error message:", err.response?.data?.message);
+      console.error("Full error response:", err.response?.data);
+
+      toast({
+        title: "Error",
+        description:
+          err.response?.data?.message || "Failed to fetch your offenses",
+        status: "error",
+        duration: 3,
+        isClosable: true,
+      });
+
+      setOffenses([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- Fetch offenses on component mount ---
+  useEffect(() => {
+    fetchMyOffenses();
+  }, []);
+
   const handleEdit = (item) => {
     setSelectedItem(item);
     onEditOpen();
@@ -55,54 +116,9 @@ const EmployeeOffenseSection = ({
   };
 
   const handleUpdate = async () => {
+    await fetchMyOffenses();
     if (refreshData) {
       await refreshData();
-    }
-  };
-
-  const confirmDelete = async () => {
-    const offenseId = selectedItem?._id || selectedItem?.id;
-
-    if (!offenseId) {
-      toast({
-        title: "Delete failed",
-        description: "Offense ID not found.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-
-    try {
-      await axiosInstance.delete(`/offense/${offenseId}`);
-
-      toast({
-        title: "Success",
-        description: "Offense record deleted successfully.",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-
-      if (refreshData) {
-        await refreshData();
-      }
-      onDeleteClose();
-    } catch (error) {
-      console.error("Delete failed:", error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to delete offense record.";
-
-      toast({
-        title: "Delete failed",
-        description: errorMessage,
-        status: "error",
-        duration: 4000,
-        isClosable: true,
-      });
     }
   };
 
@@ -149,16 +165,37 @@ const EmployeeOffenseSection = ({
     }
   };
 
+  // Use fetched offenses or passed data (for flexibility)
+  const displayData = offenses.length > 0 ? offenses : data || [];
+
+  if (loading) {
+    return (
+      <Center py={10}>
+        <Spinner size="lg" color={color} />
+      </Center>
+    );
+  }
+
+  if (!displayData || displayData.length === 0) {
+    return (
+      <Center py={10}>
+        <Box textAlign="center" color="gray.500">
+          No offenses recorded for you.
+        </Box>
+      </Center>
+    );
+  }
+
   return (
     <>
       <Box
         borderWidth="1px"
         borderColor={border}
         borderRadius="lg"
-        overflowX="hidden"
+        overflowX="auto"
         bg={tableBg}
         boxShadow="sm"
-        maxW={950}
+        w="100%"
       >
         <Box overflowX="auto">
           <Table variant="simple">
@@ -174,39 +211,34 @@ const EmployeeOffenseSection = ({
                 <Th color={color} fontWeight="bold" fontSize="sm">
                   Severity
                 </Th>
-                {!isEmployeeView && (
-                  <Th color={color} fontWeight="bold" fontSize="sm">
-                    Category
-                  </Th>
-                )}
-                {!isEmployeeView && (
-                  <Th color={color} fontWeight="bold" fontSize="sm">
-                    Status
-                  </Th>
-                )}
+                <Th color={color} fontWeight="bold" fontSize="sm">
+                  Category
+                </Th>
+                <Th color={color} fontWeight="bold" fontSize="sm">
+                  Status
+                </Th>
                 <Th color={color} fontWeight="bold" fontSize="sm">
                   Description
                 </Th>
                 <Th color={color} fontWeight="bold" fontSize="sm">
+                  Action Taken
+                </Th>
+                <Th color={color} fontWeight="bold" fontSize="sm">
+                  Notes
+                </Th>
+                <Th color={color} fontWeight="bold" fontSize="sm">
                   Employee
                 </Th>
-                {!isEmployeeView && (
-                  <Th color={color} fontWeight="bold" fontSize="sm">
-                    Recorded By
-                  </Th>
-                )}
                 <Th color={color} fontWeight="bold" fontSize="sm">
-                  Date
+                  Recorded By
                 </Th>
-                {!isEmployeeView && (
-                  <Th color={color} fontWeight="bold" fontSize="sm" isNumeric>
-                    Actions
-                  </Th>
-                )}
+                <Th color={color} fontWeight="bold" fontSize="sm">
+                  Date Created
+                </Th>
               </Tr>
             </Thead>
             <Tbody>
-              {data.map((item, index) => (
+              {displayData.map((item, index) => (
                 <Tr
                   key={item?._id || item?.id || index}
                   _hover={{ bg: hoverBg }}
@@ -214,57 +246,75 @@ const EmployeeOffenseSection = ({
                   borderBottomWidth="1px"
                   borderBottomColor={border}
                 >
-                  <Td fontWeight="600" color={color} maxW="150px">
+                  {/* Title */}
+                  <Td fontWeight="600" color={color} maxW="120px" noOfLines={2}>
                     {item.title || "Untitled Offense"}
                   </Td>
+
+                  {/* Severity */}
                   <Td>
                     {item.severity && (
                       <Badge
                         colorScheme={getSeverityColor(item.severity)}
                         borderRadius="full"
                         px={2}
+                        fontSize="xs"
                       >
                         {item.severity}
                       </Badge>
                     )}
                   </Td>
-                  {!isEmployeeView && (
-                    <Td>
-                      {item.category && (
-                        <Badge
-                          colorScheme={getCategoryBadgeColor(item.category)}
-                          borderRadius="full"
-                          px={2}
-                          fontSize="xs"
-                        >
-                          {item.category}
-                        </Badge>
-                      )}
-                    </Td>
-                  )}
-                  {!isEmployeeView && (
-                    <Td>
-                      {item.status && (
-                        <Badge
-                          colorScheme={getStatusColor(item.status)}
-                          borderRadius="full"
-                          px={2}
-                          fontSize="xs"
-                        >
-                          {item.status}
-                        </Badge>
-                      )}
-                    </Td>
-                  )}
-                  <Td fontSize="sm" color="gray.600" maxW="200px" noOfLines={2}>
-                    {item.description ||
-                      item.offenseDetails ||
-                      "No description available."}
+
+                  {/* Category */}
+                  <Td>
+                    {item.category && (
+                      <Badge
+                        colorScheme={getCategoryBadgeColor(item.category)}
+                        borderRadius="full"
+                        px={2}
+                        fontSize="xs"
+                      >
+                        {item.category}
+                      </Badge>
+                    )}
                   </Td>
+
+                  {/* Status */}
+                  <Td>
+                    {item.status && (
+                      <Badge
+                        colorScheme={getStatusColor(item.status)}
+                        borderRadius="full"
+                        px={2}
+                        fontSize="xs"
+                      >
+                        {item.status}
+                      </Badge>
+                    )}
+                  </Td>
+
+                  {/* Description */}
+                  <Td fontSize="sm" color="gray.600" maxW="150px" noOfLines={2}>
+                    {item.description || "—"}
+                  </Td>
+
+                  {/* Action Taken */}
+                  <Td fontSize="sm" color="gray.600" maxW="150px" noOfLines={2}>
+                    {item.actionTaken || "—"}
+                  </Td>
+
+                  {/* Notes */}
+                  <Td fontSize="sm" color="gray.600" maxW="150px" noOfLines={2}>
+                    {item.notes || "—"}
+                  </Td>
+
+                  {/* Employee Name & Department */}
                   <Td fontSize="sm">
                     {item.employeeName ? (
                       <Box>
-                        <Box fontWeight="600">{item.employeeName}</Box>
+                        <Box fontWeight="600" fontSize="sm">
+                          {item.employeeName}
+                        </Box>
                         {item.employeeDepartment && (
                           <Box fontSize="xs" color="gray.500">
                             {item.employeeDepartment}
@@ -275,40 +325,34 @@ const EmployeeOffenseSection = ({
                       <span>—</span>
                     )}
                   </Td>
-                  {!isEmployeeView && (
-                    <Td fontSize="sm" color="gray.600">
-                      {item.recordedBy || "—"}
-                    </Td>
-                  )}
+
+                  {/* Recorded By (Admin/User) */}
                   <Td fontSize="sm" color="gray.600">
-                    {item.date ? new Date(item.date).toLocaleDateString() : "—"}
+                    {item.recordedByName || item.recordedBy || "system"}
                   </Td>
-                  {!isEmployeeView && (
-                    <Td isNumeric>
-                      <HStack spacing={2} justify="flex-end">
-                        <Tooltip label="Edit offense" placement="top">
-                          <IconButton
-                            aria-label="Edit"
-                            icon={<Edit2 size={18} />}
-                            size="sm"
-                            colorScheme="orange"
-                            variant="ghost"
-                            onClick={() => handleEdit(item)}
-                          />
-                        </Tooltip>
-                        <Tooltip label="Delete offense" placement="top">
-                          <IconButton
-                            aria-label="Delete"
-                            icon={<Trash2 size={18} />}
-                            size="sm"
-                            colorScheme="red"
-                            variant="ghost"
-                            onClick={() => handleDelete(item)}
-                          />
-                        </Tooltip>
-                      </HStack>
-                    </Td>
-                  )}
+
+                  {/* Date Created */}
+                  <Td fontSize="sm" color="gray.600" minW="130px">
+                    <Box>
+                      <Box fontWeight="500">
+                        {item.date
+                          ? new Date(item.date).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : "—"}
+                      </Box>
+                      <Box fontSize="xs" color="gray.500">
+                        {item.date
+                          ? new Date(item.date).toLocaleTimeString("en-US", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : ""}
+                      </Box>
+                    </Box>
+                  </Td>
                 </Tr>
               ))}
             </Tbody>
