@@ -80,7 +80,6 @@ const EmployeeOffenseSection = ({
       case "minor":
         return "yellow";
       case "moderate":
-        return "orange";
       case "major":
         return "orange";
       case "critical":
@@ -152,18 +151,39 @@ const EmployeeOffenseSection = ({
       <Table variant="simple" size="sm">
         <Thead bg={headerBg} borderBottomWidth="2px" borderBottomColor={border}>
           <Tr>
-            <Th color={color}>Title</Th>
-            <Th color={color}>Severity</Th>
-            <Th color={color}>Category</Th>
-            <Th color={color}>Status</Th>
-            <Th color={color}>Description</Th>
-            <Th color={color}>Employee</Th>
-            <Th color={color}>Action Taken</Th>
-            <Th color={color}>Recorded By</Th>
-            <Th color={color}>Date Created</Th>
-            <Th color={color}>Notes</Th>
+            <Th textAlign="center" color={color}>
+              Title
+            </Th>
+            <Th textAlign="center" color={color}>
+              Severity
+            </Th>
+            <Th textAlign="center" color={color}>
+              Category
+            </Th>
+            <Th textAlign="center" color={color}>
+              Status
+            </Th>
+            <Th textAlign="center" color={color}>
+              Description
+            </Th>
+            <Th textAlign="center" color={color}>
+              Employee
+            </Th>
+            <Th textAlign="center" color={color}>
+              Action Taken
+            </Th>
+            <Th textAlign="center" color={color}>
+              Recorded By
+            </Th>
+            <Th textAlign="center" color={color}>
+              Date Created
+            </Th>
+            <Th textAlign="center" color={color}>
+              Notes
+            </Th>
           </Tr>
         </Thead>
+
         <Tbody>
           {displayData.map((item, i) => (
             <Tr
@@ -173,10 +193,12 @@ const EmployeeOffenseSection = ({
               borderBottomColor={border}
             >
               {/* Title */}
-              <Td fontWeight="600">{item.title || "Untitled Offense"}</Td>
+              <Td textAlign="center" fontWeight="600">
+                {item.title || "Untitled Offense"}
+              </Td>
 
               {/* Severity */}
-              <Td>
+              <Td textAlign="center">
                 {item.severity ? (
                   <Badge colorScheme={getSeverityColor(item.severity)}>
                     {item.severity}
@@ -187,7 +209,7 @@ const EmployeeOffenseSection = ({
               </Td>
 
               {/* Category */}
-              <Td>
+              <Td textAlign="center">
                 {item.category ? (
                   <Badge colorScheme={getCategoryColor(item.category)}>
                     {item.category}
@@ -198,7 +220,7 @@ const EmployeeOffenseSection = ({
               </Td>
 
               {/* Status */}
-              <Td>
+              <Td textAlign="center">
                 {item.status ? (
                   <Badge colorScheme={getStatusColor(item.status)}>
                     {item.status}
@@ -209,7 +231,12 @@ const EmployeeOffenseSection = ({
               </Td>
 
               {/* Description */}
-              <Td maxW="150px" noOfLines={2}>
+              <Td
+                textAlign="center"
+                maxW="150px"
+                noOfLines={2}
+                marginY={"auto"}
+              >
                 {item.description || "—"}
               </Td>
 
@@ -229,18 +256,18 @@ const EmployeeOffenseSection = ({
                 )}
               </Td>
 
-              {/* ✅ Action Taken */}
-              <Td maxW="150px" noOfLines={2}>
+              {/* Action Taken */}
+              <Td textAlign="center" maxW="150px" noOfLines={2}>
                 {item.actionTaken?.trim() || "—"}
               </Td>
 
-              {/* ✅ Recorded By */}
-              <Td>
+              {/* Recorded By */}
+              <Td textAlign="center">
                 {item.recordedByName?.trim() || item.recordedBy || "System"}
               </Td>
 
               {/* Date */}
-              <Td minW="130px">
+              <Td textAlign="center" minW="130px">
                 {item.date ? (
                   <Box>
                     <Box>
@@ -262,8 +289,8 @@ const EmployeeOffenseSection = ({
                 )}
               </Td>
 
-              {/* ✅ Notes */}
-              <Td maxW="150px" noOfLines={2}>
+              {/* Notes */}
+              <Td textAlign="center" maxW="150px" noOfLines={2}>
                 {item.notes?.trim() || "—"}
               </Td>
             </Tr>

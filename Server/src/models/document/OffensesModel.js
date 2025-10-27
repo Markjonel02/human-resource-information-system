@@ -46,7 +46,6 @@ const OffensesSchema = new mongoose.Schema(
         "insubordination",
         "other",
       ],
-      default: "other",
     },
     actionTaken: {
       type: String,

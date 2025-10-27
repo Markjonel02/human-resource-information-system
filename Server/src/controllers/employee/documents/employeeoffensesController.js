@@ -71,7 +71,7 @@ const getMyOffenses = async (req, res) => {
       req.user.role === "employee" &&
       req.user._id.toString() !== employeeId.toString()
     ) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         success: false,
         message: "You can only view your own offenses",
       });
