@@ -30,16 +30,10 @@ import {
   FaBan,
   FaPlusCircle,
 } from "react-icons/fa";
-import axiosInstance from "../lib/axiosInstance";
-import OffenseSection from "../components/documents/offenses/OffenseSection";
-import SuspensionSection from "../components/documents/suspended/SuspentionSection";
-// --- Local Components ---
-import DocumentSection from "../components/documents/DocumentSection";
-import PolicyForm from "../components/documents/PolicyForm";
-import AddOffenseModal from "../components/documents/offenses/AddOffenseModal";
-import AddSuspensionModal from "../components/documents/suspended/AddSuspensionModal";
-
-const Documents = () => {
+import axiosInstance from "../../../lib/axiosInstance";
+import EmployeeOffenseSection from "../../../components/documents/employee/employee_offenses/EmployeeOffenseSection";
+import EmployeeDocumentsSection from "../../../components/documents/employee/EmployeeDocuments";
+const EmployeeDocuments = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [tabIndex, setTabIndex] = useState(0);
   const [nameSuggestions, setNameSuggestions] = useState([]);
@@ -48,6 +42,7 @@ const Documents = () => {
   const debounceTimeout = useRef(null);
   const [offenseData, setOffenseData] = useState([]);
   const [suspensionData, setSuspensionData] = useState([]);
+  const [offenseLoading, setOffenseLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -57,33 +52,66 @@ const Documents = () => {
     offenseDetails: "",
   });
 
-  // --- Fetch Offenses ---
-  const fetchOffenses = async () => {
+  // --- Fetch All Offenses for Logged-in Employee ---
+  /*   const fetchMyOffenses = async () => {
     try {
-      const res = await axiosInstance.get("/offense");
-      setOffenseData(res.data.offenses || res.data || []);
+      setOffenseLoading(true);
+      console.log("Fetching my offenses...");
+
+      const res = await axiosInstance.get("/employee/my-offenses");
+      console.log("Fetched my offenses:", res.data);
+
+      // Get all offense IDs
+      const offenseIds = res.data.offenses?.map((offense) => offense._id) || [];
+      console.log("Offense IDs:", offenseIds);
+
+      // Fetch detailed data for each offense
+      const detailedOffenses = await Promise.all(
+        offenseIds.map(async (id) => {
+          try {
+            const offenseRes = await axiosInstance.get(
+              `/employee/offenses/${id}`
+            );
+            return offenseRes.data.offense;
+          } catch (err) {
+            console.error(`Failed to fetch offense ${id}:`, err);
+            return null;
+          }
+        })
+      );
+
+      // Filter out any null values and set data
+      const validOffenses = detailedOffenses.filter(
+        (offense) => offense !== null
+      );
+      console.log("Detailed offenses:", validOffenses);
+      setOffenseData(validOffenses);
     } catch (err) {
-      console.error("Failed to fetch offenses:", err);
+      console.error("Failed to fetch my offenses:", err);
+      console.error("Error status:", err.response?.status);
+      console.error("Error message:", err.response?.data?.message);
       setOffenseData([]);
+    } finally {
+      setOffenseLoading(false);
     }
-  };
-  // --- Fetch Offenses for Logged-in Employee ---
-  const fetchMyOffenses = async (offenseId) => {
+  }; */
+
+  // --- Fetch Specific Offense by ID (if needed) ---
+  const fetchOffenseById = async (offenseId) => {
     try {
       if (!offenseId) {
-        console.warn("No offenseId provided for fetchMyOffenses");
-        return;
+        console.warn("No offenseId provided");
+        return null;
       }
 
-      const res = await axiosInstance.get(`/offense/offenses/${offenseId}`);
+      console.log("Fetching offense by ID:", offenseId);
+      const res = await axiosInstance.get(`/employee/offenses/${offenseId}`);
       console.log("Fetched offense by ID:", res.data);
 
-      // assuming your backend returns a single offense object
-      const offense = res.data.offense || res.data;
-      setOffenseData(offense ? [offense] : []);
+      return res.data.offense || res.data;
     } catch (err) {
       console.error("Failed to fetch offense by ID:", err);
-      setOffenseData([]);
+      return null;
     }
   };
 
@@ -93,8 +121,6 @@ const Documents = () => {
       console.log("Fetching suspensions...");
       const res = await axiosInstance.get("/Suspension/suspension-all");
       console.log("Response:", res);
-      console.log("Response data:", res.data);
-      console.log("Response data.data:", res.data.data);
 
       setSuspensionData(res.data.data || res.data || []);
       console.log("Suspension data set:", res.data.data || res.data || []);
@@ -105,9 +131,10 @@ const Documents = () => {
       setSuspensionData([]);
     }
   };
+
   // --- Refresh Handlers ---
   const handleOffenseRefresh = async () => {
-    await fetchOffenses();
+    await fetchOffenseById();
   };
 
   const handleSuspensionRefresh = async () => {
@@ -115,24 +142,17 @@ const Documents = () => {
   };
 
   // --- Fetch Offenses and Suspensions on Mount ---
-  /*   useEffect(() => {
-    fetchOffenses();
-    fetchSuspensions();
-  }, []); */
-
   useEffect(() => {
-    const role = localStorage.getItem("role"); // e.g., "admin" or "employee"
-    const employeeId = localStorage.getItem("employeeId"); // store when user logs in
+    const role = localStorage.getItem("role");
+    const employeeId = localStorage.getItem("employeeId");
 
-    if (role === "admin") {
-      fetchOffenses();
-    } else if (role === "employee" && employeeId) {
-      fetchEmployeeOffenses(employeeId);
-    } else {
-      console.warn(
-        "No valid role or employeeId found, fetching all offenses by default"
-    );
-      fetchOffenses();
+    // For employees, fetch their own offenses
+    // For admins, you can create a separate admin endpoint
+    if (role === "employee") {
+      fetchMyOffenses();
+    } else if (role === "admin") {
+      // TODO: Create an admin endpoint to fetch all offenses
+      fetchMyOffenses(); // For now, fallback to employee endpoint
     }
 
     fetchSuspensions();
@@ -146,7 +166,6 @@ const Documents = () => {
 
       console.log("Full response:", res.data);
 
-      // Handle the nested response structure
       const data = res.data.policies || res.data || [];
 
       console.log("Extracted policies:", data);
@@ -179,6 +198,8 @@ const Documents = () => {
   // --- Debounce for name suggestions ---
   const filterNameSuggestions = useCallback((value) => {
     if (value.length > 1) {
+      // TODO: Replace with actual employees data from your backend
+      const employees = [];
       const filtered = employees.filter((employee) =>
         employee.name.toLowerCase().includes(value.toLowerCase())
       );
@@ -310,7 +331,7 @@ const Documents = () => {
                   <Text color="gray.500">No policies uploaded yet.</Text>
                 </Center>
               ) : (
-                <DocumentSection
+                <EmployeeDocumentsSection
                   data={policyData.map((item) => ({
                     _id: item._id,
                     title: item.title,
@@ -324,68 +345,35 @@ const Documents = () => {
             </TabPanel>
 
             <TabPanel>
-              <OffenseSection
-                data={offenseData}
-                color="red.700"
-                refreshData={handleOffenseRefresh}
-              />
+              {offenseLoading ? (
+                <Center py={10}>
+                  <Spinner size="lg" color="red.500" />
+                </Center>
+              ) : offenseData.length === 0 ? (
+                <Center py={10}>
+                  <Text color="gray.500">No offenses recorded for you.</Text>
+                </Center>
+              ) : (
+                <EmployeeOffenseSection
+                  data={offenseData}
+                  color="red.700"
+                  refreshData={handleOffenseRefresh}
+                />
+              )}
             </TabPanel>
 
             <TabPanel>
-              <SuspensionSection
+              {/*    <SuspensionSection
                 data={suspensionData}
                 color="orange.700"
                 refreshData={handleSuspensionRefresh}
-              />
+              /> */}
             </TabPanel>
           </TabPanels>
         </Tabs>
       </Box>
-
-      {/* --- Modal --- */}
-      <Modal
-        isOpen={isOpen}
-        onClose={() => {
-          onClose();
-          resetForm();
-        }}
-      >
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>
-            {tabIndex === 0 && "Add New Policy/Memo"}
-            {tabIndex === 1 && "Add New Offense Record"}
-            {tabIndex === 2 && "Add New Suspension Record"}
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            {tabIndex === 0 && (
-              <PolicyForm
-                formData={formData}
-                setFormData={setFormData}
-                onClose={onClose}
-                onSuccess={handleSuccessUpload}
-              />
-            )}
-            {tabIndex === 1 && (
-              <AddOffenseModal
-                isOpen={isOpen}
-                onClose={onClose}
-                onSuccess={handleOffenseRefresh}
-              />
-            )}
-            {tabIndex === 2 && (
-              <AddSuspensionModal
-                isOpen={isOpen}
-                onClose={onClose}
-                onSuspensionAdded={handleSuspensionRefresh}
-              />
-            )}
-          </ModalBody>
-        </ModalContent>
-      </Modal>
     </Box>
   );
 };
 
-export default Documents;
+export default EmployeeDocuments;

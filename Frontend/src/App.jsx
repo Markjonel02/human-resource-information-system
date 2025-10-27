@@ -4,6 +4,7 @@ import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import { useLocation } from "react-router-dom";
+import EmployeeDocuments from "./routes/employee/employee_documents/EmployeeDocumentsLayout";
 
 // Layout Components
 const Maincomponent = lazy(() => import("./components/Maincomponent"));
@@ -35,6 +36,10 @@ const EmployeeRequests = lazy(() =>
 );
 const EmployeeCalendar = lazy(() =>
   import("./routes/employee/calendar/EmployeeCalendar")
+);
+
+const EmployeeDocumentsLayout = lazy(() =>
+  import("./routes/employee/employee_documents/EmployeeDocumentsLayout")
 );
 /**
  * Loader Component
@@ -141,6 +146,10 @@ const App = () => {
                             <Route path="/request" element={<Request />} />
                             <Route path="/payroll" element={<Payroll />} />
                             <Route path="/documents" element={<Documents />} />
+                            <Route
+                              path="/employee-documents"
+                              element={<EmployeeDocuments />}
+                            />
                             <Route
                               path="/monitoring"
                               element={<Monitoring />}

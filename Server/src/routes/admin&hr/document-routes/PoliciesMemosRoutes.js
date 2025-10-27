@@ -28,7 +28,7 @@ router.get("/get-policy", getAllPolicies);
 router.get("/:id", authorizeRoles("hr", "admin"), getPolicyById);
 
 // Download policy PDF
-router.get("/:id/download", authorizeRoles("hr", "admin"), downloadPolicy);
+router.get("/:id/download", downloadPolicy);
 
 // Update policy metadata (title, description)
 router.put("/:id", authorizeRoles("hr", "admin"), updatePolicy);
