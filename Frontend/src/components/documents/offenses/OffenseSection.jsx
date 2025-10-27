@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Table,
@@ -7,108 +7,61 @@ import {
   Tr,
   Th,
   Td,
-  Icon,
   Badge,
-  HStack,
+  Tooltip,
   useColorModeValue,
   useDisclosure,
   useToast,
-  IconButton,
-  Tooltip,
+  Spinner,
+  Center,
 } from "@chakra-ui/react";
-import { Edit2, Trash2 } from "lucide-react";
 import axiosInstance from "../../../lib/axiosInstance";
-import EditOffenseModal from "./EditOffenseModal";
-import DeleteConfirmModal from "./DeleteOffenseModal";
 
-const OffenseSection = ({ data, color, refreshData, isEmployeeView }) => {
+const EmployeeOffenseSection = ({
+  data = [],
+  color = "teal",
+  refreshData,
+  isEmployeeView,
+}) => {
   const tableBg = useColorModeValue("white", "gray.800");
   const headerBg = useColorModeValue("gray.50", "gray.700");
   const border = useColorModeValue("gray.200", "gray.700");
   const hoverBg = useColorModeValue("gray.50", "gray.700");
+
   const toast = useToast();
+  const [offenses, setOffenses] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const {
-    isOpen: isEditOpen,
-    onOpen: onEditOpen,
-    onClose: onEditClose,
-  } = useDisclosure();
-  const {
-    isOpen: isDeleteOpen,
-    onOpen: onDeleteOpen,
-    onClose: onDeleteClose,
-  } = useDisclosure();
-
-  const [selectedItem, setSelectedItem] = useState(null);
-
-  const handleEdit = (item) => {
-    setSelectedItem(item);
-    onEditOpen();
-  };
-
-  const handleDelete = (item) => {
-    setSelectedItem(item);
-    onDeleteOpen();
-  };
-
-  const handleUpdate = async () => {
-    if (refreshData) {
-      await refreshData();
-    }
-  };
-
-  const confirmDelete = async () => {
-    const offenseId = selectedItem?._id || selectedItem?.id;
-
-    if (!offenseId) {
-      toast({
-        title: "Delete failed",
-        description: "Offense ID not found.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-
+  const fetchMyOffenses = async () => {
     try {
-      await axiosInstance.delete(`/offense/${offenseId}`);
-
+      setLoading(true);
+      const res = await axiosInstance.get("/employeeOffenses/my-offenses");
+      setOffenses(res.data?.offenses || []);
+    } catch (err) {
+      console.error("❌ Error fetching offenses:", err);
       toast({
-        title: "Success",
-        description: "Offense record deleted successfully.",
-        status: "success",
+        title: "Error",
+        description:
+          err.response?.data?.message || "Failed to fetch your offenses.",
+        status: "error",
         duration: 3000,
         isClosable: true,
       });
-
-      if (refreshData) {
-        await refreshData();
-      }
-      onDeleteClose();
-    } catch (error) {
-      console.error("Delete failed:", error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to delete offense record.";
-
-      toast({
-        title: "Delete failed",
-        description: errorMessage,
-        status: "error",
-        duration: 4000,
-        isClosable: true,
-      });
+      setOffenses([]);
+    } finally {
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchMyOffenses();
+  }, []);
 
   const getSeverityColor = (severity) => {
     switch (severity?.toLowerCase()) {
       case "minor":
         return "yellow";
       case "moderate":
-        return "orange";
       case "major":
         return "orange";
       case "critical":
@@ -118,7 +71,7 @@ const OffenseSection = ({ data, color, refreshData, isEmployeeView }) => {
     }
   };
 
-  const getCategoryBadgeColor = (category) => {
+  const getCategoryColor = (category) => {
     switch (category?.toLowerCase()) {
       case "attendance":
         return "blue";
@@ -146,189 +99,269 @@ const OffenseSection = ({ data, color, refreshData, isEmployeeView }) => {
     }
   };
 
+  const displayData = offenses.length > 0 ? offenses : data || [];
+
+  if (loading) {
+    return (
+      <Center py={10}>
+        <Spinner size="lg" color={color} />
+      </Center>
+    );
+  }
+
+  if (!displayData || displayData.length === 0) {
+    return (
+      <Center py={10}>
+        <Box textAlign="center" color="gray.500">
+          No offenses recorded for you.
+        </Box>
+      </Center>
+    );
+  }
+
   return (
-    <>
-      <Box
-        borderWidth="1px"
-        borderColor={border}
-        borderRadius="lg"
-        overflowX="hidden"
-        bg={tableBg}
-        boxShadow="sm"
-        maxW={950}
-      >
-        <Box overflowX="auto">
-          <Table variant="simple"  >
-            <Thead
-              bg={headerBg}
-              borderBottomWidth="2px"
+    <Box
+      borderWidth="1px"
+      borderColor={border}
+      borderRadius="lg"
+      overflowX="auto"
+      bg={tableBg}
+      boxShadow="sm"
+      maxW={950}
+      mx="auto"
+    >
+      <Table variant="simple" size="sm">
+        <Thead bg={headerBg} borderBottomWidth="2px" borderBottomColor={border}>
+          <Tr>
+            <Th
+              textAlign="center"
+              color={color}
+              fontWeight="bold"
+              fontSize="sm"
+            >
+              Title
+            </Th>
+            <Th
+              textAlign="center"
+              color={color}
+              fontWeight="bold"
+              fontSize="sm"
+            >
+              Severity
+            </Th>
+            <Th
+              textAlign="center"
+              color={color}
+              fontWeight="bold"
+              fontSize="sm"
+            >
+              Category
+            </Th>
+            <Th
+              textAlign="center"
+              color={color}
+              fontWeight="bold"
+              fontSize="sm"
+            >
+              Status
+            </Th>
+            <Th
+              textAlign="center"
+              color={color}
+              fontWeight="bold"
+              fontSize="sm"
+            >
+              Description
+            </Th>
+            <Th
+              textAlign="center"
+              color={color}
+              fontWeight="bold"
+              fontSize="sm"
+            >
+              Employee
+            </Th>
+            <Th
+              textAlign="center"
+              color={color}
+              fontWeight="bold"
+              fontSize="sm"
+            >
+              Action Taken
+            </Th>
+            <Th
+              textAlign="center"
+              color={color}
+              fontWeight="bold"
+              fontSize="sm"
+            >
+              Recorded By
+            </Th>
+            <Th
+              textAlign="center"
+              color={color}
+              fontWeight="bold"
+              fontSize="sm"
+            >
+              Date
+            </Th>
+            <Th
+              textAlign="center"
+              color={color}
+              fontWeight="bold"
+              fontSize="sm"
+            >
+              Notes
+            </Th>
+          </Tr>
+        </Thead>
+
+        <Tbody>
+          {displayData.map((item, i) => (
+            <Tr
+              key={item?._id || i}
+              _hover={{ bg: hoverBg }}
+              borderBottomWidth="1px"
               borderBottomColor={border}
             >
-              <Tr>
-                <Th color={color} fontWeight="bold" fontSize="sm">
-                  Title
-                </Th>
-                <Th color={color} fontWeight="bold" fontSize="sm">
-                  Severity
-                </Th>
-                {!isEmployeeView && (
-                  <Th color={color} fontWeight="bold" fontSize="sm">
-                    Category
-                  </Th>
+              {/* Title */}
+              <Td
+                textAlign="center"
+                fontWeight="600"
+                color={color}
+                maxW="150px"
+                noOfLines={2}
+              >
+                {item.title || "Untitled Offense"}
+              </Td>
+
+              {/* Severity */}
+              <Td textAlign="center">
+                {item.severity ? (
+                  <Badge
+                    colorScheme={getSeverityColor(item.severity)}
+                    borderRadius="full"
+                    px={2}
+                    fontSize="xs"
+                  >
+                    {item.severity}
+                  </Badge>
+                ) : (
+                  "—"
                 )}
-                {!isEmployeeView && (
-                  <Th color={color} fontWeight="bold" fontSize="sm">
-                    Status
-                  </Th>
+              </Td>
+
+              {/* Category */}
+              <Td textAlign="center">
+                {item.category ? (
+                  <Badge
+                    colorScheme={getCategoryColor(item.category)}
+                    borderRadius="full"
+                    px={2}
+                    fontSize="xs"
+                  >
+                    {item.category}
+                  </Badge>
+                ) : (
+                  "—"
                 )}
-                <Th color={color} fontWeight="bold" fontSize="sm">
-                  Description
-                </Th>
-                <Th color={color} fontWeight="bold" fontSize="sm">
-                  Employee
-                </Th>
-                {!isEmployeeView && (
-                  <Th color={color} fontWeight="bold" fontSize="sm">
-                    Recorded By
-                  </Th>
+              </Td>
+
+              {/* Status */}
+              <Td textAlign="center">
+                {item.status ? (
+                  <Badge
+                    colorScheme={getStatusColor(item.status)}
+                    borderRadius="full"
+                    px={2}
+                    fontSize="xs"
+                  >
+                    {item.status}
+                  </Badge>
+                ) : (
+                  "—"
                 )}
-                <Th color={color} fontWeight="bold" fontSize="sm">
-                  Date
-                </Th>
-                {!isEmployeeView && (
-                  <Th color={color} fontWeight="bold" fontSize="sm" isNumeric>
-                    Actions
-                  </Th>
-                )}
-              </Tr>
-            </Thead>
-            <Tbody>
-              {data.map((item, index) => (
-                <Tr
-                  key={item?._id || item?.id || index}
-                  _hover={{ bg: hoverBg }}
-                  transition="background-color 0.2s ease"
-                  borderBottomWidth="1px"
-                  borderBottomColor={border}
+              </Td>
+
+              {/* Description */}
+              <Td
+                textAlign="center"
+                fontSize="sm"
+                color="gray.600"
+                maxW="180px"
+              >
+                <Tooltip
+                  label={item.description}
+                  isDisabled={!item.description}
                 >
-                  <Td fontWeight="600" color={color} maxW="150px">
-                    {item.title || "Untitled Offense"}
-                  </Td>
-                  <Td>
-                    {item.severity && (
-                      <Badge
-                        colorScheme={getSeverityColor(item.severity)}
-                        borderRadius="full"
-                        px={2}
-                      >
-                        {item.severity}
-                      </Badge>
-                    )}
-                  </Td>
-                  {!isEmployeeView && (
-                    <Td>
-                      {item.category && (
-                        <Badge
-                          colorScheme={getCategoryBadgeColor(item.category)}
-                          borderRadius="full"
-                          px={2}
-                          fontSize="xs"
-                        >
-                          {item.category}
-                        </Badge>
-                      )}
-                    </Td>
-                  )}
-                  {!isEmployeeView && (
-                    <Td>
-                      {item.status && (
-                        <Badge
-                          colorScheme={getStatusColor(item.status)}
-                          borderRadius="full"
-                          px={2}
-                          fontSize="xs"
-                        >
-                          {item.status}
-                        </Badge>
-                      )}
-                    </Td>
-                  )}
-                  <Td fontSize="sm" color="gray.600" maxW="200px" noOfLines={2}>
-                    {item.description ||
-                      item.offenseDetails ||
-                      "No description available."}
-                  </Td>
-                  <Td fontSize="sm">
-                    {item.employeeName ? (
-                      <Box>
-                        <Box fontWeight="600">{item.employeeName}</Box>
-                        {item.employeeDepartment && (
-                          <Box fontSize="xs" color="gray.500">
-                            {item.employeeDepartment}
-                          </Box>
-                        )}
+                  <Box noOfLines={2}>{item.description || "—"}</Box>
+                </Tooltip>
+              </Td>
+
+              {/* Employee */}
+              <Td textAlign="center" fontSize="sm">
+                {item.employeeName ? (
+                  <Box>
+                    <Box fontWeight="600">{item.employeeName}</Box>
+                    {item.employeeDepartment && (
+                      <Box fontSize="xs" color="gray.500">
+                        {item.employeeDepartment}
                       </Box>
-                    ) : (
-                      <span>—</span>
                     )}
-                  </Td>
-                  {!isEmployeeView && (
-                    <Td fontSize="sm" color="gray.600">
-                      {item.recordedBy || "—"}
-                    </Td>
-                  )}
-                  <Td fontSize="sm" color="gray.600">
-                    {item.date ? new Date(item.date).toLocaleDateString() : "—"}
-                  </Td>
-                  {!isEmployeeView && (
-                    <Td isNumeric>
-                      <HStack spacing={2} justify="flex-end">
-                        <Tooltip label="Edit offense" placement="top">
-                          <IconButton
-                            aria-label="Edit"
-                            icon={<Edit2 size={18} />}
-                            size="sm"
-                            colorScheme="orange"
-                            variant="ghost"
-                            onClick={() => handleEdit(item)}
-                          />
-                        </Tooltip>
-                        <Tooltip label="Delete offense" placement="top">
-                          <IconButton
-                            aria-label="Delete"
-                            icon={<Trash2 size={18} />}
-                            size="sm"
-                            colorScheme="red"
-                            variant="ghost"
-                            onClick={() => handleDelete(item)}
-                          />
-                        </Tooltip>
-                      </HStack>
-                    </Td>
-                  )}
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
-        </Box>
-      </Box>
+                  </Box>
+                ) : (
+                  "—"
+                )}
+              </Td>
 
-      <EditOffenseModal
-        isOpen={isEditOpen}
-        onClose={onEditClose}
-        item={selectedItem}
-        onUpdate={handleUpdate}
-      />
+              {/* Action Taken */}
+              <Td
+                textAlign="center"
+                fontSize="sm"
+                color="gray.600"
+                maxW="180px"
+              >
+                <Tooltip
+                  label={item.actionTaken}
+                  isDisabled={!item.actionTaken}
+                >
+                  <Box noOfLines={2}>{item.actionTaken || "—"}</Box>
+                </Tooltip>
+              </Td>
 
-      <DeleteConfirmModal
-        isOpen={isDeleteOpen}
-        onClose={onDeleteClose}
-        onConfirm={confirmDelete}
-        title="Delete Offense Record"
-        message={`Are you sure you want to delete "${selectedItem?.title}"? This action cannot be undone.`}
-      />
-    </>
+              {/* Recorded By */}
+              <Td textAlign="center" fontSize="sm" color="gray.600">
+                {item.recordedByName || item.recordedBy || "—"}
+              </Td>
+
+              {/* Date */}
+              <Td textAlign="center" fontSize="sm" color="gray.600">
+                {item.date
+                  ? new Date(item.date).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })
+                  : "—"}
+              </Td>
+
+              {/* Notes */}
+              <Td
+                textAlign="center"
+                fontSize="sm"
+                color="gray.600"
+                maxW="180px"
+              >
+                <Tooltip label={item.notes} isDisabled={!item.notes}>
+                  <Box noOfLines={2}>{item.notes || "—"}</Box>
+                </Tooltip>
+              </Td>
+            </Tr>
+          ))}
+        </Tbody>
+      </Table>
+    </Box>
   );
 };
 
-export default OffenseSection;
+export default EmployeeOffenseSection;

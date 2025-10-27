@@ -22,7 +22,7 @@ router.use(verifyJWT);
 // @desc    Get all offenses for the logged-in employee
 // @route   GET /api/employee/my-offenses
 // @access  Private (Employee only)
-router.get("/my-offenses", authorizeRoles("employee"), getMyOffenses);
+router.get("/my-offenses", authorizeRoles("employee","admin","hr"), getMyOffenses);
 
 // @desc    Get a specific offense by ID (only if it belongs to the employee)
 // @route   GET /api/employee/offenses/:offenseId
