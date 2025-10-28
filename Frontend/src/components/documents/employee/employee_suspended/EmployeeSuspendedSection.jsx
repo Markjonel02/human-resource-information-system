@@ -33,6 +33,7 @@ const EmployeeSuspensionSection = ({ color }) => {
   const fetchSuspensions = async () => {
     try {
       setLoading(true);
+      // Changed endpoint to match the route
       const response = await axiosInstance.get(
         "/employeeSuspended/suspensions"
       );
