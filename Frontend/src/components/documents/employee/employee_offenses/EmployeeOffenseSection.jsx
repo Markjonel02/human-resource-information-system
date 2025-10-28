@@ -146,7 +146,7 @@ const EmployeeOffenseSection = ({
       bg={tableBg}
       boxShadow="sm"
       w="100%"
-      maxW={950}
+      maxW={1200}
     >
       <Table variant="simple" size="sm">
         <Thead bg={headerBg} borderBottomWidth="2px" borderBottomColor={border}>
