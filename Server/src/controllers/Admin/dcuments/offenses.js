@@ -123,6 +123,7 @@ const createOffense = async (req, res) => {
       employeeId,
       actionTaken,
       notes,
+      category,
     } = req.body;
 
     // ✅ Validate required fields
@@ -130,6 +131,34 @@ const createOffense = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Title, severity, and employee are required.",
+      });
+    }
+
+    // ✅ Optional: Validate category if provided
+    if (category && !["attendance", "conduct", "performance", "insubordination", "other"].includes(category)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid category value.",
+      });
+    }
+
+    // ✅ Check for existing pending offense for this employee
+    const existingPendingOffense = await Offenses.findOne({
+      employee: employeeId,
+      status: "pending",
+    }).populate("employee", "firstname lastname employeeId");
+
+    if (existingPendingOffense) {
+      const employeeName = `${existingPendingOffense.employee.firstname} ${existingPendingOffense.employee.lastname}`;
+      return res.status(409).json({
+        success: false,
+        message: `Cannot create new offense. ${employeeName} already has a pending offense: "${existingPendingOffense.title}". Please resolve the existing offense before creating a new one.`,
+        existingOffense: {
+          id: existingPendingOffense._id,
+          title: existingPendingOffense.title,
+          severity: existingPendingOffense.severity,
+          date: existingPendingOffense.date,
+        },
       });
     }
 
@@ -142,6 +171,8 @@ const createOffense = async (req, res) => {
       description: description || "",
       actionTaken: actionTaken || "",
       notes: notes || "",
+      category: category || "other",
+      status: "pending", // Default status
     });
 
     await offense.save();
@@ -166,7 +197,6 @@ const createOffense = async (req, res) => {
     });
   }
 };
-
 // @desc    Get all offenses
 // @route   GET /api/offense
 // @access  Private

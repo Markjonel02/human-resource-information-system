@@ -121,15 +121,7 @@ const EditOffenseModal = ({ isOpen, onClose, item, onUpdate }) => {
         updatePayload
       );
 
-      toast({
-        title: "Success",
-        description: "Offense record updated successfully.",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-
-      // Call the parent callback to update the list
+      // Call the parent callback to update the list and close modal
       if (onUpdate) {
         await onUpdate();
       }

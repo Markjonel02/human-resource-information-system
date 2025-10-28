@@ -39,13 +39,13 @@ router.get(
 router.post("/create", authorizeRoles("admin", "hr"), createOffense);
 
 // 📂 Get all offenses
-router.get("/", getAllOffenses);
+router.get("/get-all-offense",authorizeRoles("admin", "hr"), getAllOffenses);
 
 // 👤 Get offenses for specific employee
-router.get("/employee/:employeeId", getOffensesByEmployee);
+router.get("/employee/:employeeId", authorizeRoles("admin", "hr"),getOffensesByEmployee);
 
 // 🆔 Get offense by ID
-router.get("/:id", getOffenseById);
+router.get("/:id",authorizeRoles("admin", "hr"), getOffenseById);
 
 // ✏️ Update offense
 router.put("/:id", authorizeRoles("admin", "hr"), updateOffense);
@@ -53,5 +53,5 @@ router.put("/:id", authorizeRoles("admin", "hr"), updateOffense);
 // ❌ Delete offense
 router.delete("/:id", authorizeRoles("admin"), deleteOffense);
 
-router.get("/my-offenses", getMyOffenses);
+router.get("/my-offenses",authorizeRoles("admin", "hr"), getMyOffenses);
 module.exports = router;
