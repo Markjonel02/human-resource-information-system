@@ -60,13 +60,16 @@ const Documents = () => {
   // --- Fetch Offenses ---
   const fetchOffenses = async () => {
     try {
-      const res = await axiosInstance.get("/offense");
+      console.log("📥 Documents: Fetching offenses...");
+      const res = await axiosInstance.get("/offense/get-all-offense");
+      console.log("📥 Documents: Offenses fetched:", res.data);
       setOffenseData(res.data.offenses || res.data || []);
     } catch (err) {
-      console.error("Failed to fetch offenses:", err);
+      console.error("❌ Documents: Failed to fetch offenses:", err);
       setOffenseData([]);
     }
   };
+
   // --- Fetch Offenses for Logged-in Employee ---
   const fetchMyOffenses = async (offenseId) => {
     try {
@@ -78,7 +81,6 @@ const Documents = () => {
       const res = await axiosInstance.get(`/offense/offenses/${offenseId}`);
       console.log("Fetched offense by ID:", res.data);
 
-      // assuming your backend returns a single offense object
       const offense = res.data.offense || res.data;
       setOffenseData(offense ? [offense] : []);
     } catch (err) {
@@ -105,6 +107,7 @@ const Documents = () => {
       setSuspensionData([]);
     }
   };
+
   // --- Refresh Handlers ---
   const handleOffenseRefresh = async () => {
     await fetchOffenses();
@@ -115,23 +118,18 @@ const Documents = () => {
   };
 
   // --- Fetch Offenses and Suspensions on Mount ---
-  /*   useEffect(() => {
-    fetchOffenses();
-    fetchSuspensions();
-  }, []); */
-
   useEffect(() => {
-    const role = localStorage.getItem("role"); // e.g., "admin" or "employee"
-    const employeeId = localStorage.getItem("employeeId"); // store when user logs in
+    const role = localStorage.getItem("role");
+    const employeeId = localStorage.getItem("employeeId");
 
     if (role === "admin") {
       fetchOffenses();
     } else if (role === "employee" && employeeId) {
-      fetchEmployeeOffenses(employeeId);
+      fetchMyOffenses(employeeId);
     } else {
       console.warn(
         "No valid role or employeeId found, fetching all offenses by default"
-    );
+      );
       fetchOffenses();
     }
 
@@ -146,7 +144,6 @@ const Documents = () => {
 
       console.log("Full response:", res.data);
 
-      // Handle the nested response structure
       const data = res.data.policies || res.data || [];
 
       console.log("Extracted policies:", data);
@@ -167,13 +164,29 @@ const Documents = () => {
   }, []);
 
   // --- Refresh after successful upload ---
-  const handleSuccessUpload = () => {
-    fetchPolicies();
+  const handleSuccessUpload = async () => {
+    await fetchPolicies();
+    onClose(); // Close modal after success
+    resetForm();
   };
 
   // --- Refresh after successful update ---
   const handleDataRefresh = async () => {
     await fetchPolicies();
+  };
+
+  // --- Handle Offense Success ---
+  const handleOffenseSuccess = async () => {
+    await fetchOffenses();
+    onClose(); // Close modal after success
+    resetForm();
+  };
+
+  // --- Handle Suspension Success ---
+  const handleSuspensionSuccess = async () => {
+    await fetchSuspensions();
+    onClose(); // Close modal after success
+    resetForm();
   };
 
   // --- Debounce for name suggestions ---
@@ -328,6 +341,7 @@ const Documents = () => {
                 data={offenseData}
                 color="red.700"
                 refreshData={handleOffenseRefresh}
+                isEmployeeView={false}
               />
             </TabPanel>
 
@@ -371,14 +385,14 @@ const Documents = () => {
               <AddOffenseModal
                 isOpen={isOpen}
                 onClose={onClose}
-                onSuccess={handleOffenseRefresh}
+                onSuccess={handleOffenseSuccess}
               />
             )}
             {tabIndex === 2 && (
               <AddSuspensionModal
                 isOpen={isOpen}
                 onClose={onClose}
-                onSuspensionAdded={handleSuspensionRefresh}
+                onSuspensionAdded={handleSuspensionSuccess}
               />
             )}
           </ModalBody>
