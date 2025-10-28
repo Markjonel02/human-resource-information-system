@@ -33,13 +33,13 @@ import {
 import axiosInstance from "../../../lib/axiosInstance";
 import EmployeeOffenseSection from "../../../components/documents/employee/employee_offenses/EmployeeOffenseSection";
 import EmployeeDocumentsSection from "../../../components/documents/employee/EmployeeDocuments";
+import EmployeeSuspensionSection from "../../../components/documents/employee/employee_suspended/EmployeeSuspendedSection";
 
 const EmployeeDocuments = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [tabIndex, setTabIndex] = useState(0);
   const [policyData, setPolicyData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [suspensionData, setSuspensionData] = useState([]);
   const debounceTimeout = useRef(null);
 
   // --- Fetch all uploaded policy PDFs ---
@@ -65,37 +65,15 @@ const EmployeeDocuments = () => {
     }
   };
 
-  // --- Fetch Suspensions ---
-  const fetchSuspensions = async () => {
-    try {
-      console.log("Fetching suspensions...");
-      const res = await axiosInstance.get("/Suspension/suspension-all");
-      console.log("Response:", res);
-
-      setSuspensionData(res.data.data || res.data || []);
-      console.log("Suspension data set:", res.data.data || res.data || []);
-    } catch (err) {
-      console.error("Failed to fetch suspensions:", err);
-      console.error("Error status:", err.response?.status);
-      console.error("Error message:", err.response?.data?.message);
-      setSuspensionData([]);
-    }
-  };
-
   // --- Refresh Handlers ---
   const handleDataRefresh = async () => {
     await fetchPolicies();
-  };
-
-  const handleSuspensionRefresh = async () => {
-    await fetchSuspensions();
   };
 
   // --- Fetch once on mount ---
   useEffect(() => {
     console.log("EmployeeDocuments mounted, fetching initial data...");
     fetchPolicies();
-    fetchSuspensions();
   }, []);
 
   return (
@@ -156,14 +134,14 @@ const EmployeeDocuments = () => {
             <Tab
               _selected={{
                 color: "orange.600",
-                borderBottom: "2px orange.600",
+                borderBottom: "2px solid orange.600",
               }}
             >
-              <Tooltip label="Suspended Employees">
+              <Tooltip label="My Suspensions">
                 <HStack spacing={2}>
                   <Icon as={FaBan} />
                   <Text display={{ base: "none", md: "inline" }}>
-                    Suspended
+                    Suspensions
                   </Text>
                 </HStack>
               </Tooltip>
@@ -203,15 +181,7 @@ const EmployeeDocuments = () => {
 
             {/* --- SUSPENSIONS TAB --- */}
             <TabPanel>
-              {suspensionData.length === 0 ? (
-                <Center py={10}>
-                  <Text color="gray.500">No suspensions recorded.</Text>
-                </Center>
-              ) : (
-                <Text>
-                  Suspensions section - Add SuspensionSection component here
-                </Text>
-              )}
+              <EmployeeSuspensionSection color="orange.600" />
             </TabPanel>
           </TabPanels>
         </Tabs>

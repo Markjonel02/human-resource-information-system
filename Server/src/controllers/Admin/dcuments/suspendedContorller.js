@@ -44,8 +44,8 @@ exports.createSuspension = async (req, res) => {
 
     // Populate references
     await suspension.populate([
-      { path: "employee", select: "firstname lastname employeeEmail" },
-      { path: "suspendBy", select: "firstname lastname employeeEmail" },
+      { path: "employee", select: "firstname lastname employeeEmail employeeId" },
+      { path: "suspendBy", select: "firstname lastname employeeEmail employeeId" },
     ]);
 
     return res.status(201).json({

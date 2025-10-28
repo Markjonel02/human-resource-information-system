@@ -25,6 +25,7 @@ const PolicyRoutes = require("./routes/admin&hr/document-routes/PoliciesMemosRou
 const OffenseRoutes = require("./routes/admin&hr/document-routes/offenseRoutes.js");
 const SuspensionRoutes = require("./routes/admin&hr/document-routes/suspendedRoutes");
 const EmployeeOffenses = require("./routes/employee/documents/employeeoffenseRoutes.js");
+const EmployeeSuspendedRoutes = require("./routes/employee/documents/employeesuspendedRoutes.js");
 // =======================
 //   INITIALIZATION
 // =======================
@@ -88,6 +89,7 @@ app.use("/api/policy", PolicyRoutes);
 app.use("/api/offense", OffenseRoutes);
 app.use("/api/Suspension", SuspensionRoutes);
 app.use("/api/employeeOffenses", EmployeeOffenses);
+app.use("/api/employeeSuspended", EmployeeSuspendedRoutes);
 
 // =======================
 //   ERROR HANDLING
