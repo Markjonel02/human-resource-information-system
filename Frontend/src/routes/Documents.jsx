@@ -60,10 +60,12 @@ const Documents = () => {
   // --- Fetch Offenses ---
   const fetchOffenses = async () => {
     try {
+      console.log("📥 Documents: Fetching offenses...");
       const res = await axiosInstance.get("/offense/get-all-offense");
+      console.log("📥 Documents: Offenses fetched:", res.data);
       setOffenseData(res.data.offenses || res.data || []);
     } catch (err) {
-      console.error("Failed to fetch offenses:", err);
+      console.error("❌ Documents: Failed to fetch offenses:", err);
       setOffenseData([]);
     }
   };

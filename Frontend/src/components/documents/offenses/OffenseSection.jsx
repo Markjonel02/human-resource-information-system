@@ -87,14 +87,18 @@ const OffenseSection = ({
     onDeleteOpen();
   };
 
-  const handleEditUpdate = async () => {
-    onEditClose(); // Close the modal first
+  // ✅ Update table immediately after editing
+  const handleEditUpdate = async (updatedOffense) => {
+    onEditClose();
 
-    if (refreshData) {
-      await refreshData();
-    } else {
-      await fetchOffenses();
-    }
+    // Update local offenses array instantly
+    setOffenses((prev) =>
+      prev.map((o) => (o._id === updatedOffense._id ? updatedOffense : o))
+    );
+
+    // Optionally refetch in background to stay synced
+    if (refreshData) await refreshData();
+    else fetchOffenses();
 
     toast({
       title: "Success",
@@ -105,6 +109,7 @@ const OffenseSection = ({
     });
   };
 
+  // ✅ Instantly update local state after delete
   const handleConfirmDelete = async () => {
     if (!selectedOffense?._id) {
       toast({
@@ -119,7 +124,10 @@ const OffenseSection = ({
 
     setIsDeleting(true);
     try {
-      await axiosInstance.delete(`/offense/${selectedOffense._id}`);
+      await axiosInstance.delete(`/offense/delete/${selectedOffense._id}`);
+
+      // Update local state immediately (remove deleted item)
+      setOffenses((prev) => prev.filter((o) => o._id !== selectedOffense._id));
 
       toast({
         title: "Success",
@@ -131,11 +139,9 @@ const OffenseSection = ({
 
       onDeleteClose();
 
-      if (refreshData) {
-        await refreshData();
-      } else {
-        await fetchOffenses();
-      }
+      // Optional background refresh
+      if (refreshData) await refreshData();
+      else fetchOffenses();
     } catch (error) {
       console.error("Delete failed:", error);
       toast({
@@ -232,86 +238,28 @@ const OffenseSection = ({
             borderBottomColor={border}
           >
             <Tr>
-              <Th
-                textAlign="center"
-                color={color}
-                fontWeight="bold"
-                fontSize="sm"
-              >
-                Title
-              </Th>
-              <Th
-                textAlign="center"
-                color={color}
-                fontWeight="bold"
-                fontSize="sm"
-              >
-                Severity
-              </Th>
-              <Th
-                textAlign="center"
-                color={color}
-                fontWeight="bold"
-                fontSize="sm"
-              >
-                Category
-              </Th>
-              <Th
-                textAlign="center"
-                color={color}
-                fontWeight="bold"
-                fontSize="sm"
-              >
-                Status
-              </Th>
-              <Th
-                textAlign="center"
-                color={color}
-                fontWeight="bold"
-                fontSize="sm"
-              >
-                Description
-              </Th>
-              <Th
-                textAlign="center"
-                color={color}
-                fontWeight="bold"
-                fontSize="sm"
-              >
-                Employee
-              </Th>
-              <Th
-                textAlign="center"
-                color={color}
-                fontWeight="bold"
-                fontSize="sm"
-              >
-                Action Taken
-              </Th>
-              <Th
-                textAlign="center"
-                color={color}
-                fontWeight="bold"
-                fontSize="sm"
-              >
-                Recorded By
-              </Th>
-              <Th
-                textAlign="center"
-                color={color}
-                fontWeight="bold"
-                fontSize="sm"
-              >
-                Date
-              </Th>
-              <Th
-                textAlign="center"
-                color={color}
-                fontWeight="bold"
-                fontSize="sm"
-              >
-                Notes
-              </Th>
+              {[
+                "Title",
+                "Severity",
+                "Category",
+                "Status",
+                "Description",
+                "Employee",
+                "Action Taken",
+                "Recorded By",
+                "Date",
+                "Notes",
+              ].map((header) => (
+                <Th
+                  key={header}
+                  textAlign="center"
+                  color={color}
+                  fontWeight="bold"
+                  fontSize="sm"
+                >
+                  {header}
+                </Th>
+              ))}
               {!isEmployeeView && (
                 <Th
                   textAlign="center"
@@ -333,7 +281,6 @@ const OffenseSection = ({
                 borderBottomWidth="1px"
                 borderBottomColor={border}
               >
-                {/* Title */}
                 <Td
                   textAlign="center"
                   fontWeight="600"
@@ -343,71 +290,46 @@ const OffenseSection = ({
                 >
                   {item.title || "Untitled Offense"}
                 </Td>
-
-                {/* Severity */}
                 <Td textAlign="center">
-                  {item.severity ? (
-                    <Badge
-                      colorScheme={getSeverityColor(item.severity)}
-                      borderRadius="full"
-                      px={2}
-                      fontSize="xs"
-                    >
-                      {item.severity}
-                    </Badge>
-                  ) : (
-                    "—"
-                  )}
+                  <Badge
+                    colorScheme={getSeverityColor(item.severity)}
+                    borderRadius="full"
+                    px={2}
+                    fontSize="xs"
+                  >
+                    {item.severity || "—"}
+                  </Badge>
                 </Td>
-
-                {/* Category */}
                 <Td textAlign="center">
-                  {item.category ? (
-                    <Badge
-                      colorScheme={getCategoryColor(item.category)}
-                      borderRadius="full"
-                      px={2}
-                      fontSize="xs"
-                    >
-                      {item.category}
-                    </Badge>
-                  ) : (
-                    "—"
-                  )}
+                  <Badge
+                    colorScheme={getCategoryColor(item.category)}
+                    borderRadius="full"
+                    px={2}
+                    fontSize="xs"
+                  >
+                    {item.category || "—"}
+                  </Badge>
                 </Td>
-
-                {/* Status */}
                 <Td textAlign="center">
-                  {item.status ? (
-                    <Badge
-                      colorScheme={getStatusColor(item.status)}
-                      borderRadius="full"
-                      px={2}
-                      fontSize="xs"
-                    >
-                      {item.status}
-                    </Badge>
-                  ) : (
-                    "—"
-                  )}
+                  <Badge
+                    colorScheme={getStatusColor(item.status)}
+                    borderRadius="full"
+                    px={2}
+                    fontSize="xs"
+                  >
+                    {item.status || "—"}
+                  </Badge>
                 </Td>
-
-                {/* Description */}
                 <Td
                   textAlign="center"
                   fontSize="sm"
                   color="gray.600"
                   maxW="180px"
                 >
-                  <Tooltip
-                    label={item.description}
-                    isDisabled={!item.description}
-                  >
+                  <Tooltip label={item.description}>
                     <Box noOfLines={2}>{item.description || "—"}</Box>
                   </Tooltip>
                 </Td>
-
-                {/* Employee */}
                 <Td textAlign="center" fontSize="sm">
                   {item.employeeName ? (
                     <Box>
@@ -422,28 +344,19 @@ const OffenseSection = ({
                     "—"
                   )}
                 </Td>
-
-                {/* Action Taken */}
                 <Td
                   textAlign="center"
                   fontSize="sm"
                   color="gray.600"
                   maxW="180px"
                 >
-                  <Tooltip
-                    label={item.actionTaken}
-                    isDisabled={!item.actionTaken}
-                  >
+                  <Tooltip label={item.actionTaken}>
                     <Box noOfLines={2}>{item.actionTaken || "—"}</Box>
                   </Tooltip>
                 </Td>
-
-                {/* Recorded By */}
                 <Td textAlign="center" fontSize="sm" color="gray.600">
                   {item.recordedByName || item.recordedBy || "—"}
                 </Td>
-
-                {/* Date */}
                 <Td textAlign="center" fontSize="sm" color="gray.600">
                   {item.date
                     ? new Date(item.date).toLocaleDateString("en-US", {
@@ -453,20 +366,17 @@ const OffenseSection = ({
                       })
                     : "—"}
                 </Td>
-
-                {/* Notes */}
                 <Td
                   textAlign="center"
                   fontSize="sm"
                   color="gray.600"
                   maxW="180px"
                 >
-                  <Tooltip label={item.notes} isDisabled={!item.notes}>
+                  <Tooltip label={item.notes}>
                     <Box noOfLines={2}>{item.notes || "—"}</Box>
                   </Tooltip>
                 </Td>
 
-                {/* Actions */}
                 {!isEmployeeView && (
                   <Td textAlign="center">
                     <HStack spacing={2} justify="center">

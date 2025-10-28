@@ -116,17 +116,14 @@ const EditOffenseModal = ({ isOpen, onClose, item, onUpdate }) => {
         date: formData.date || new Date().toISOString(),
       };
 
-      const response = await axiosInstance.put(
-        `/offense/${offenseId}`,
-        updatePayload
-      );
+      await axiosInstance.put(`/offense/${offenseId}`, updatePayload);
 
       // Call the parent callback to update the list and close modal
       if (onUpdate) {
         await onUpdate();
       }
 
-      handleClose();
+      // Don't call handleClose here - let parent handle it via onUpdate
     } catch (error) {
       console.error("Update failed:", error);
       const errorMessage =

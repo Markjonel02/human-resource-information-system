@@ -51,7 +51,7 @@ router.get("/:id",authorizeRoles("admin", "hr"), getOffenseById);
 router.put("/:id", authorizeRoles("admin", "hr"), updateOffense);
 
 // ❌ Delete offense
-router.delete("/:id", authorizeRoles("admin"), deleteOffense);
+router.delete("/delete/:id", authorizeRoles("admin"), deleteOffense);
 
 router.get("/my-offenses",authorizeRoles("admin", "hr"), getMyOffenses);
 module.exports = router;
