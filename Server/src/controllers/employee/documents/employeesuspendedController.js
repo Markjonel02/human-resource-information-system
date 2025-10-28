@@ -7,7 +7,7 @@ exports.getEmployeeSuspensions = async (req, res) => {
     const suspensions = await Suspension.find({ employee: employeeId })
       .populate({
         path: "suspendBy",
-        select: "firstname lastname employeeEmail employeeId",
+        select: "firstname lastname employeeEmail employeeId role",
       })
       .sort({ createdAt: -1 }); // Most recent first
 
