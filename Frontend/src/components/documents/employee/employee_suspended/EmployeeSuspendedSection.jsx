@@ -154,6 +154,7 @@ const EmployeeSuspensionSection = ({ color }) => {
                     {item.suspendBy?.employeeId && (
                       <Box fontSize="xs" color="gray.500">
                         ID: {item.suspendBy.employeeId}
+                        {item.role}
                       </Box>
                     )}
                   </Box>
