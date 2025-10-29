@@ -66,8 +66,11 @@ const EmployeeCalendar = () => {
 
       setEvents(mappedEvents);
     } catch (err) {
-      console.error("Load events error:", err);
-      toast({ title: "Error loading events", status: "error" });
+      toast({
+        title: "Error loading events or no schedule yet",
+        status: "error",
+        position: "top",
+      });
     }
   };
 
