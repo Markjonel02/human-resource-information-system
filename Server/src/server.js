@@ -74,8 +74,6 @@ app.get("/", (req, res) => {
 
 app.use("/api", userRoutes);
 app.use("/api/attendanceRoutes", testRoutes);
-
-// Employee routes
 app.use("/api/employeeAttendance", employeeAttendance);
 app.use("/api/employeeLeave", employeeLeave);
 app.use("/api/adminLeave", adminLeaveRoutes);

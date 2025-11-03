@@ -35,7 +35,7 @@ router.put(
 // Routes for viewing employees - Admin and Manager can see all, Employee can see self
 router.get(
   "/employees",
-  authorizeRoles("admin", "hr_manager", "hr"), // Admin and Manager can get all employees
+  authorizeRoles("admin", "hr"), // Admin and Manager can get all employees
   Useradmin.getAllEmployees
 );
 
