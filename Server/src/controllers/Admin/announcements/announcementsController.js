@@ -1,3 +1,7 @@
+const mongoose = require("mongoose");
+const cron = require("node-cron");
+const nodemailer = require("nodemailer");
+
 // Create Announcement (Admin only)
 const createAnnouncement = async (req, res) => {
   try {
@@ -248,7 +252,7 @@ const sendBirthdayEmail = async (employee, allEmployees) => {
 
     const mailOptions = {
       from: process.env.EMAIL_USER,
-    to: employee.email,
+      to: employee.email,
       subject: `🎉 Happy Birthday, ${employee.name}!`,
       html: htmlContent,
     };
@@ -272,8 +276,8 @@ const checkBirthdays = async () => {
     const employees = await User.find({
       $expr: {
         $and: [
-          { $eq: [{ $month: "$dateOfBirth" }, parseInt(month)] },
-          { $eq: [{ $dayOfMonth: "$dateOfBirth" }, parseInt(day)] },
+          { $eq: [{ $month: "$birthday" }, parseInt(month)] },
+          { $eq: [{ $dayOfMonth: "$birthday" }, parseInt(day)] },
         ],
       },
     });

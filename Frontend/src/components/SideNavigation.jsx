@@ -107,6 +107,7 @@ const SideNavigation = () => {
   const menuItems = [
     // Dynamically set the Dashboard path
     { icon: Home, label: "Dashboard", path: dashboardPath },
+    { icon: AiOutlineMonitor, label: "Announcement", path: "/announcements" },
     {
       icon: Users,
       label: "Employees",
