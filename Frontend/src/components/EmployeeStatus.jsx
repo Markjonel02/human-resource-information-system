@@ -1,108 +1,82 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Flex,
   Heading,
-  Input,
-  InputGroup,
-  InputLeftElement,
   Table,
   Thead,
   Tbody,
   Tr,
   Th,
   Td,
-  Checkbox,
   Avatar,
   Text,
   Tag,
-  IconButton,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  VStack,
   HStack,
   Tooltip,
   useBreakpointValue,
   Spacer,
+  Spinner,
+  useToast,
+  Button,
 } from "@chakra-ui/react";
-import { SearchIcon, ChevronDownIcon, CalendarIcon } from "@chakra-ui/icons";
-
-const employeesData = [
-  {
-    id: 1,
-    name: "Floyd Miles",
-    email: "floydmiles@pagedone.io",
-    department: "Design",
-    joinDate: "Jun. 24, 2023",
-    status: "Active",
-    avatar:
-      "https://images.unsplash.com/photo-1534528736733-d922e9643640?q=80&w=2940&auto=format&fit=crop",
-  },
-  {
-    id: 2,
-    name: "Savannah Nguyen",
-    email: "savannahng@pagedone.io",
-    department: "Research",
-    joinDate: "Feb. 23, 2023",
-    status: "Inactive",
-    avatar:
-      "https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=2861&auto=format&fit=crop",
-  },
-  {
-    id: 3,
-    name: "Cameron Williamson",
-    email: "cameron@pagedone.io",
-    department: "Development",
-    joinDate: "Oct. 23, 2023",
-    status: "Onboarding",
-    avatar:
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=2876&auto=format&fit=crop",
-  },
-  {
-    id: 4,
-    name: "Darrell Steward",
-    email: "darrellstew@pagedone.io",
-    department: "AI & ML",
-    joinDate: "Jul. 12, 2023",
-    status: "Inactive",
-    avatar:
-      "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?q=80&w=2940&auto=format&fit=crop",
-  },
-  {
-    id: 5,
-    name: "Laura Bran",
-    email: "laurabran@pagedone.io",
-    department: "Design",
-    joinDate: "Sep. 29, 2023",
-    status: "Active",
-    avatar:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29329?q=80&w=2874&auto=format&fit=crop",
-  },
-  {
-    id: 6,
-    name: "Alfred Frook",
-    email: "alfredfrook@pagedone.io",
-    department: "Design",
-    joinDate: "Dec. 02, 2023",
-    status: "Active",
-    avatar:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=2874&auto=format&fit=crop",
-  },
-];
+import { CalendarIcon, ArrowForwardIcon } from "@chakra-ui/icons";
+import axiosInstance from "../lib/axiosInstance";
 
 const EmployeeStatus = () => {
+  const [employees, setEmployees] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const toast = useToast();
+  const isMobile = useBreakpointValue({ base: true, md: false });
+  const isLarge = useBreakpointValue({ base: false, lg: true });
 
-  const filteredEmployees = employeesData
-    .filter(
-      (employee) =>
-        employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        employee.department.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .slice(0, 4);
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  const fetchEmployees = async () => {
+    setLoading(true);
+    try {
+      const response = await axiosInstance.get("/employees");
+      setEmployees(response.data);
+      toast({
+        title: "Success",
+        description: "Employees loaded successfully",
+        status: "success",
+        duration: 3,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message ||
+          "Failed to fetch employees. Please check your permissions.",
+        status: "error",
+        duration: 5,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredEmployees = employees
+    .filter((employee) => {
+      const fullName = `${employee.firstname || ""} ${
+        employee.lastname || ""
+      }`.toLowerCase();
+      return (
+        fullName.includes(searchTerm.toLowerCase()) ||
+        employee.employeeEmail
+          ?.toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        employee.department?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    })
+    .slice(0, 3);
 
   const getStatusColorScheme = (status) => {
     switch (status) {
@@ -115,6 +89,28 @@ const EmployeeStatus = () => {
       default:
         return "gray";
     }
+  };
+
+  const formatFullName = (firstname, lastname) => {
+    const fullName = `${firstname} ${lastname}`;
+    return isMobile && fullName.length > 12
+      ? `${fullName.substring(0, 12)}...`
+      : fullName;
+  };
+
+  const formatEmail = (email) => {
+    return isMobile && email?.length > 10
+      ? `${email.substring(0, 10)}...`
+      : email;
+  };
+
+  const formatDate = (date) => {
+    if (!date) return "N/A";
+    const d = new Date(date);
+    if (isMobile || !isLarge) {
+      return d.toLocaleDateString("en-US", { year: "2-digit", month: "short" });
+    }
+    return d.toLocaleDateString();
   };
 
   return (
@@ -138,94 +134,109 @@ const EmployeeStatus = () => {
       </Flex>
 
       <Box bg="white" borderRadius="lg" shadow="md" overflowX="auto">
-        <Table variant="simple" minW="full">
-          <Thead bg="gray.50">
-            <Tr>
-              <Th>Full Name</Th>
-              <Th display={{ base: "none", md: "table-cell" }}>Department</Th>
-              <Th display={{ base: "none", md: "none", lg: "table-cell" }}>
-                Join Date
-              </Th>
-              <Th display="table-cell">Status</Th>
-            </Tr>
-          </Thead>
-          <Tbody bg="white">
-            {filteredEmployees.map((employee) => (
-              <Tr key={employee.id}>
-                <Td>
-                  <Flex align="center">
-                    <Avatar
-                      size="md"
-                      name={employee.name}
-                      src={employee.avatar}
-                    />
-                    <Box ml={4}>
-                      <Tooltip label={employee.name} bg="transparent">
-                        <Text
-                          fontSize="sm"
-                          fontWeight="medium"
-                          color="gray.900"
-                        >
-                          {useBreakpointValue({
-                            base:
-                              employee.name.length > 5
-                                ? `${employee.name.substring(0, 5)}...`
-                                : employee.name,
-                            md: employee.name,
-                          })}
-                        </Text>
-                      </Tooltip>
+        {loading ? (
+          <Flex justify="center" align="center" minH="400px">
+            <Spinner size="lg" color="blue.500" />
+          </Flex>
+        ) : filteredEmployees.length === 0 ? (
+          <Flex justify="center" align="center" minH="200px">
+            <Text color="gray.500">No employees found</Text>
+          </Flex>
+        ) : (
+          <>
+            <Table variant="simple" minW="full">
+              <Thead bg="gray.50">
+                <Tr>
+                  <Th>Full Name</Th>
+                  <Th display={{ base: "none", md: "table-cell" }}>
+                    Department
+                  </Th>
+                  <Th display={{ base: "none", md: "none", lg: "table-cell" }}>
+                    Join Date
+                  </Th>
+                  <Th display="table-cell">Status</Th>
+                </Tr>
+              </Thead>
+              <Tbody bg="white">
+                {filteredEmployees.map((employee) => (
+                  <Tr key={employee._id || employee.id}>
+                    <Td>
+                      <Flex align="center">
+                        <Avatar
+                          size="md"
+                          name={`${employee.firstname} ${employee.lastname}`}
+                          src={employee.avatar}
+                        />
+                        <Box ml={4}>
+                          <Tooltip
+                            label={`${employee.firstname} ${employee.lastname}`}
+                            bg="transparent"
+                          >
+                            <Text
+                              fontSize="sm"
+                              fontWeight="medium"
+                              color="gray.900"
+                            >
+                              {formatFullName(
+                                employee.firstname,
+                                employee.lastname
+                              )}
+                            </Text>
+                          </Tooltip>
 
-                      <Text fontSize="sm" color="gray.500">
-                        {useBreakpointValue({
-                          base:
-                            employee.email.length > 10
-                              ? `${employee.email.substring(0, 10)}...`
-                              : employee.email, // Mobile
-                          md: employee.email, // Medium and up shows full name
-                        })}
-                      </Text>
-                    </Box>
-                  </Flex>
-                </Td>
-                <Td display={{ base: "none", md: "table-cell" }}>
-                  <Text fontSize="sm" color="gray.900">
-                    {employee.department}
-                  </Text>
-                </Td>
-                <Td display={{ base: "none", md: "none", lg: "table-cell" }}>
-                  <HStack spacing={1}>
-                    <CalendarIcon w={3} h={3} color="gray.500" />
-                    <Tooltip label={employee.joinDate}>
+                          <Text fontSize="sm" color="gray.500">
+                            {formatEmail(employee.employeeEmail)}
+                          </Text>
+                        </Box>
+                      </Flex>
+                    </Td>
+                    <Td display={{ base: "none", md: "table-cell" }}>
                       <Text fontSize="sm" color="gray.900">
-                        {useBreakpointValue({
-                          lg:
-                            employee.joinDate.length > 5
-                              ? `${employee.joinDate.substring(0, 5)}...`
-                              : employee.joinDate, // Mobile
-                          md: employee.joinDate, // Medium and up shows full name
-                        })}
+                        {employee.department || "N/A"}
                       </Text>
-                    </Tooltip>
-                  </HStack>
-                </Td>
-                <Td display="table-cell">
-                  <Tag
-                    size="md"
-                    variant="subtle"
-                    colorScheme={getStatusColorScheme(employee.status)}
-                  >
-                    {employee.status}
-                  </Tag>
-                </Td>
-              </Tr>
-            ))}
-          </Tbody>
-        </Table>
+                    </Td>
+                    <Td
+                      display={{ base: "none", md: "none", lg: "table-cell" }}
+                    >
+                      <HStack spacing={1}>
+                        <CalendarIcon w={3} h={3} color="gray.500" />
+                        <Tooltip label={formatDate(employee.createdAt)}>
+                          <Text fontSize="sm" color="gray.900">
+                            {formatDate(employee.createdAt)}
+                          </Text>
+                        </Tooltip>
+                      </HStack>
+                    </Td>
+                    <Td display="table-cell">
+                      <Tag
+                        size="md"
+                        variant="subtle"
+                        colorScheme={getStatusColorScheme(
+                          employee.employeeStatus === 1 ? "Active" : "Inactive"
+                        )}
+                      >
+                        {employee.employeeStatus === 1 ? "Active" : "Inactive"}
+                      </Tag>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+            <Box p={4} display="flex" justifyContent="center">
+              <Button
+                rightIcon={<ArrowForwardIcon />}
+                colorScheme="blue"
+                variant="outline"
+                onClick={() => (window.location.href = "/employees")}
+              >
+                Show More Employees
+              </Button>
+            </Box>
+          </>
+        )}
       </Box>
     </Box>
   );
 };
 
 export default EmployeeStatus;
-

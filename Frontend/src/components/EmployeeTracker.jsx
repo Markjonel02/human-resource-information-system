@@ -12,10 +12,17 @@ import {
   useColorModeValue,
   Icon,
   Text,
+  Spinner,
+  Center,
 } from "@chakra-ui/react";
-import { FaUser, FaUserMinus, FaCalendarAlt, FaFileAlt } from "react-icons/fa";
+import {
+  FaUser,
+  FaUserMinus,
+  FaCalendarAlt,
+  FaFileAlt,
+  FaCheck,
+} from "react-icons/fa";
 import { ResponsiveBar } from "@nivo/bar";
-import { employeeTrackerData } from "../lib/api";
 import axiosInstance from "../lib/axiosInstance";
 
 const MetricCard = ({ title, value, icon }) => {
@@ -54,6 +61,8 @@ const EmployeeTracker = () => {
   const [TotalAdmin, setTotalAdmin] = useState(0);
   const [employeeOnLeave, setEmployeeOnLeave] = useState(0);
   const [inactiveEmployee, setInactiveEmployee] = useState(0);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [chartData, setChartData] = useState([]);
 
   const chartBgColor = useColorModeValue("white", "gray.700");
   const chartBorderColor = useColorModeValue("gray.200", "gray.700");
@@ -70,11 +79,6 @@ const EmployeeTracker = () => {
     Saturday: "Sa",
     Sunday: "Su",
   };
-
-  const formattedData = employeeTrackerData.map((item) => ({
-    ...item,
-    day: isMobile ? shortLabels[item.day] || item.day : item.day,
-  }));
 
   const fetchEmployees = async () => {
     setLoading(true);
@@ -108,9 +112,109 @@ const EmployeeTracker = () => {
     }
   };
 
+  const fetchWeeklyAttendance = async () => {
+    setChartLoading(true);
+    try {
+      console.log("🔄 Fetching weekly attendance...");
+
+      // Get Monday of current week
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+      const monday = new Date(today.setDate(diff));
+      monday.setHours(0, 0, 0, 0);
+
+      // Create weekday data structure (Monday to Friday)
+      const weekData = {};
+      const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+
+      for (let i = 0; i < 5; i++) {
+        const currentDate = new Date(monday);
+        currentDate.setDate(currentDate.getDate() + i);
+        const dayName = currentDate.toLocaleDateString("en-US", {
+          weekday: "long",
+        });
+        weekData[dayName] = { "Full-time": 0, "Part-time": 0 };
+      }
+
+      // Fetch attendance for each weekday
+      const response = await axiosInstance.get(
+        "/attendanceRoutes/getweekly-attendance"
+      );
+
+      console.log("✅ API Response:", response.data);
+
+      const { data, summary } = response.data;
+
+      if (!data || data.length === 0) {
+        console.warn("⚠️ No attendance data in response");
+      }
+
+      // Group attendance by day
+      data.forEach((record) => {
+        const date = new Date(record.date);
+        const dayName = date.toLocaleDateString("en-US", { weekday: "long" });
+
+        if (days.includes(dayName)) {
+          const employmentType = record.employmentType || "Full-time";
+          if (weekData[dayName]) {
+            weekData[dayName][employmentType]++;
+          }
+        }
+      });
+
+      // Format chart data for display
+      const formattedChartData = days.map((day) => ({
+        day,
+        "Full-time": weekData[day]["Full-time"] || 0,
+        "Part-time": weekData[day]["Part-time"] || 0,
+      }));
+
+      console.log("📊 Formatted chart data:", formattedChartData);
+      setChartData(formattedChartData);
+
+      console.log("Weekly attendance loaded:", summary);
+    } catch (error) {
+      console.error(
+        "❌ Error fetching weekly attendance:",
+        error.response?.data || error.message
+      );
+      console.error("Full error:", error);
+
+      // Set default empty chart data on error
+      const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+      setChartData(
+        days.map((day) => ({
+          day,
+          "Full-time": 0,
+          "Part-time": 0,
+        }))
+      );
+    } finally {
+      setChartLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchEmployees();
+    fetchWeeklyAttendance();
+    // Optionally refresh attendance every 5 minutes
+    const interval = setInterval(fetchWeeklyAttendance, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
+
+  const formattedData = chartData.map((item) => ({
+    ...item,
+    day: isMobile ? shortLabels[item.day] || item.day : item.day,
+  }));
+
+  if (loading && chartData.length === 0) {
+    return (
+      <Center h="300px">
+        <Spinner size="lg" color="teal.500" />
+      </Center>
+    );
+  }
 
   return (
     <Box pt={4}>
@@ -152,51 +256,55 @@ const EmployeeTracker = () => {
           </Text>
         </Flex>
 
-        <ResponsiveBar
-          data={formattedData}
-          keys={["Full-time", "Part-time"]}
-          indexBy="day"
-          margin={{ top: 10, right: 20, bottom: 40, left: 50 }}
-          padding={0.25}
-          valueScale={{ type: "linear" }}
-          indexScale={{ type: "band", round: true }}
-          colors={{ scheme: "set2" }}
-          borderColor={{ from: "color", modifiers: [["darker", 1.6]] }}
-          axisTop={null}
-          axisRight={null}
-          axisBottom={{
-            tickSize: 4,
-            tickPadding: 4,
-            legendPosition: "middle",
-            legendOffset: 28,
-          }}
-          axisLeft={{
-            tickSize: 4,
-            tickPadding: 4,
-            legend: "Count",
-            legendPosition: "middle",
-            legendOffset: -35,
-          }}
-          labelSkipWidth={10}
-          labelSkipHeight={10}
-          labelTextColor={{ from: "color", modifiers: [["darker", 1.4]] }}
-          legends={[
-            {
-              dataFrom: "keys",
-              anchor: "bottom-right",
-              direction: "column",
-              translateX: 100,
-              itemWidth: 80,
-              itemHeight: 18,
-              symbolSize: 16,
-            },
-          ]}
-          role="application"
-          ariaLabel="Employee Tracker Chart"
-          barAriaLabel={(e) =>
-            `${e.id}: ${e.formattedValue} in ${e.indexValue}`
-          }
-        />
+        {chartLoading && <Spinner size="lg" color="teal.500" />}
+
+        {formattedData.length > 0 && (
+          <ResponsiveBar
+            data={formattedData}
+            keys={["Full-time", "Part-time"]}
+            indexBy="day"
+            margin={{ top: 10, right: 20, bottom: 40, left: 50 }}
+            padding={0.4}
+            valueScale={{ type: "linear" }}
+            indexScale={{ type: "band", round: true }}
+            colors={{ scheme: "set2" }}
+            borderColor={{ from: "color", modifiers: [["darker", 1.6]] }}
+            axisTop={null}
+            axisRight={null}
+            axisBottom={{
+              tickSize: 4,
+              tickPadding: 4,
+              legendPosition: "middle",
+              legendOffset: 28,
+            }}
+            axisLeft={{
+              tickSize: 4,
+              tickPadding: 4,
+              legend: "Count",
+              legendPosition: "middle",
+              legendOffset: -35,
+            }}
+            labelSkipWidth={10}
+            labelSkipHeight={10}
+            labelTextColor={{ from: "color", modifiers: [["darker", 1.4]] }}
+            legends={[
+              {
+                dataFrom: "keys",
+                anchor: "bottom-right",
+                direction: "column",
+                translateX: 100,
+                itemWidth: 80,
+                itemHeight: 18,
+                symbolSize: 16,
+              },
+            ]}
+            role="application"
+            ariaLabel="Daily Present Employees Chart"
+            barAriaLabel={(e) =>
+              `${e.id}: ${e.formattedValue} employees present`
+            }
+          />
+        )}
       </Box>
     </Box>
   );
