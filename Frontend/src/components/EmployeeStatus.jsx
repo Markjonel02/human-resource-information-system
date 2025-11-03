@@ -18,9 +18,10 @@ import {
   Spacer,
   Spinner,
   useToast,
+  Button,
 } from "@chakra-ui/react";
-import { CalendarIcon } from "@chakra-ui/icons";
-import axiosInstance from "../lib/axiosInstance"; // Update this path
+import { CalendarIcon, ArrowForwardIcon } from "@chakra-ui/icons";
+import axiosInstance from "../lib/axiosInstance";
 
 const EmployeeStatus = () => {
   const [employees, setEmployees] = useState([]);
@@ -75,7 +76,7 @@ const EmployeeStatus = () => {
         employee.department?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     })
-    .slice(0, 10);
+    .slice(0, 3);
 
   const getStatusColorScheme = (status) => {
     switch (status) {
@@ -142,80 +143,96 @@ const EmployeeStatus = () => {
             <Text color="gray.500">No employees found</Text>
           </Flex>
         ) : (
-          <Table variant="simple" minW="full">
-            <Thead bg="gray.50">
-              <Tr>
-                <Th>Full Name</Th>
-                <Th display={{ base: "none", md: "table-cell" }}>Department</Th>
-                <Th display={{ base: "none", md: "none", lg: "table-cell" }}>
-                  Join Date
-                </Th>
-                <Th display="table-cell">Status</Th>
-              </Tr>
-            </Thead>
-            <Tbody bg="white">
-              {filteredEmployees.map((employee) => (
-                <Tr key={employee._id || employee.id}>
-                  <Td>
-                    <Flex align="center">
-                      <Avatar
-                        size="md"
-                        name={`${employee.firstname} ${employee.lastname}`}
-                        src={employee.avatar}
-                      />
-                      <Box ml={4}>
-                        <Tooltip
-                          label={`${employee.firstname} ${employee.lastname}`}
-                          bg="transparent"
-                        >
-                          <Text
-                            fontSize="sm"
-                            fontWeight="medium"
-                            color="gray.900"
+          <>
+            <Table variant="simple" minW="full">
+              <Thead bg="gray.50">
+                <Tr>
+                  <Th>Full Name</Th>
+                  <Th display={{ base: "none", md: "table-cell" }}>
+                    Department
+                  </Th>
+                  <Th display={{ base: "none", md: "none", lg: "table-cell" }}>
+                    Join Date
+                  </Th>
+                  <Th display="table-cell">Status</Th>
+                </Tr>
+              </Thead>
+              <Tbody bg="white">
+                {filteredEmployees.map((employee) => (
+                  <Tr key={employee._id || employee.id}>
+                    <Td>
+                      <Flex align="center">
+                        <Avatar
+                          size="md"
+                          name={`${employee.firstname} ${employee.lastname}`}
+                          src={employee.avatar}
+                        />
+                        <Box ml={4}>
+                          <Tooltip
+                            label={`${employee.firstname} ${employee.lastname}`}
+                            bg="transparent"
                           >
-                            {formatFullName(
-                              employee.firstname,
-                              employee.lastname
-                            )}
+                            <Text
+                              fontSize="sm"
+                              fontWeight="medium"
+                              color="gray.900"
+                            >
+                              {formatFullName(
+                                employee.firstname,
+                                employee.lastname
+                              )}
+                            </Text>
+                          </Tooltip>
+
+                          <Text fontSize="sm" color="gray.500">
+                            {formatEmail(employee.employeeEmail)}
+                          </Text>
+                        </Box>
+                      </Flex>
+                    </Td>
+                    <Td display={{ base: "none", md: "table-cell" }}>
+                      <Text fontSize="sm" color="gray.900">
+                        {employee.department || "N/A"}
+                      </Text>
+                    </Td>
+                    <Td
+                      display={{ base: "none", md: "none", lg: "table-cell" }}
+                    >
+                      <HStack spacing={1}>
+                        <CalendarIcon w={3} h={3} color="gray.500" />
+                        <Tooltip label={formatDate(employee.createdAt)}>
+                          <Text fontSize="sm" color="gray.900">
+                            {formatDate(employee.createdAt)}
                           </Text>
                         </Tooltip>
-
-                        <Text fontSize="sm" color="gray.500">
-                          {formatEmail(employee.employeeEmail)}
-                        </Text>
-                      </Box>
-                    </Flex>
-                  </Td>
-                  <Td display={{ base: "none", md: "table-cell" }}>
-                    <Text fontSize="sm" color="gray.900">
-                      {employee.department || "N/A"}
-                    </Text>
-                  </Td>
-                  <Td display={{ base: "none", md: "none", lg: "table-cell" }}>
-                    <HStack spacing={1}>
-                      <CalendarIcon w={3} h={3} color="gray.500" />
-                      <Tooltip label={formatDate(employee.createdAt)}>
-                        <Text fontSize="sm" color="gray.900">
-                          {formatDate(employee.createdAt)}
-                        </Text>
-                      </Tooltip>
-                    </HStack>
-                  </Td>
-                  <Td display="table-cell">
-                    <Tag
-                      size="md"
-                      variant="subtle"
-                      colorScheme={getStatusColorScheme(
-                        employee.employeeStatus === 1 ? "Active" : "Inactive"
-                      )}
-                    >
-                      {employee.employeeStatus === 1 ? "Active" : "Inactive"}
-                    </Tag>
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
+                      </HStack>
+                    </Td>
+                    <Td display="table-cell">
+                      <Tag
+                        size="md"
+                        variant="subtle"
+                        colorScheme={getStatusColorScheme(
+                          employee.employeeStatus === 1 ? "Active" : "Inactive"
+                        )}
+                      >
+                        {employee.employeeStatus === 1 ? "Active" : "Inactive"}
+                      </Tag>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+            <Box p={4} display="flex" justifyContent="center">
+              <Button
+                rightIcon={<ArrowForwardIcon />}
+                colorScheme="blue"
+                variant="outline"
+                onClick={() => (window.location.href = "/employees")}
+              >
+                Show More Employees
+              </Button>
+            </Box>
+          </>
         )}
       </Box>
     </Box>

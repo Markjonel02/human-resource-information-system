@@ -49,6 +49,12 @@ router.get(
   testAttendance.getAttendance
 );
 
+router.get(
+  "/getweekly-attendance",
+  authorizeRoles("admin", "hr"),
+  testAttendance.getWeeklyPresentAttendance
+);
+
 // PUT /api/attendance/update-attendance/:id - Legacy route for updating records
 router.put(
   "/update-attendance/:id",
@@ -108,6 +114,5 @@ router.get(
   authorizeRoles("admin", "hr"),
   testAttendance.getRecentAttendanceLogs
 );
-
 
 module.exports = router;

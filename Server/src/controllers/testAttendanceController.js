@@ -128,7 +128,7 @@ const addAttendance = async (req, res) => {
 
     const employee = await User.findById(employeeId);
     if (!employee) {
-      await createAttendanceLog({
+      await AttendanceLog({
         employeeId: employeeId,
         action: "CREATE_FAILED",
         description:
@@ -150,7 +150,7 @@ const addAttendance = async (req, res) => {
     });
 
     if (existingAttendance) {
-      await createAttendanceLog({
+      await AttendanceLog({
         employeeId: employeeId,
         attendanceId: existingAttendance._id,
         action: "CREATE_DUPLICATE_ATTEMPT",
@@ -247,7 +247,7 @@ const addAttendance = async (req, res) => {
     const newAttendance = new Attendance(attendanceData);
     await newAttendance.save();
 
-    await createAttendanceLog({
+    await AttendanceLog({
       employeeId: employeeId,
       attendanceId: newAttendance._id,
       action: "CREATED",
@@ -268,7 +268,7 @@ const addAttendance = async (req, res) => {
     });
 
     if (autoStatusChange) {
-      await createAttendanceLog({
+      await AttendanceLog({
         employeeId: employeeId,
         attendanceId: newAttendance._id,
         action: "AUTO_STATUS_CHANGE",
@@ -298,7 +298,7 @@ const addAttendance = async (req, res) => {
     console.error("Error adding attendance:", error);
 
     if (req.body.employeeId) {
-      await createAttendanceLog({
+      await AttendanceLog({
         employeeId: req.body.employeeId,
         action: "CREATE_ERROR",
         description: "Error occurred while creating attendance record",
@@ -494,6 +494,231 @@ const getAttendance = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching attendance records:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+const getWeeklyPresentAttendance = async (req, res) => {
+  // Restrict access to admin and HR roles only
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res.status(403).json({
+      message:
+        "Access denied. Only HR and Admin users can view attendance records.",
+    });
+  }
+
+  try {
+    const currentUser = req.user;
+
+    console.log("Current User:", {
+      id: currentUser._id,
+      role: currentUser.role,
+      name: `${currentUser.firstname} ${currentUser.lastname}`,
+    });
+
+    // Get Monday of current week
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    const monday = new Date(today.setDate(diff));
+    monday.setHours(0, 0, 0, 0);
+
+    // Get Friday of current week
+    const friday = new Date(monday);
+    friday.setDate(friday.getDate() + 4);
+    friday.setHours(23, 59, 59, 999);
+
+    // Build query for this week's attendance with present status
+    const attendanceQuery = {
+      status: "present",
+      date: {
+        $gte: monday,
+        $lte: friday,
+      },
+    };
+
+    console.log("Weekly attendance query:", {
+      from: monday,
+      to: friday,
+    });
+
+    // Get total count
+    const totalRecords = await Attendance.countDocuments(attendanceQuery);
+
+    // Fetch attendance records for the week
+    const attendanceRecords = await Attendance.find(attendanceQuery)
+      .populate(
+        "employee",
+        "firstname lastname employeeId department role employmentType"
+      )
+      .populate("leaveRequest", "leaveType reason")
+      .sort({ date: -1, checkIn: 1 });
+
+    console.log("Found attendance records for week:", attendanceRecords.length);
+
+    // Group by day and employment type
+    const weeklyData = {
+      Monday: { "Full-time": 0, "Part-time": 0 },
+      Tuesday: { "Full-time": 0, "Part-time": 0 },
+      Wednesday: { "Full-time": 0, "Part-time": 0 },
+      Thursday: { "Full-time": 0, "Part-time": 0 },
+      Friday: { "Full-time": 0, "Part-time": 0 },
+    };
+
+    // Transform attendance records and group by day and employment type
+    const transformedAttendance = await Promise.all(
+      attendanceRecords.map(async (record) => {
+        const dayName = new Date(record.date).toLocaleDateString("en-US", {
+          weekday: "long",
+        });
+        const employmentType = record.employee?.employmentType || "Full-time";
+
+        // Count only if it's a weekday (Mon-Fri)
+        if (weeklyData[dayName]) {
+          weeklyData[dayName][employmentType]++;
+        }
+
+        let notes = "";
+        let isOfficialBusiness = false;
+
+        // Check if this attendance record corresponds to an official business
+        if (record.checkIn && record.checkOut && record.status === "present") {
+          try {
+            const officialBusiness = await OfficialBusiness.findOne({
+              employee: record.employee._id,
+              status: "approved",
+              dateFrom: { $lte: record.date },
+              dateTo: { $gte: record.date },
+            });
+
+            if (officialBusiness) {
+              notes = `Official Business: ${officialBusiness.reason}`;
+              isOfficialBusiness = true;
+            }
+          } catch (error) {
+            console.error("Error checking official business:", error);
+          }
+        }
+
+        // Format hours rendered
+        const formatHoursRendered = (minutes) => {
+          if (!minutes) return "0:00";
+          const hours = Math.floor(minutes / 60);
+          const mins = minutes % 60;
+          return `${hours}:${mins.toString().padStart(2, "0")}`;
+        };
+
+        // Format tardiness
+        const formatTardiness = (minutes) => {
+          if (!minutes || minutes === 0) return "No tardiness";
+          const hours = Math.floor(minutes / 60);
+          const mins = minutes % 60;
+          if (hours > 0) {
+            return `${hours}h ${mins}m late`;
+          }
+          return `${mins}m late`;
+        };
+
+        return {
+          _id: record._id,
+          employee: record.employee,
+          date: record.date,
+          dayName: dayName,
+          status:
+            record.status.charAt(0).toUpperCase() + record.status.slice(1),
+          checkIn: record.checkIn
+            ? record.checkIn.toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true,
+              })
+            : "-",
+          checkOut: record.checkOut
+            ? record.checkOut.toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true,
+              })
+            : "-",
+          hoursRendered: formatHoursRendered(record.hoursRendered),
+          hoursRenderedMinutes: record.hoursRendered || 0,
+          tardinessMinutes: record.tardinessMinutes || 0,
+          tardinessDisplay: formatTardiness(record.tardinessMinutes),
+          leaveType: record.leaveRequest?.leaveType || record.leaveType || null,
+          leaveReason: record.leaveRequest?.reason || null,
+          notes: notes || record.notes || "",
+          isOfficialBusiness: isOfficialBusiness,
+          employmentType,
+        };
+      })
+    );
+
+    // Format chart data for all 5 weekdays
+    const chartData = [
+      {
+        day: "Monday",
+        "Full-time": weeklyData.Monday["Full-time"],
+        "Part-time": weeklyData.Monday["Part-time"],
+      },
+      {
+        day: "Tuesday",
+        "Full-time": weeklyData.Tuesday["Full-time"],
+        "Part-time": weeklyData.Tuesday["Part-time"],
+      },
+      {
+        day: "Wednesday",
+        "Full-time": weeklyData.Wednesday["Full-time"],
+        "Part-time": weeklyData.Wednesday["Part-time"],
+      },
+      {
+        day: "Thursday",
+        "Full-time": weeklyData.Thursday["Full-time"],
+        "Part-time": weeklyData.Thursday["Part-time"],
+      },
+      {
+        day: "Friday",
+        "Full-time": weeklyData.Friday["Full-time"],
+        "Part-time": weeklyData.Friday["Part-time"],
+      },
+    ];
+
+    // Log access
+    try {
+      await AttendanceLog.create({
+        employeeId: null,
+        action: "BULK_ACCESS",
+        description: `Accessed weekly present attendance chart (${transformedAttendance.length} present employees this week) - Role: ${currentUser.role}`,
+        performedBy: req.user._id,
+        metadata: {
+          attendanceCount: transformedAttendance.length,
+          weekStart: monday.toISOString().split("T")[0],
+          weekEnd: friday.toISOString().split("T")[0],
+          dailyBreakdown: weeklyData,
+          userRole: currentUser.role,
+          chartType: "WEEKLY_PRESENT",
+        },
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent"),
+      });
+    } catch (logError) {
+      console.error("Error creating attendance log:", logError);
+    }
+
+    res.json({
+      data: transformedAttendance,
+      chartData: chartData,
+      summary: {
+        total: totalRecords,
+        weekStart: monday.toISOString().split("T")[0],
+        weekEnd: friday.toISOString().split("T")[0],
+        dailyBreakdown: weeklyData,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching weekly present attendance:", error);
     res.status(500).json({
       message: "Internal server error",
       error: error.message,
@@ -994,7 +1219,6 @@ const getRecentAttendanceLogs = async (req, res) => {
   }
 };
 
-
 module.exports = {
   addAttendance,
   getAttendance,
@@ -1003,5 +1227,5 @@ module.exports = {
   getAttendanceLogs,
   getEmployeeAttendanceLogs,
   getRecentAttendanceLogs,
-
+  getWeeklyPresentAttendance,
 };
