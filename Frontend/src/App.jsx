@@ -41,6 +41,11 @@ const EmployeeCalendar = lazy(() =>
 const EmployeeDocumentsLayout = lazy(() =>
   import("./routes/employee/employee_documents/EmployeeDocumentsLayout")
 );
+
+const Announcements = lazy(() =>
+  import("./routes/Admin&Hr/announcementsroutes/Announcements")
+);
+
 /**
  * Loader Component
  * Displays a full-screen, centered loading spinner with a semi-transparent background.
@@ -149,6 +154,10 @@ const App = () => {
                             <Route
                               path="/employee-documents"
                               element={<EmployeeDocuments />}
+                            />
+                            <Route
+                              path="/announcements"
+                              element={<Announcements />}
                             />
                             <Route
                               path="/monitoring"
