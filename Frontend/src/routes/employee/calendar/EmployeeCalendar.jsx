@@ -66,11 +66,11 @@ const EmployeeCalendar = () => {
 
       setEvents(mappedEvents);
     } catch (err) {
-      toast({
+      /*  toast({
         title: "Error loading events or no schedule yet",
         status: "error",
         position: "top",
-      });
+      }); */
     }
   };
 

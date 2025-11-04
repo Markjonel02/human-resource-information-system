@@ -48,6 +48,8 @@ const Announcements = () => {
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isBirthdayCheckTriggered, setIsBirthdayCheckTriggered] =
+    useState(false);
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
@@ -343,8 +345,12 @@ const Announcements = () => {
                     size="md"
                     fontWeight="600"
                     onClick={handleTriggerBirthdayCheck}
+                    isDisabled={isBirthdayCheckTriggered}
+                    opacity={isBirthdayCheckTriggered ? 0.6 : 1}
                   >
-                    🎂 Check Birthdays
+                    {isBirthdayCheckTriggered
+                      ? "✅ Birthday Check Done"
+                      : "🎂 Check Birthdays"}
                   </Button>
                   <Button
                     leftIcon={<AddIcon />}
