@@ -17,6 +17,7 @@ import {
   Heading,
   useToast,
 } from "@chakra-ui/react";
+import axiosInstance from "../../../lib/axiosInstance";
 
 const AnnouncementForm = ({ isEditing, announcement, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -34,12 +35,19 @@ const AnnouncementForm = ({ isEditing, announcement, onSubmit, onCancel }) => {
   // Initialize form with editing data
   useEffect(() => {
     if (isEditing && announcement) {
+      // Format the expiresAt for datetime-local input
+      let formattedExpiresAt = "";
+      if (announcement.expiresAt) {
+        const date = new Date(announcement.expiresAt);
+        formattedExpiresAt = date.toISOString().slice(0, 16);
+      }
+
       setFormData({
-        title: announcement.title,
-        content: announcement.content,
-        type: announcement.type,
-        priority: announcement.priority,
-        expiresAt: announcement.expiresAt || "",
+        title: announcement.title || "",
+        content: announcement.content || "",
+        type: announcement.type || "general",
+        priority: announcement.priority || 3,
+        expiresAt: formattedExpiresAt,
       });
     }
   }, [isEditing, announcement]);
@@ -56,8 +64,13 @@ const AnnouncementForm = ({ isEditing, announcement, onSubmit, onCancel }) => {
       newErrors.content = "Content is required";
     }
 
-    if (formData.expiresAt && new Date(formData.expiresAt) < new Date()) {
-      newErrors.expiresAt = "Expiration date must be in the future";
+    if (formData.expiresAt) {
+      const expirationDate = new Date(formData.expiresAt);
+      if (isNaN(expirationDate.getTime())) {
+        newErrors.expiresAt = "Invalid date format";
+      } else if (expirationDate < new Date()) {
+        newErrors.expiresAt = "Expiration date must be in the future";
+      }
     }
 
     setErrors(newErrors);
@@ -75,10 +88,45 @@ const AnnouncementForm = ({ isEditing, announcement, onSubmit, onCancel }) => {
     setIsSubmitting(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const payload = {
+        title: formData.title.trim(),
+        content: formData.content.trim(),
+        type: formData.type || "general",
+        priority: parseInt(formData.priority),
+        ...(formData.expiresAt && {
+          expiresAt: new Date(formData.expiresAt).toISOString(),
+        }),
+      };
 
-      onSubmit(formData);
+      let response;
+
+      if (isEditing && announcement?._id) {
+        // Update existing announcement
+        response = await axiosInstance.put(
+          `/announcements/update-announcement/${announcement._id}`,
+          payload
+        );
+      } else {
+        // Create new announcement
+        response = await axiosInstance.post(
+          "/announcements/create-announcements",
+          payload
+        );
+      }
+
+      const { data } = response;
+
+      toast({
+        title: "Success",
+        description:
+          data.message ||
+          (isEditing
+            ? "Announcement updated successfully"
+            : "Announcement created successfully"),
+        status: "success",
+        duration: 3,
+        isClosable: true,
+      });
 
       // Reset form
       setFormData({
@@ -89,10 +137,21 @@ const AnnouncementForm = ({ isEditing, announcement, onSubmit, onCancel }) => {
         expiresAt: "",
       });
       setErrors({});
+
+      // Call parent callback with the response data
+      if (onSubmit) {
+        onSubmit(data.data);
+      }
     } catch (error) {
+      console.error("Error:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description:
+          error.response?.data?.message ||
+          error.message ||
+          (isEditing
+            ? "Failed to update announcement"
+            : "Failed to create announcement"),
         status: "error",
         duration: 3,
         isClosable: true,

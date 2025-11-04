@@ -20,12 +20,24 @@ import {
   AlertDialogContent,
   AlertDialogOverlay,
   useDisclosure,
+  useToast,
+  Spinner,
+  Checkbox,
 } from "@chakra-ui/react";
 import { DeleteIcon, EditIcon, CalendarIcon } from "@chakra-ui/icons";
 
-const AnnouncementCard = ({ announcement, isAdmin, onEdit, onDelete }) => {
+const AnnouncementCard = ({
+  announcement,
+  isAdmin,
+  onEdit,
+  onDelete,
+  isSelected,
+  onSelectChange,
+}) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const [isDeleting, setIsDeleting] = useState(false);
   const cancelRef = React.useRef();
+  const toast = useToast();
 
   // Get color based on type
   const getTypeColor = (type) => {
@@ -57,124 +69,214 @@ const AnnouncementCard = ({ announcement, isAdmin, onEdit, onDelete }) => {
   };
 
   // Handle delete confirmation
-  const handleDeleteConfirm = () => {
-    onDelete(announcement._id);
-    onClose();
+  const handleDeleteConfirm = async () => {
+    setIsDeleting(true);
+    try {
+      await onDelete(announcement._id);
+      onClose();
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete announcement",
+        status: "error",
+        duration: 3,
+        isClosable: true,
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
     <>
-      <Card
+      <Box
+        bg={isSelected ? "blue.50" : "white"}
+        borderRadius="8px"
+        borderWidth="1px"
+        borderColor={isSelected ? "blue.400" : "gray.200"}
+        p={5}
+        transition="all 0.2s"
+        _hover={{
+          borderColor: isSelected ? "blue.400" : "gray.300",
+          boxShadow: isSelected
+            ? "0 2px 8px rgba(66, 153, 225, 0.2)"
+            : "0 2px 8px rgba(0,0,0,0.06)",
+        }}
         w="100%"
-        boxShadow="md"
-        transition="all 0.3s"
-        _hover={{ boxShadow: "lg", transform: "translateY(-2px)" }}
       >
-        {/* Card Header */}
-        <CardHeader pb={3}>
-          <VStack align="start" w="100%" spacing={3}>
-            {/* Badges Row */}
-            <HStack justify="space-between" w="100%">
-              <HStack spacing={2} wrap="wrap">
-                <Badge
-                  colorScheme={getTypeColor(announcement.type)}
-                  fontSize="xs"
-                  px={2}
-                  py={1}
-                >
-                  {announcement.type.toUpperCase()}
-                </Badge>
-                <Badge
-                  colorScheme={getPriorityColor(announcement.priority)}
-                  fontSize="xs"
-                  variant="outline"
-                >
-                  {getPriorityLabel(announcement.priority)} Priority
-                </Badge>
-              </HStack>
+        {/* Top Section with Checkbox, Badges and Actions */}
+        <HStack justify="space-between" mb={3} wrap="wrap" spacing={3}>
+          <HStack spacing={3} wrap="wrap">
+            {/* Checkbox for selection */}
+            {isAdmin && (
+              <Checkbox
+                isChecked={isSelected}
+                onChange={(e) =>
+                  onSelectChange(announcement._id, e.target.checked)
+                }
+                colorScheme="blue"
+                size="lg"
+              />
+            )}
 
-              {/* Admin Actions */}
-              {isAdmin && (
-                <HStack spacing={2}>
-                  <Button
-                    size="sm"
-                    leftIcon={<EditIcon />}
-                    variant="ghost"
-                    colorScheme="blue"
-                    onClick={() => onEdit(announcement)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    leftIcon={<DeleteIcon />}
-                    variant="ghost"
-                    colorScheme="red"
-                    onClick={onOpen}
-                  >
-                    Delete
-                  </Button>
-                </HStack>
-              )}
+            <Badge
+              colorScheme={getTypeColor(announcement.type)}
+              variant="subtle"
+              fontSize="11px"
+              fontWeight="600"
+              px={2.5}
+              py={0.5}
+            >
+              {announcement.type.charAt(0).toUpperCase() +
+                announcement.type.slice(1)}
+            </Badge>
+            <Badge
+              colorScheme={getPriorityColor(announcement.priority)}
+              variant="subtle"
+              fontSize="11px"
+              fontWeight="600"
+              px={2.5}
+              py={0.5}
+            >
+              {getPriorityLabel(announcement.priority)}
+            </Badge>
+          </HStack>
+
+          {/* Admin Actions */}
+          {isAdmin && (
+            <HStack spacing={2}>
+              <Button
+                size="xs"
+                variant="ghost"
+                colorScheme="blue"
+                fontSize="12px"
+                fontWeight="500"
+                leftIcon={<EditIcon boxSize={3} />}
+                onClick={() => onEdit(announcement)}
+                _hover={{
+                  bg: "blue.50",
+                  color: "blue.600",
+                }}
+              >
+                Edit
+              </Button>
+              <Button
+                size="xs"
+                variant="ghost"
+                colorScheme="red"
+                fontSize="12px"
+                fontWeight="500"
+                leftIcon={<DeleteIcon boxSize={3} />}
+                onClick={onOpen}
+                _hover={{
+                  bg: "red.50",
+                  color: "red.600",
+                }}
+              >
+                Delete
+              </Button>
             </HStack>
+          )}
+        </HStack>
 
-            {/* Title */}
-            <Heading size="md" color="gray.800" w="100%">
-              {announcement.title}
-            </Heading>
-          </VStack>
-        </CardHeader>
+        {/* Title */}
+        <Heading size="sm" color="gray.900" mb={2} fontWeight="700">
+          {announcement.title}
+        </Heading>
 
-        <Divider />
+        {/* Content */}
+        <Text color="gray.700" fontSize="sm" lineHeight="1.5" mb={4}>
+          {announcement.content}
+        </Text>
 
-        {/* Card Body */}
-        <CardBody>
-          <VStack align="start" spacing={4}>
-            {/* Content */}
-            <Text color="gray.700" lineHeight="1.6" fontSize="sm">
-              {announcement.content}
+        {/* Expiration Info */}
+        {announcement.expiresAt && (
+          <VStack align="start" mb={3} spacing={1}>
+            <Text fontSize="xs" color="gray.500">
+              📅 Expires on: {formatDate(announcement.expiresAt)}
             </Text>
-
-            {/* Footer Info */}
-            <Box w="100%" pt={2} borderTopWidth="1px" borderTopColor="gray.100">
-              <HStack spacing={6} fontSize="xs" color="gray.600" wrap="wrap">
-                <HStack spacing={2}>
-                  <Icon as={CalendarIcon} boxSize={3} />
-                  <Text>Posted: {formatDate(announcement.createdAt)}</Text>
-                </HStack>
-                <HStack spacing={1}>
-                  <Text fontWeight="600">By:</Text>
-                  <Text>{announcement.postedBy.name}</Text>
-                </HStack>
-              </HStack>
-            </Box>
           </VStack>
-        </CardBody>
-      </Card>
+        )}
+
+        {/* Footer */}
+        <HStack spacing={4} fontSize="xs" color="gray.500">
+          <HStack spacing={1}>
+            <Icon as={CalendarIcon} boxSize={3.5} />
+            <Text>Posted {formatDate(announcement.createdAt)}</Text>
+          </HStack>
+          <HStack spacing={1}>
+            <Text>By</Text>
+            <Text fontWeight="600" color="gray.700">
+              {announcement.postedBy.firstname && announcement.postedBy.lastname
+                ? `${announcement.postedBy.firstname} ${announcement.postedBy.lastname}`
+                : announcement.postedBy.name || "Unknown"}
+              {announcement.postedBy.role && ` (${announcement.postedBy.role})`}
+            </Text>
+          </HStack>
+        </HStack>
+      </Box>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog
         isOpen={isOpen}
         leastDestructiveRef={cancelRef}
         onClose={onClose}
+        isCentered
       >
         <AlertDialogOverlay>
-          <AlertDialogContent>
-            <AlertDialogHeader fontSize="lg" fontWeight="bold">
-              Delete Announcement
+          <AlertDialogContent borderRadius="12px" boxShadow="lg">
+            <AlertDialogHeader fontSize="lg" fontWeight="bold" color="red.600">
+              🗑️ Delete Announcement
             </AlertDialogHeader>
 
-            <AlertDialogBody>
-              Are you sure you want to delete the announcement "
-              {announcement.title}"? This action cannot be undone.
+            <AlertDialogBody color="gray.700">
+              <VStack align="start" spacing={2}>
+                <Text fontWeight="600">
+                  Are you sure you want to delete this announcement?
+                </Text>
+                <Box
+                  bg="gray.50"
+                  p={3}
+                  borderRadius="md"
+                  borderLeft="4px"
+                  borderColor="red.500"
+                  w="100%"
+                >
+                  <Text fontSize="sm" color="gray.900" fontWeight="600">
+                    "{announcement.title}"
+                  </Text>
+                </Box>
+                <Text fontSize="sm" color="red.600" fontWeight="500">
+                  ⚠️ This action cannot be undone.
+                </Text>
+              </VStack>
             </AlertDialogBody>
 
             <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={onClose}>
+              <Button
+                ref={cancelRef}
+                onClick={onClose}
+                variant="outline"
+                isDisabled={isDeleting}
+              >
                 Cancel
               </Button>
-              <Button colorScheme="red" onClick={handleDeleteConfirm} ml={3}>
-                Delete
+              <Button
+                colorScheme="red"
+                onClick={handleDeleteConfirm}
+                ml={3}
+                isLoading={isDeleting}
+                loadingText="Deleting..."
+              >
+                {isDeleting ? (
+                  <>
+                    <Spinner size="sm" mr={2} />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>

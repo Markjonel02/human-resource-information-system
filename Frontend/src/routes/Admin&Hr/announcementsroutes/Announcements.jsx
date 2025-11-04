@@ -18,80 +18,74 @@ import {
   Badge,
   Spacer,
   Flex,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  useDisclosure,
+  Checkbox,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
 } from "@chakra-ui/react";
-import {
-  AddIcon,
-  BellIcon,
-  SearchIcon,
-  TriangleUpIcon,
-} from "@chakra-ui/icons";
+import { AddIcon, BellIcon, SearchIcon, DeleteIcon } from "@chakra-ui/icons";
+import axiosInstance from "../../../lib/axiosInstance";
 import AnnouncementForm from "../../../components/Admin_components/announcements/AnnouncementForm";
 import AnnouncementCard from "../../../components/Admin_components/announcements/AnnouncementCard";
 
-const AnnouncementsPage = () => {
+const Announcements = () => {
   const [announcements, setAnnouncements] = useState([]);
   const [filteredAnnouncements, setFilteredAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [isAdmin] = useState(true);
-  const [showForm, setShowForm] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const toast = useToast();
-
-  const mockData = [
-    {
-      _id: "1",
-      title: "Happy Birthday, John Doe! 🎉",
-      content: "Wishing John a wonderful birthday filled with joy and success!",
-      type: "birthday",
-      priority: 1,
-      createdAt: new Date().toISOString(),
-      postedBy: { name: "Admin", email: "admin@company.com" },
-      isActive: true,
-    },
-    {
-      _id: "2",
-      title: "Company Outing Next Week",
-      content: "Join us for our annual company outing on Saturday!",
-      type: "general",
-      priority: 2,
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-      postedBy: { name: "HR Department", email: "hr@company.com" },
-      isActive: true,
-    },
-    {
-      _id: "3",
-      title: "System Maintenance Alert",
-      content: "The system will be under maintenance on Friday night.",
-      type: "urgent",
-      priority: 1,
-      createdAt: new Date(Date.now() - 172800000).toISOString(),
-      postedBy: { name: "IT Support", email: "it@company.com" },
-      isActive: true,
-    },
-    {
-      _id: "4",
-      title: "New Holiday Policy Update",
-      content: "Please review the updated holiday policy in the HR portal.",
-      type: "system",
-      priority: 3,
-      createdAt: new Date(Date.now() - 259200000).toISOString(),
-      postedBy: { name: "HR Department", email: "hr@company.com" },
-      isActive: true,
-    },
-  ];
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const {
+    isOpen: isBulkDeleteOpen,
+    onOpen: onBulkDeleteOpen,
+    onClose: onBulkDeleteClose,
+  } = useDisclosure();
+  const cancelRef = React.useRef();
 
   const fetchAnnouncements = async () => {
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      setAnnouncements(mockData);
-      setFilteredAnnouncements(mockData);
+      console.log("🔄 Fetching announcements...");
+
+      const response = await axiosInstance.get(
+        "/announcements/get-announcements"
+      );
+
+      console.log("✅ Response:", response.data);
+
+      const announcementsData = response.data.data || response.data || [];
+
+      if (!Array.isArray(announcementsData)) {
+        throw new Error("Invalid data format: expected array");
+      }
+
+      setAnnouncements(announcementsData);
+      setFilteredAnnouncements(announcementsData);
+      setSelectedIds(new Set());
+
+      console.log(
+        `✅ Successfully fetched ${announcementsData.length} announcements`
+      );
     } catch (error) {
+      console.error("❌ Fetch error:", error);
       toast({
         title: "Error fetching announcements",
-        description: error.message,
+        description: error.response?.data?.message || error.message,
         status: "error",
         duration: 4,
         isClosable: true,
@@ -123,68 +117,147 @@ const AnnouncementsPage = () => {
     setFilteredAnnouncements(filtered);
   }, [searchTerm, typeFilter, announcements]);
 
-  const handleCreateAnnouncement = (formData) => {
-    const newAnnouncement = {
-      _id: Date.now().toString(),
-      ...formData,
-      createdAt: new Date().toISOString(),
-      postedBy: { name: "You", email: "your@email.com" },
-      isActive: true,
-    };
-    setAnnouncements([newAnnouncement, ...announcements]);
-    setShowForm(false);
-    toast({
-      title: "✨ Success",
-      description: "Announcement created successfully",
-      status: "success",
-      duration: 3,
-      isClosable: true,
-    });
+  // Handle individual selection
+  const handleSelectChange = (id, isChecked) => {
+    const newSelected = new Set(selectedIds);
+    if (isChecked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedIds(newSelected);
   };
 
-  const handleUpdateAnnouncement = (formData) => {
-    const updatedAnnouncements = announcements.map((ann) =>
-      ann._id === editingAnnouncement._id
-        ? {
-            ...ann,
-            ...formData,
-            updatedAt: new Date().toISOString(),
-          }
-        : ann
-    );
-    setAnnouncements(updatedAnnouncements);
-    setEditingAnnouncement(null);
-    setShowForm(false);
-    toast({
-      title: "✨ Success",
-      description: "Announcement updated successfully",
-      status: "success",
-      duration: 3,
-      isClosable: true,
-    });
+  // Handle select all
+  const handleSelectAll = (isChecked) => {
+    if (isChecked) {
+      const allIds = new Set(filteredAnnouncements.map((ann) => ann._id));
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds(new Set());
+    }
   };
 
-  const handleDeleteAnnouncement = (id) => {
-    const updatedAnnouncements = announcements.filter((ann) => ann._id !== id);
-    setAnnouncements(updatedAnnouncements);
-    toast({
-      title: "🗑️ Deleted",
-      description: "Announcement removed",
-      status: "info",
-      duration: 3,
-      isClosable: true,
-    });
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true);
+    try {
+      await axiosInstance.post("/announcements/bulk-delete-announcements", {
+        ids: Array.from(selectedIds),
+      });
+
+      toast({
+        title: "✅ Success",
+        description: `${selectedIds.size} announcement(s) deleted successfully`,
+        status: "success",
+        duration: 3,
+        isClosable: true,
+      });
+
+      // Refetch announcements
+      await fetchAnnouncements();
+      onBulkDeleteClose();
+    } catch (error) {
+      console.error("Bulk delete error:", error);
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || "Failed to delete announcements",
+        status: "error",
+        duration: 3,
+        isClosable: true,
+      });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const handleCreateAnnouncement = async (formData) => {
+    try {
+      await fetchAnnouncements();
+      onClose();
+      toast({
+        title: "✨ Success",
+        description: "Announcement created successfully",
+        status: "success",
+        duration: 3,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create announcement",
+        status: "error",
+        duration: 3,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleUpdateAnnouncement = async (formData) => {
+    try {
+      await fetchAnnouncements();
+      setEditingAnnouncement(null);
+      onClose();
+      toast({
+        title: "✨ Success",
+        description: "Announcement updated successfully",
+        status: "success",
+        duration: 3,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update announcement",
+        status: "error",
+        duration: 3,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleDeleteAnnouncement = async (id) => {
+    try {
+      await axiosInstance.delete(`/announcements/delete-announcement/${id}`);
+      await fetchAnnouncements();
+      toast({
+        title: "🗑️ Deleted",
+        description: "Announcement removed successfully",
+        status: "info",
+        duration: 3,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || "Failed to delete announcement",
+        status: "error",
+        duration: 3,
+        isClosable: true,
+      });
+    }
   };
 
   const handleEditClick = (announcement) => {
     setEditingAnnouncement(announcement);
-    setShowForm(true);
+    onOpen();
   };
 
-  const handleCloseForm = () => {
-    setShowForm(false);
+  const handleCloseModal = () => {
+    onClose();
     setEditingAnnouncement(null);
   };
+
+  const handleNewAnnouncement = () => {
+    setEditingAnnouncement(null);
+    onOpen();
+  };
+
+  const isAllSelected =
+    filteredAnnouncements.length > 0 &&
+    selectedIds.size === filteredAnnouncements.length;
 
   return (
     <Box minH="100vh" bg="white" py={12}>
@@ -202,34 +275,144 @@ const AnnouncementsPage = () => {
               <Text fontSize="sm" color="gray.600">
                 {filteredAnnouncements.length} announcement
                 {filteredAnnouncements.length !== 1 ? "s" : ""}
+                {selectedIds.size > 0 && (
+                  <Badge ml={2} colorScheme="blue">
+                    {selectedIds.size} selected
+                  </Badge>
+                )}
               </Text>
             </VStack>
             <Spacer />
-            {isAdmin && (
-              <Button
-                leftIcon={<AddIcon />}
-                colorScheme="blue"
-                size="md"
-                fontWeight="600"
-              >
-                New Announcement
-              </Button>
-            )}
+            <HStack spacing={3}>
+              {selectedIds.size > 0 && isAdmin && (
+                <Button
+                  leftIcon={<DeleteIcon />}
+                  colorScheme="red"
+                  variant="outline"
+                  size="md"
+                  fontWeight="600"
+                  onClick={onBulkDeleteOpen}
+                >
+                  Delete Selected ({selectedIds.size})
+                </Button>
+              )}
+              {isAdmin && (
+                <Button
+                  leftIcon={<AddIcon />}
+                  colorScheme="blue"
+                  size="md"
+                  fontWeight="600"
+                  onClick={handleNewAnnouncement}
+                >
+                  New Announcement
+                </Button>
+              )}
+            </HStack>
           </Flex>
 
-          {/* Form Section */}
-          {showForm && (
-            <AnnouncementForm
-              isEditing={!!editingAnnouncement}
-              announcement={editingAnnouncement}
-              onSubmit={
-                editingAnnouncement
-                  ? handleUpdateAnnouncement
-                  : handleCreateAnnouncement
-              }
-              onCancel={handleCloseForm}
-            />
-          )}
+          {/* Modal for Form */}
+          <Modal isOpen={isOpen} onClose={handleCloseModal} size="2xl">
+            <ModalOverlay />
+            <ModalContent>
+              <ModalHeader>
+                {editingAnnouncement
+                  ? "Edit Announcement"
+                  : "Create New Announcement"}
+              </ModalHeader>
+              <ModalCloseButton />
+              <ModalBody pb={6}>
+                <AnnouncementForm
+                  isEditing={!!editingAnnouncement}
+                  announcement={editingAnnouncement}
+                  onSubmit={
+                    editingAnnouncement
+                      ? handleUpdateAnnouncement
+                      : handleCreateAnnouncement
+                  }
+                  onCancel={handleCloseModal}
+                />
+              </ModalBody>
+            </ModalContent>
+          </Modal>
+
+          {/* Bulk Delete Confirmation Dialog */}
+          <AlertDialog
+            isOpen={isBulkDeleteOpen}
+            leastDestructiveRef={cancelRef}
+            onClose={onBulkDeleteClose}
+            isCentered
+          >
+            <AlertDialogOverlay>
+              <AlertDialogContent borderRadius="12px" boxShadow="lg">
+                <AlertDialogHeader
+                  fontSize="lg"
+                  fontWeight="bold"
+                  color="red.600"
+                >
+                  🗑️ Delete Multiple Announcements
+                </AlertDialogHeader>
+
+                <AlertDialogBody color="gray.700">
+                  <VStack align="start" spacing={3}>
+                    <Text fontWeight="600">
+                      Are you sure you want to delete {selectedIds.size}{" "}
+                      announcement{selectedIds.size !== 1 ? "s" : ""}?
+                    </Text>
+                    <Box
+                      bg="gray.50"
+                      p={3}
+                      borderRadius="md"
+                      borderLeft="4px"
+                      borderColor="red.500"
+                      w="100%"
+                    >
+                      <Text fontSize="sm" color="gray.600">
+                        This will permanently remove the following
+                        announcements:
+                      </Text>
+                      <VStack align="start" mt={2} spacing={1}>
+                        {filteredAnnouncements
+                          .filter((ann) => selectedIds.has(ann._id))
+                          .map((ann) => (
+                            <Text
+                              key={ann._id}
+                              fontSize="sm"
+                              color="gray.900"
+                              fontWeight="500"
+                            >
+                              • {ann.title}
+                            </Text>
+                          ))}
+                      </VStack>
+                    </Box>
+                    <Text fontSize="sm" color="red.600" fontWeight="500">
+                      ⚠️ This action cannot be undone.
+                    </Text>
+                  </VStack>
+                </AlertDialogBody>
+
+                <AlertDialogFooter>
+                  <Button
+                    ref={cancelRef}
+                    onClick={onBulkDeleteClose}
+                    variant="outline"
+                    isDisabled={isBulkDeleting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    colorScheme="red"
+                    onClick={handleBulkDelete}
+                    ml={3}
+                    isLoading={isBulkDeleting}
+                    loadingText="Deleting..."
+                  >
+                    Delete {selectedIds.size}
+                  </Button>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialogOverlay>
+          </AlertDialog>
 
           {/* Search and Filter Bar */}
           <Box borderBottomWidth="1px" borderColor="gray.200" pb={6}>
@@ -282,6 +465,24 @@ const AnnouncementsPage = () => {
             </Grid>
           </Box>
 
+          {/* Select All Checkbox */}
+          {filteredAnnouncements.length > 0 && isAdmin && (
+            <HStack spacing={3} bg="gray.50" p={3} borderRadius="md">
+              <Checkbox
+                isChecked={isAllSelected}
+                isIndeterminate={selectedIds.size > 0 && !isAllSelected}
+                onChange={(e) => handleSelectAll(e.target.checked)}
+                colorScheme="blue"
+                size="lg"
+              />
+              <Text fontSize="sm" fontWeight="500" color="gray.700">
+                {isAllSelected
+                  ? `All ${filteredAnnouncements.length} selected`
+                  : `Select all announcements (${filteredAnnouncements.length})`}
+              </Text>
+            </HStack>
+          )}
+
           {/* Announcements List */}
           {loading ? (
             <Center py={20}>
@@ -307,6 +508,8 @@ const AnnouncementsPage = () => {
                   isAdmin={isAdmin}
                   onEdit={handleEditClick}
                   onDelete={handleDeleteAnnouncement}
+                  isSelected={selectedIds.has(announcement._id)}
+                  onSelectChange={handleSelectChange}
                 />
               ))}
             </VStack>
@@ -317,4 +520,4 @@ const AnnouncementsPage = () => {
   );
 };
 
-export default AnnouncementsPage;
+export default Announcements;
