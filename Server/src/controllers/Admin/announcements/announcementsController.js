@@ -1,29 +1,93 @@
 const mongoose = require("mongoose");
 const cron = require("node-cron");
 const nodemailer = require("nodemailer");
-
+const Announcement = require("../../../models/Announcements/announcementsModel");
 // Create Announcement (Admin only)
 const createAnnouncement = async (req, res) => {
   try {
     const { title, content, type, expiresAt, priority } = req.body;
 
-    if (!title || !content) {
+    // DEBUG: Log req.user to see if authentication is working
+    console.log("DEBUG: req.user =", req.user);
+    console.log("DEBUG: req.body =", req.body);
+    console.log("DEBUG: req headers =", req.headers);
+
+    // Validation
+    if (!title || !title.trim()) {
       return res.status(400).json({
         success: false,
-        message: "Title and content are required",
+        message: "Title is required and cannot be empty",
       });
     }
 
+    if (!content || !content.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Content is required and cannot be empty",
+      });
+    }
+
+    // Validate expiration date if provided
+    if (expiresAt) {
+      const expirationDate = new Date(expiresAt);
+      if (isNaN(expirationDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid expiration date format",
+        });
+      }
+
+      if (expirationDate < new Date()) {
+        return res.status(400).json({
+          success: false,
+          message: "Expiration date must be in the future",
+        });
+      }
+    }
+
+    // Validate priority
+    const validPriorities = [1, 2, 3];
+    const parsedPriority = parseInt(priority);
+    if (isNaN(parsedPriority) || !validPriorities.includes(parsedPriority)) {
+      return res.status(400).json({
+        success: false,
+        message: "Priority must be 1 (High), 2 (Medium), or 3 (Low)",
+      });
+    }
+
+    // Validate type
+    const validTypes = ["general", "birthday", "system", "urgent"];
+    if (type && !validTypes.includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid announcement type",
+      });
+    }
+
+    // Check if user exists - THIS IS THE CRITICAL PART
+    if (!req.user || !req.user._id) {
+      console.error("ERROR: Authentication failed - req.user is:", req.user);
+      return res.status(401).json({
+        success: false,
+        message:
+          "User not authenticated. Make sure you're logged in and your token is valid.",
+      });
+    }
+
+    // Create announcement
     const announcement = new Announcement({
-      title,
-      content,
+      title: title.trim(),
+      content: content.trim(),
       type: type || "general",
       postedBy: req.user._id,
-      expiresAt,
-      priority: priority || 3,
+      expiresAt: expiresAt ? new Date(expiresAt) : null,
+      priority: parsedPriority,
     });
 
+    // Save to database
     await announcement.save();
+
+    // Populate user details
     await announcement.populate("postedBy", "name email");
 
     res.status(201).json({
@@ -32,6 +96,7 @@ const createAnnouncement = async (req, res) => {
       data: announcement,
     });
   } catch (error) {
+    console.error("Error creating announcement:", error);
     res.status(500).json({
       success: false,
       message: "Error creating announcement",
@@ -53,7 +118,7 @@ const getAnnouncements = async (req, res) => {
     filter.$or = [{ expiresAt: null }, { expiresAt: { $gte: new Date() } }];
 
     const announcements = await Announcement.find(filter)
-      .populate("postedBy", "name email")
+      .populate("postedBy", "firstname employeeEmail")
       .sort({ priority: 1, createdAt: -1 });
 
     res.status(200).json({

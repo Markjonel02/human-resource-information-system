@@ -157,7 +157,7 @@ const AnnouncementCard = ({ announcement, isAdmin, onEdit, onDelete }) => {
           <HStack spacing={1}>
             <Text>By</Text>
             <Text fontWeight="600" color="gray.700">
-              {announcement.postedBy.name}
+              {announcement.postedBy.firstname + " " + announcement.postedBy.lastname}
             </Text>
           </HStack>
         </HStack>

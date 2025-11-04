@@ -51,11 +51,22 @@ const Announcements = () => {
     setLoading(true);
     try {
       const { data } = await axiosInstance.get(
-        "/Announcement/get-announcements"
+        "/announcements/get-announcements"
       );
-      setAnnouncements(data.data);
-      setFilteredAnnouncements(data.data);
+
+      // Handle different response structures
+      const announcementsData = Array.isArray(data.data)
+        ? data.data
+        : Array.isArray(data)
+        ? data
+        : [];
+
+      setAnnouncements(announcementsData);
+      setFilteredAnnouncements(announcementsData);
+
+      console.log("Announcements fetched:", announcementsData);
     } catch (error) {
+      console.error("Fetch error:", error);
       toast({
         title: "Error fetching announcements",
         description: error.response?.data?.message || error.message,
@@ -90,57 +101,79 @@ const Announcements = () => {
     setFilteredAnnouncements(filtered);
   }, [searchTerm, typeFilter, announcements]);
 
-  const handleCreateAnnouncement = (formData) => {
-    const newAnnouncement = {
-      _id: Date.now().toString(),
-      ...formData,
-      createdAt: new Date().toISOString(),
-      postedBy: { name: "You", email: "your@email.com" },
-      isActive: true,
-    };
-    setAnnouncements([newAnnouncement, ...announcements]);
-    onClose();
-    toast({
-      title: "✨ Success",
-      description: "Announcement created successfully",
-      status: "success",
-      duration: 3,
-      isClosable: true,
-    });
+  const handleCreateAnnouncement = async (formData) => {
+    try {
+      // The form already makes the API call and shows success toast
+      // Just refetch the announcements to get the latest data
+      await fetchAnnouncements();
+      onClose();
+      toast({
+        title: "✨ Success",
+        description: "Announcement created successfully",
+        status: "success",
+        duration: 3,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create announcement",
+        status: "error",
+        duration: 3,
+        isClosable: true,
+      });
+    }
   };
 
-  const handleUpdateAnnouncement = (formData) => {
-    const updatedAnnouncements = announcements.map((ann) =>
-      ann._id === editingAnnouncement._id
-        ? {
-            ...ann,
-            ...formData,
-            updatedAt: new Date().toISOString(),
-          }
-        : ann
-    );
-    setAnnouncements(updatedAnnouncements);
-    setEditingAnnouncement(null);
-    onClose();
-    toast({
-      title: "✨ Success",
-      description: "Announcement updated successfully",
-      status: "success",
-      duration: 3,
-      isClosable: true,
-    });
+  const handleUpdateAnnouncement = async (formData) => {
+    try {
+      // Refetch to get updated data from backend
+      await fetchAnnouncements();
+      setEditingAnnouncement(null);
+      onClose();
+      toast({
+        title: "✨ Success",
+        description: "Announcement updated successfully",
+        status: "success",
+        duration: 3,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update announcement",
+        status: "error",
+        duration: 3,
+        isClosable: true,
+      });
+    }
   };
 
-  const handleDeleteAnnouncement = (id) => {
-    const updatedAnnouncements = announcements.filter((ann) => ann._id !== id);
-    setAnnouncements(updatedAnnouncements);
-    toast({
-      title: "🗑️ Deleted",
-      description: "Announcement removed",
-      status: "info",
-      duration: 3,
-      isClosable: true,
-    });
+  const handleDeleteAnnouncement = async (id) => {
+    try {
+      // Make API call to delete
+      await axiosInstance.delete(`/announcements/delete-announcement/${id}`);
+
+      // Refetch announcements
+      await fetchAnnouncements();
+
+      toast({
+        title: "🗑️ Deleted",
+        description: "Announcement removed successfully",
+        status: "info",
+        duration: 3,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || "Failed to delete announcement",
+        status: "error",
+        duration: 3,
+        isClosable: true,
+      });
+    }
   };
 
   const handleEditClick = (announcement) => {
