@@ -5,6 +5,7 @@ const {
   getAnnouncementById,
   updateAnnouncement,
   deleteAnnouncement,
+  bulkDeleteAnnouncements,
 } = require("../../../controllers/Admin/announcements/announcementsController");
 const express = require("express");
 const router = express.Router();
@@ -50,6 +51,11 @@ router.delete(
   "/delete-announcement/:id",
   authorizeRoles("admin"),
   deleteAnnouncement
+);
+router.post(
+  "/bulk-delete-announcements",
+  authorizeRoles("admin"),
+  bulkDeleteAnnouncements
 );
 
 module.exports = router;

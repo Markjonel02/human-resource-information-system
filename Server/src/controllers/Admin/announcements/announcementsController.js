@@ -118,7 +118,7 @@ const getAnnouncements = async (req, res) => {
     filter.$or = [{ expiresAt: null }, { expiresAt: { $gte: new Date() } }];
 
     const announcements = await Announcement.find(filter)
-      .populate("postedBy", "firstname employeeEmail")
+      .populate("postedBy", "firstname employeeEmail employeeId lastname role")
       .sort({ priority: 1, createdAt: -1 });
 
     res.status(200).json({
@@ -268,10 +268,10 @@ const transporter = nodemailer.createTransport({
 // Create Birthday Announcement
 const createBirthdayAnnouncement = async (employee) => {
   try {
-    const birthdayMessage = `🎉 Happy Birthday! 🎂\n\nWishing ${employee.name} a wonderful birthday filled with joy, health, and success! We're grateful to have you as part of our team.`;
+    const birthdayMessage = `🎉 Happy Birthday! 🎂\n\nWishing ${employee.firstname} a wonderful birthday filled with joy, health, and success! We're grateful to have you as part of our team.`;
 
     const announcement = new Announcement({
-      title: `Happy Birthday, ${employee.name}! 🎉`,
+      title: `Happy Birthday, ${employee.firstname}! 🎉`,
       content: birthdayMessage,
       type: "birthday",
       postedBy: employee._id,
@@ -280,7 +280,7 @@ const createBirthdayAnnouncement = async (employee) => {
     });
 
     await announcement.save();
-    console.log(`Birthday announcement created for ${employee.name}`);
+    console.log(`Birthday announcement created for ${employee.firstname}`);
 
     return announcement;
   } catch (error) {
@@ -297,7 +297,7 @@ const sendBirthdayEmail = async (employee, allEmployees) => {
           <div style="background-color: white; border-radius: 10px; padding: 30px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
             <h1 style="color: #ff6b6b; text-align: center;">🎉 Happy Birthday! 🎂</h1>
             <p style="font-size: 18px; color: #333; text-align: center;">
-              Dear ${employee.name},
+              Dear ${employee.firstname},
             </p>
             <p style="font-size: 16px; color: #555; line-height: 1.6;">
               We're thrilled to celebrate your special day! Wishing you a wonderful birthday filled with joy, good health, and amazing moments. 
@@ -318,12 +318,12 @@ const sendBirthdayEmail = async (employee, allEmployees) => {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: employee.email,
-      subject: `🎉 Happy Birthday, ${employee.name}!`,
+      subject: `🎉 Happy Birthday, ${employee.firstname}!`,
       html: htmlContent,
     };
 
     await transporter.sendMail(mailOptions);
-    console.log(`Birthday email sent to ${employee.email}`);
+    console.log(`Birthday email sent to ${employee.employeeEmail}`);
   } catch (error) {
     console.error("Error sending birthday email:", error);
   }
@@ -373,7 +373,59 @@ const scheduleBirthdayCheck = () => {
     checkBirthdays();
   });
 };
+const bulkDeleteAnnouncements = async (req, res) => {
+  try {
+    const { ids } = req.body;
 
+    // Validate input
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide at least one announcement ID to delete",
+      });
+    }
+
+    // Validate all IDs are valid MongoDB ObjectIds
+    const validIds = ids.every((id) => mongoose.Types.ObjectId.isValid(id));
+    if (!validIds) {
+      return res.status(400).json({
+        success: false,
+        message: "One or more invalid announcement IDs provided",
+      });
+    }
+
+    console.log(`🗑️ Attempting to delete ${ids.length} announcements:`, ids);
+
+    // Delete announcements
+    const result = await Announcement.deleteMany({
+      _id: { $in: ids },
+    });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No announcements found to delete",
+      });
+    }
+
+    console.log(`✅ Successfully deleted ${result.deletedCount} announcements`);
+
+    res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} announcement(s) deleted successfully`,
+      data: {
+        deletedCount: result.deletedCount,
+      },
+    });
+  } catch (error) {
+    console.error("Error bulk deleting announcements:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting announcements",
+      error: error.message,
+    });
+  }
+};
 // =====================
 // EXPORTS
 // =====================
@@ -385,6 +437,7 @@ module.exports = {
   getAnnouncementById,
   updateAnnouncement,
   deleteAnnouncement,
+  bulkDeleteAnnouncements,
 
   // Birthday Automation
   checkBirthdays,
