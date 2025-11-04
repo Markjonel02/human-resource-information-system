@@ -255,6 +255,45 @@ const Announcements = () => {
     onOpen();
   };
 
+  // Trigger birthday check manually
+  const handleTriggerBirthdayCheck = async () => {
+    try {
+      toast({
+        title: "🎂 Checking birthdays...",
+        status: "loading",
+        duration: null,
+        isClosable: false,
+      });
+
+      const response = await axiosInstance.post(
+        "/announcements/trigger-birthday-check"
+      );
+
+      toast.closeAll();
+      toast({
+        title: "✅ Birthday Check Complete",
+        description:
+          response.data.message || "Birthday check has been triggered",
+        status: "success",
+        duration: 4,
+        isClosable: true,
+      });
+
+      // Refetch announcements to show any newly created birthday announcements
+      await fetchAnnouncements();
+    } catch (error) {
+      toast.closeAll();
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || "Failed to trigger birthday check",
+        status: "error",
+        duration: 4,
+        isClosable: true,
+      });
+    }
+  };
+
   const isAllSelected =
     filteredAnnouncements.length > 0 &&
     selectedIds.size === filteredAnnouncements.length;
@@ -297,15 +336,26 @@ const Announcements = () => {
                 </Button>
               )}
               {isAdmin && (
-                <Button
-                  leftIcon={<AddIcon />}
-                  colorScheme="blue"
-                  size="md"
-                  fontWeight="600"
-                  onClick={handleNewAnnouncement}
-                >
-                  New Announcement
-                </Button>
+                <>
+                  <Button
+                    colorScheme="purple"
+                    variant="outline"
+                    size="md"
+                    fontWeight="600"
+                    onClick={handleTriggerBirthdayCheck}
+                  >
+                    🎂 Check Birthdays
+                  </Button>
+                  <Button
+                    leftIcon={<AddIcon />}
+                    colorScheme="blue"
+                    size="md"
+                    fontWeight="600"
+                    onClick={handleNewAnnouncement}
+                  >
+                    New Announcement
+                  </Button>
+                </>
               )}
             </HStack>
           </Flex>
