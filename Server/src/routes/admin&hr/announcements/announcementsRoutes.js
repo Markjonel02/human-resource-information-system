@@ -12,7 +12,11 @@ router.use(verifyJWT);
 // Initialize birthday scheduler on app start
 scheduleBirthdayCheck();
 
-router.post("/announcements", authorizeRoles("admin"), createAnnouncement);
-router.get("/announcements", getAnnouncements);
+router.post(
+  "/create-announcements",
+  authorizeRoles("admin"),
+  createAnnouncement
+);
+router.get("/get-announcements", getAnnouncements);
 
 module.exports = router;

@@ -64,93 +64,104 @@ const AnnouncementCard = ({ announcement, isAdmin, onEdit, onDelete }) => {
 
   return (
     <>
-      <Card
+      <Box
+        bg="white"
+        borderRadius="8px"
+        borderWidth="1px"
+        borderColor="gray.200"
+        p={5}
+        transition="all 0.2s"
+        _hover={{
+          borderColor: "gray.300",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+        }}
         w="100%"
-        boxShadow="md"
-        transition="all 0.3s"
-        _hover={{ boxShadow: "lg", transform: "translateY(-2px)" }}
       >
-        {/* Card Header */}
-        <CardHeader pb={3}>
-          <VStack align="start" w="100%" spacing={3}>
-            {/* Badges Row */}
-            <HStack justify="space-between" w="100%">
-              <HStack spacing={2} wrap="wrap">
-                <Badge
-                  colorScheme={getTypeColor(announcement.type)}
-                  fontSize="xs"
-                  px={2}
-                  py={1}
-                >
-                  {announcement.type.toUpperCase()}
-                </Badge>
-                <Badge
-                  colorScheme={getPriorityColor(announcement.priority)}
-                  fontSize="xs"
-                  variant="outline"
-                >
-                  {getPriorityLabel(announcement.priority)} Priority
-                </Badge>
-              </HStack>
+        {/* Top Section with Badges and Actions */}
+        <HStack justify="space-between" mb={3} wrap="wrap" spacing={3}>
+          <HStack spacing={2} wrap="wrap">
+            <Badge
+              colorScheme={getTypeColor(announcement.type)}
+              variant="subtle"
+              fontSize="11px"
+              fontWeight="600"
+              px={2.5}
+              py={0.5}
+            >
+              {announcement.type.charAt(0).toUpperCase() +
+                announcement.type.slice(1)}
+            </Badge>
+            <Badge
+              colorScheme={getPriorityColor(announcement.priority)}
+              variant="subtle"
+              fontSize="11px"
+              fontWeight="600"
+              px={2.5}
+              py={0.5}
+            >
+              {getPriorityLabel(announcement.priority)}
+            </Badge>
+          </HStack>
 
-              {/* Admin Actions */}
-              {isAdmin && (
-                <HStack spacing={2}>
-                  <Button
-                    size="sm"
-                    leftIcon={<EditIcon />}
-                    variant="ghost"
-                    colorScheme="blue"
-                    onClick={() => onEdit(announcement)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    leftIcon={<DeleteIcon />}
-                    variant="ghost"
-                    colorScheme="red"
-                    onClick={onOpen}
-                  >
-                    Delete
-                  </Button>
-                </HStack>
-              )}
+          {/* Admin Actions */}
+          {isAdmin && (
+            <HStack spacing={2}>
+              <Button
+                size="xs"
+                variant="ghost"
+                colorScheme="blue"
+                fontSize="12px"
+                fontWeight="500"
+                onClick={() => onEdit(announcement)}
+                _hover={{
+                  bg: "transparent",
+                  color: "blue.600",
+                }}
+              >
+                Edit
+              </Button>
+              <Button
+                size="xs"
+                variant="ghost"
+                colorScheme="red"
+                fontSize="12px"
+                fontWeight="500"
+                onClick={onOpen}
+                _hover={{
+                  bg: "transparent",
+                  color: "red.600",
+                }}
+              >
+                Delete
+              </Button>
             </HStack>
+          )}
+        </HStack>
 
-            {/* Title */}
-            <Heading size="md" color="gray.800" w="100%">
-              {announcement.title}
-            </Heading>
-          </VStack>
-        </CardHeader>
+        {/* Title */}
+        <Heading size="sm" color="gray.900" mb={2} fontWeight="700">
+          {announcement.title}
+        </Heading>
 
-        <Divider />
+        {/* Content */}
+        <Text color="gray.700" fontSize="sm" lineHeight="1.5" mb={4}>
+          {announcement.content}
+        </Text>
 
-        {/* Card Body */}
-        <CardBody>
-          <VStack align="start" spacing={4}>
-            {/* Content */}
-            <Text color="gray.700" lineHeight="1.6" fontSize="sm">
-              {announcement.content}
+        {/* Footer */}
+        <HStack spacing={4} fontSize="xs" color="gray.500">
+          <HStack spacing={1}>
+            <Icon as={CalendarIcon} boxSize={3.5} />
+            <Text>{formatDate(announcement.createdAt)}</Text>
+          </HStack>
+          <HStack spacing={1}>
+            <Text>By</Text>
+            <Text fontWeight="600" color="gray.700">
+              {announcement.postedBy.name}
             </Text>
-
-            {/* Footer Info */}
-            <Box w="100%" pt={2} borderTopWidth="1px" borderTopColor="gray.100">
-              <HStack spacing={6} fontSize="xs" color="gray.600" wrap="wrap">
-                <HStack spacing={2}>
-                  <Icon as={CalendarIcon} boxSize={3} />
-                  <Text>Posted: {formatDate(announcement.createdAt)}</Text>
-                </HStack>
-                <HStack spacing={1}>
-                  <Text fontWeight="600">By:</Text>
-                  <Text>{announcement.postedBy.name}</Text>
-                </HStack>
-              </HStack>
-            </Box>
-          </VStack>
-        </CardBody>
-      </Card>
+          </HStack>
+        </HStack>
+      </Box>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog

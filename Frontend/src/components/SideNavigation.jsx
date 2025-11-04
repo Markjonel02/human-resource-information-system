@@ -46,7 +46,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AiOutlineMonitor } from "react-icons/ai";
 import { MdOutlineRequestPage } from "react-icons/md";
 import { useAuth } from "../context/AuthContext"; // Correct import path for Auth context
-
+import { TfiAnnouncement } from "react-icons/tfi";
 const SideNavigation = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { isOpen, onOpen, onClose } = useDisclosure(); // For the mobile drawer
@@ -107,7 +107,11 @@ const SideNavigation = () => {
   const menuItems = [
     // Dynamically set the Dashboard path
     { icon: Home, label: "Dashboard", path: dashboardPath },
-    { icon: AiOutlineMonitor, label: "Announcement", path: "/announcements" },
+    {
+      icon: TfiAnnouncement,
+      label: "Announcement",
+      path: "/announcements",
+    },
     {
       icon: Users,
       label: "Employees",

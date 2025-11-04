@@ -18,6 +18,13 @@ import {
   Badge,
   Spacer,
   Flex,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  useDisclosure,
 } from "@chakra-ui/react";
 import {
   AddIcon,
@@ -25,73 +32,33 @@ import {
   SearchIcon,
   TriangleUpIcon,
 } from "@chakra-ui/icons";
+import axiosInstance from "../../../lib/axiosInstance";
 import AnnouncementForm from "../../../components/Admin_components/announcements/AnnouncementForm";
 import AnnouncementCard from "../../../components/Admin_components/announcements/AnnouncementCard";
 
-const AnnouncementsPage = () => {
+const Announcements = () => {
   const [announcements, setAnnouncements] = useState([]);
   const [filteredAnnouncements, setFilteredAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [isAdmin] = useState(true);
-  const [showForm, setShowForm] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
   const toast = useToast();
-
-  const mockData = [
-    {
-      _id: "1",
-      title: "Happy Birthday, John Doe! 🎉",
-      content: "Wishing John a wonderful birthday filled with joy and success!",
-      type: "birthday",
-      priority: 1,
-      createdAt: new Date().toISOString(),
-      postedBy: { name: "Admin", email: "admin@company.com" },
-      isActive: true,
-    },
-    {
-      _id: "2",
-      title: "Company Outing Next Week",
-      content: "Join us for our annual company outing on Saturday!",
-      type: "general",
-      priority: 2,
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-      postedBy: { name: "HR Department", email: "hr@company.com" },
-      isActive: true,
-    },
-    {
-      _id: "3",
-      title: "System Maintenance Alert",
-      content: "The system will be under maintenance on Friday night.",
-      type: "urgent",
-      priority: 1,
-      createdAt: new Date(Date.now() - 172800000).toISOString(),
-      postedBy: { name: "IT Support", email: "it@company.com" },
-      isActive: true,
-    },
-    {
-      _id: "4",
-      title: "New Holiday Policy Update",
-      content: "Please review the updated holiday policy in the HR portal.",
-      type: "system",
-      priority: 3,
-      createdAt: new Date(Date.now() - 259200000).toISOString(),
-      postedBy: { name: "HR Department", email: "hr@company.com" },
-      isActive: true,
-    },
-  ];
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   const fetchAnnouncements = async () => {
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      setAnnouncements(mockData);
-      setFilteredAnnouncements(mockData);
+      const { data } = await axiosInstance.get(
+        "/Announcement/get-announcements"
+      );
+      setAnnouncements(data.data);
+      setFilteredAnnouncements(data.data);
     } catch (error) {
       toast({
         title: "Error fetching announcements",
-        description: error.message,
+        description: error.response?.data?.message || error.message,
         status: "error",
         duration: 4,
         isClosable: true,
@@ -132,7 +99,7 @@ const AnnouncementsPage = () => {
       isActive: true,
     };
     setAnnouncements([newAnnouncement, ...announcements]);
-    setShowForm(false);
+    onClose();
     toast({
       title: "✨ Success",
       description: "Announcement created successfully",
@@ -154,7 +121,7 @@ const AnnouncementsPage = () => {
     );
     setAnnouncements(updatedAnnouncements);
     setEditingAnnouncement(null);
-    setShowForm(false);
+    onClose();
     toast({
       title: "✨ Success",
       description: "Announcement updated successfully",
@@ -178,12 +145,17 @@ const AnnouncementsPage = () => {
 
   const handleEditClick = (announcement) => {
     setEditingAnnouncement(announcement);
-    setShowForm(true);
+    onOpen();
   };
 
-  const handleCloseForm = () => {
-    setShowForm(false);
+  const handleCloseModal = () => {
+    onClose();
     setEditingAnnouncement(null);
+  };
+
+  const handleNewAnnouncement = () => {
+    setEditingAnnouncement(null);
+    onOpen();
   };
 
   return (
@@ -211,25 +183,37 @@ const AnnouncementsPage = () => {
                 colorScheme="blue"
                 size="md"
                 fontWeight="600"
+                onClick={handleNewAnnouncement}
               >
                 New Announcement
               </Button>
             )}
           </Flex>
 
-          {/* Form Section */}
-          {showForm && (
-            <AnnouncementForm
-              isEditing={!!editingAnnouncement}
-              announcement={editingAnnouncement}
-              onSubmit={
-                editingAnnouncement
-                  ? handleUpdateAnnouncement
-                  : handleCreateAnnouncement
-              }
-              onCancel={handleCloseForm}
-            />
-          )}
+          {/* Modal for Form */}
+          <Modal isOpen={isOpen} onClose={handleCloseModal} size="2xl">
+            <ModalOverlay />
+            <ModalContent>
+              <ModalHeader>
+                {editingAnnouncement
+                  ? "Edit Announcement"
+                  : "Create New Announcement"}
+              </ModalHeader>
+              <ModalCloseButton />
+              <ModalBody pb={6}>
+                <AnnouncementForm
+                  isEditing={!!editingAnnouncement}
+                  announcement={editingAnnouncement}
+                  onSubmit={
+                    editingAnnouncement
+                      ? handleUpdateAnnouncement
+                      : handleCreateAnnouncement
+                  }
+                  onCancel={handleCloseModal}
+                />
+              </ModalBody>
+            </ModalContent>
+          </Modal>
 
           {/* Search and Filter Bar */}
           <Box borderBottomWidth="1px" borderColor="gray.200" pb={6}>
@@ -317,4 +301,4 @@ const AnnouncementsPage = () => {
   );
 };
 
-export default AnnouncementsPage;
+export default Announcements;

@@ -17,6 +17,7 @@ import {
   Heading,
   useToast,
 } from "@chakra-ui/react";
+import axiosInstance from "../../../lib/axiosInstance";
 
 const AnnouncementForm = ({ isEditing, announcement, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -75,10 +76,38 @@ const AnnouncementForm = ({ isEditing, announcement, onSubmit, onCancel }) => {
     setIsSubmitting(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const payload = {
+        title: formData.title,
+        content: formData.content,
+        type: formData.type,
+        priority: formData.priority,
+        ...(formData.expiresAt && { expiresAt: formData.expiresAt }),
+      };
 
-      onSubmit(formData);
+      const response = await axiosInstance.post(
+        "/Announcement/create-announcements",
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to create announcement");
+      }
+
+      toast({
+        title: "Success",
+        description: data.message || "Announcement created successfully",
+        status: "success",
+        duration: 3,
+        isClosable: true,
+      });
 
       // Reset form
       setFormData({
@@ -89,6 +118,11 @@ const AnnouncementForm = ({ isEditing, announcement, onSubmit, onCancel }) => {
         expiresAt: "",
       });
       setErrors({});
+
+      // Call parent callback
+      if (onSubmit) {
+        onSubmit(data.data);
+      }
     } catch (error) {
       toast({
         title: "Error",
