@@ -6,6 +6,7 @@ const {
   updateAnnouncement,
   deleteAnnouncement,
   bulkDeleteAnnouncements,
+  triggerBirthdayCheck,
 } = require("../../../controllers/Admin/announcements/announcementsController");
 const express = require("express");
 const router = express.Router();
@@ -46,16 +47,29 @@ router.put(
   updateAnnouncement
 );
 
-// Delete announcement (Admin only)
+// Delete single announcement (Admin only)
 router.delete(
   "/delete-announcement/:id",
   authorizeRoles("admin"),
   deleteAnnouncement
 );
+
+// Bulk delete announcements (Admin only)
 router.post(
   "/bulk-delete-announcements",
   authorizeRoles("admin"),
   bulkDeleteAnnouncements
+);
+
+// =====================
+// BIRTHDAY AUTOMATION ROUTES
+// =====================
+
+// Trigger birthday check manually (for testing - Admin only)
+router.post(
+  "/trigger-birthday-check",
+  authorizeRoles("admin"),
+  triggerBirthdayCheck
 );
 
 module.exports = router;
