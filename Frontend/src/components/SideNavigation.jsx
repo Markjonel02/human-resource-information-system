@@ -104,14 +104,24 @@ const SideNavigation = () => {
 
   const employeeDocumentsPath =
     loggedInUser?.role === "employee" ? "/employee-documents" : "/documents";
+
+  const AdminAnnouncements =
+    loggedInUser?.role === "admin" || loggedInUser?.role === "hr"
+      ? "/announcements"
+      : null;
+
   const menuItems = [
     // Dynamically set the Dashboard path
     { icon: Home, label: "Dashboard", path: dashboardPath },
-    {
-      icon: TfiAnnouncement,
-      label: "Announcement",
-      path: "/announcements",
-    },
+    ...(AdminAnnouncements
+      ? [
+          {
+            icon: TfiAnnouncement,
+            label: "Announcement",
+            path: AdminAnnouncements,
+          },
+        ]
+      : []),
     {
       icon: Users,
       label: "Employees",

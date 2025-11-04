@@ -1,35 +1,45 @@
 import React from "react";
 import { Flex, Box, Text } from "@chakra-ui/react";
 import { lazy } from "react";
+
 const EmployeeTracker = lazy(() => import("../components/EmployeeTracker"));
 const UpcomingSchcedule = lazy(() => import("../components/UpcomingSchcedule"));
 const Announcements = lazy(() => import("../components/Announcements"));
 const EmployeeStatus = lazy(() => import("../components/EmployeeStatus"));
+const BirthdayPopup = lazy(() =>
+  import("../components/birthday_violator/BirthdayCelebrationPopup")
+);
 
 const Dashboard = () => {
   return (
-    <Flex
-      direction={{ base: "column", lg: "colum", xl: "row" }}
-      align="flex-start"
-      gap={6}
-    >
-      {/* Employee Tracker always comes first */}
-      <Box w={{ base: "100%", md: "100%" }}>
-        <EmployeeTracker />
-        <EmployeeStatus />
-      </Box>
+    <>
+      {/* Birthday Celebration Popup - Shows when someone has a birthday today */}
+      <BirthdayPopup />
 
-      {/* Right-side content */}
-      <Box
-        width={{ base: "100%", md: "100%", lg: "100%", xl: "35%" }}
-        mt={{ lg: 4 }}
+      {/* Main Dashboard Content */}
+      <Flex
+        direction={{ base: "column", lg: "colum", xl: "row" }}
+        align="flex-start"
+        gap={6}
       >
-        <Announcements />
-        <Box mt={4}>
-          <UpcomingSchcedule />
+        {/* Employee Tracker always comes first */}
+        <Box w={{ base: "100%", md: "100%" }}>
+          <EmployeeTracker />
+          <EmployeeStatus />
         </Box>
-      </Box>
-    </Flex>
+
+        {/* Right-side content */}
+        <Box
+          width={{ base: "100%", md: "100%", lg: "100%", xl: "35%" }}
+          mt={{ lg: 4 }}
+        >
+          <Announcements />
+          <Box mt={4}>
+            <UpcomingSchcedule />
+          </Box>
+        </Box>
+      </Flex>
+    </>
   );
 };
 
