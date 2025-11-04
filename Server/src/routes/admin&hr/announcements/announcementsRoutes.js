@@ -1,11 +1,11 @@
 const {
-  scheduleBirthdayCheck,
   createAnnouncement,
   getAnnouncements,
   getAnnouncementById,
   updateAnnouncement,
   deleteAnnouncement,
   bulkDeleteAnnouncements,
+  initializeAutomaticSchedulers,
   triggerBirthdayCheck,
 } = require("../../../controllers/Admin/announcements/announcementsController");
 const express = require("express");
@@ -16,8 +16,8 @@ const authorizeRoles = require("../../../middlewares/authorizeRole");
 // Apply JWT verification to all routes
 router.use(verifyJWT);
 
-// Initialize birthday scheduler on app start (only once)
-scheduleBirthdayCheck();
+// Initialize automatic birthday check and cleanup schedulers on app start
+initializeAutomaticSchedulers();
 
 // =====================
 // PUBLIC ROUTES (All authenticated users)
@@ -62,10 +62,10 @@ router.post(
 );
 
 // =====================
-// BIRTHDAY AUTOMATION ROUTES
+// OPTIONAL MANUAL TRIGGERS (For Admin Testing Only)
 // =====================
 
-// Trigger birthday check manually (for testing - Admin only)
+// Manually trigger birthday check (optional - for testing)
 router.post(
   "/trigger-birthday-check",
   authorizeRoles("admin"),

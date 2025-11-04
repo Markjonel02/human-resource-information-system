@@ -3,6 +3,10 @@ const cron = require("node-cron");
 const nodemailer = require("nodemailer");
 const Announcement = require("../../../models/Announcements/announcementsModel");
 
+// =====================
+// BASIC CRUD OPERATIONS
+// =====================
+
 // Create Announcement (Admin only)
 const createAnnouncement = async (req, res) => {
   try {
@@ -104,6 +108,7 @@ const getAnnouncements = async (req, res) => {
     if (type) filter.type = type;
     if (isActive !== undefined) filter.isActive = isActive === "true";
 
+    // Filter expired announcements - keep only non-expired
     filter.$or = [{ expiresAt: null }, { expiresAt: { $gte: new Date() } }];
 
     const announcements = await Announcement.find(filter)
@@ -294,7 +299,7 @@ const bulkDeleteAnnouncements = async (req, res) => {
 };
 
 // =====================
-// BIRTHDAY AUTOMATION
+// AUTOMATIC BIRTHDAY AUTOMATION (RUNS AUTOMATICALLY)
 // =====================
 
 // Nodemailer transporter
@@ -305,6 +310,28 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASSWORD,
   },
 });
+
+// Remove All Expired Announcements
+const removeExpiredAnnouncements = async () => {
+  try {
+    const now = new Date();
+
+    // Delete all announcements where expiresAt is in the past
+    const result = await Announcement.deleteMany({
+      expiresAt: { $lt: now },
+    });
+
+    if (result.deletedCount > 0) {
+      console.log(
+        `✅ Auto-cleanup: Removed ${result.deletedCount} expired announcement(s)`
+      );
+    }
+
+    return result.deletedCount;
+  } catch (error) {
+    console.error("❌ Error removing expired announcements:", error);
+  }
+};
 
 // Create Birthday Announcement
 const createBirthdayAnnouncement = async (employee) => {
@@ -328,7 +355,6 @@ const createBirthdayAnnouncement = async (employee) => {
     });
 
     if (existingAnnouncement) {
-      console.log(`Birthday announcement already exists for ${fullName}`);
       return existingAnnouncement;
     }
 
@@ -339,6 +365,7 @@ const createBirthdayAnnouncement = async (employee) => {
       postedBy: employee._id,
       priority: 1,
       isActive: true,
+      expiresAt: tomorrow, // Expires at end of today
     });
 
     await announcement.save();
@@ -352,11 +379,10 @@ const createBirthdayAnnouncement = async (employee) => {
     return announcement;
   } catch (error) {
     console.error("Error creating birthday announcement:", error);
-    throw error;
   }
 };
 
-// Send Birthday Email with Announcement Details
+// Send Birthday Email
 const sendBirthdayEmail = async (employee) => {
   try {
     const fullName = `${employee.firstname} ${employee.lastname}`;
@@ -386,24 +412,18 @@ const sendBirthdayEmail = async (employee) => {
             </ul>
 
             <p style="font-size: 15px; color: #555; line-height: 1.6;">
-              Thank you for being a valuable and wonderful member of our team. Your contributions and positive attitude make a real difference!
+              Thank you for being a valuable and wonderful member of our team!
             </p>
 
             <div style="background-color: #f0f8ff; border-left: 4px solid #667eea; padding: 15px; margin: 20px 0; border-radius: 4px;">
               <p style="font-size: 14px; color: #333; margin: 0;">
-                <strong>📢 Your Birthday Announcement</strong> has been posted to the announcements page for everyone to see and celebrate with you!
+                <strong>📢 Your Birthday Announcement</strong> has been posted to the announcements page!
               </p>
             </div>
 
-            <p style="font-size: 15px; color: #555; line-height: 1.6; text-align: center;">
-              Best wishes from your entire team! 🎊
-            </p>
-
             <hr style="border: none; border-top: 2px solid #ff6b6b; margin: 20px 0;">
-            
             <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
-              <strong>Your Company Name | HR Department</strong><br>
-              Celebrating every milestone with our team members
+              <strong>Your Company Name | HR Department</strong>
             </p>
           </div>
         </body>
@@ -413,30 +433,25 @@ const sendBirthdayEmail = async (employee) => {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: employee.employeeEmail,
-      subject: `🎉 Happy Birthday, ${employee.firstname}! We're Celebrating You Today!`,
+      subject: `🎉 Happy Birthday, ${employee.firstname}!`,
       html: htmlContent,
     };
 
     await transporter.sendMail(mailOptions);
     console.log(`📧 Birthday email sent to ${employee.employeeEmail}`);
-
-    return true;
   } catch (error) {
     console.error("Error sending birthday email:", error);
-    throw error;
   }
 };
 
-// Check for Birthdays and Auto-Create Announcements
-const checkBirthdays = async () => {
+// Automatic Birthday Check (Runs at 8:00 AM every day)
+const autoBirthdayCheck = async () => {
   try {
-    console.log("🎂 Running birthday check...");
     const User = mongoose.model("user");
     const today = new Date();
     const month = String(today.getMonth() + 1).padStart(2, "0");
     const day = String(today.getDate()).padStart(2, "0");
 
-    // Find employees with birthday today
     const employees = await User.find({
       $expr: {
         $and: [
@@ -447,50 +462,52 @@ const checkBirthdays = async () => {
     });
 
     if (employees.length > 0) {
-      console.log(`🎉 Found ${employees.length} birthday(s) today!`);
+      console.log(`🎂 Auto-Birthday: Found ${employees.length} birthday(s)`);
 
       for (const employee of employees) {
         try {
-          // Create birthday announcement
-          const announcement = await createBirthdayAnnouncement(employee);
-
-          // Send email to employee
+          await createBirthdayAnnouncement(employee);
           await sendBirthdayEmail(employee);
-
           console.log(
-            `✅ Birthday notification sent for ${employee.firstname} ${employee.lastname}`
+            `✅ Auto-Birthday: Sent to ${employee.firstname} ${employee.lastname}`
           );
         } catch (error) {
           console.error(
-            `❌ Error processing birthday for ${employee.firstname}:`,
+            `❌ Auto-Birthday Error for ${employee.firstname}:`,
             error
           );
         }
       }
-
-      console.log(`✅ ${employees.length} birthday notification(s) processed`);
-    } else {
-      console.log("ℹ️ No birthdays today");
     }
   } catch (error) {
-    console.error("❌ Error checking birthdays:", error);
+    console.error("❌ Auto-Birthday Check Error:", error);
   }
 };
 
-// Schedule Birthday Check (Every day at 8:00 AM)
-const scheduleBirthdayCheck = () => {
+// Initialize All Automatic Schedulers
+const initializeAutomaticSchedulers = () => {
+  // Check for birthdays every day at 8:00 AM
   cron.schedule("0 8 * * *", () => {
-    console.log("⏰ Scheduled birthday check triggered at 8:00 AM");
-    checkBirthdays();
+    console.log("⏰ Auto Birthday Check: 8:00 AM");
+    autoBirthdayCheck();
   });
-  console.log("✅ Birthday scheduler initialized - checks daily at 8:00 AM");
+
+  // Auto cleanup expired announcements every hour
+  cron.schedule("0 * * * *", () => {
+    console.log("⏰ Auto Cleanup: Every hour");
+    removeExpiredAnnouncements();
+  });
+
+  console.log("✅ Automatic Schedulers Initialized:");
+  console.log("   🎂 Birthday Check: Every day at 8:00 AM");
+  console.log("   🗑️  Cleanup Expired: Every hour on the hour");
 };
 
-// Manual birthday check endpoint (for testing)
+// Manual trigger endpoints (Optional - for admin testing only)
 const triggerBirthdayCheck = async (req, res) => {
   try {
-    console.log("🔔 Manual birthday check triggered");
-    await checkBirthdays();
+    console.log("🔔 Manual birthday check triggered by admin");
+    await autoBirthdayCheck();
     res.status(200).json({
       success: true,
       message: "Birthday check completed",
@@ -509,7 +526,7 @@ const triggerBirthdayCheck = async (req, res) => {
 // =====================
 
 module.exports = {
-  // Announcement CRUD
+  // CRUD Operations
   createAnnouncement,
   getAnnouncements,
   getAnnouncementById,
@@ -517,10 +534,11 @@ module.exports = {
   deleteAnnouncement,
   bulkDeleteAnnouncements,
 
-  // Birthday Automation
-  checkBirthdays,
-  scheduleBirthdayCheck,
-  createBirthdayAnnouncement,
-  sendBirthdayEmail,
+  // Automatic Schedulers
+  initializeAutomaticSchedulers,
+  autoBirthdayCheck,
+  removeExpiredAnnouncements,
+
+  // Manual Triggers (Optional)
   triggerBirthdayCheck,
 };
