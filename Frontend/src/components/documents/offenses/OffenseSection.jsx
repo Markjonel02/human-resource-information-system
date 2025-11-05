@@ -228,7 +228,7 @@ const OffenseSection = ({
         overflowX="auto"
         bg={tableBg}
         boxShadow="sm"
-        maxW={1200}
+        maxW={950}
         mx="auto"
       >
         <Table variant="simple" size="sm">

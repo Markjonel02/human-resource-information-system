@@ -51,4 +51,4 @@ PayrollHistorySchema.index({ createdAt: -1 });
 
 module.exports =
   mongoose.models.PayrollHistory ||
-  mongoose.model("PayrollHistory", PayrollHistorySchema);
+  mongoose.model("PayrollHistory", PayrollHistorySchema); 
