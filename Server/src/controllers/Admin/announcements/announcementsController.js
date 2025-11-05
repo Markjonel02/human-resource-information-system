@@ -444,13 +444,15 @@ const sendBirthdayEmail = async (employee) => {
   }
 };
 
-// Automatic Birthday Check (Runs at 8:00 AM every day)
+// Automatic Birthday Check (Runs at 12:00 AM midnight every day)
 const autoBirthdayCheck = async () => {
   try {
     const User = mongoose.model("user");
     const today = new Date();
     const month = String(today.getMonth() + 1).padStart(2, "0");
     const day = String(today.getDate()).padStart(2, "0");
+
+    console.log(`🎂 Checking for birthdays on ${day}/${month}...`);
 
     const employees = await User.find({
       $expr: {
@@ -462,14 +464,16 @@ const autoBirthdayCheck = async () => {
     });
 
     if (employees.length > 0) {
-      console.log(`🎂 Auto-Birthday: Found ${employees.length} birthday(s)`);
+      console.log(
+        `🎂 Auto-Birthday: Found ${employees.length} birthday(s) today!`
+      );
 
       for (const employee of employees) {
         try {
           await createBirthdayAnnouncement(employee);
           await sendBirthdayEmail(employee);
           console.log(
-            `✅ Auto-Birthday: Sent to ${employee.firstname} ${employee.lastname}`
+            `✅ Auto-Birthday: Birthday celebration sent to ${employee.firstname} ${employee.lastname}`
           );
         } catch (error) {
           console.error(
@@ -478,6 +482,8 @@ const autoBirthdayCheck = async () => {
           );
         }
       }
+    } else {
+      console.log("ℹ️ No birthdays today");
     }
   } catch (error) {
     console.error("❌ Auto-Birthday Check Error:", error);
@@ -486,9 +492,9 @@ const autoBirthdayCheck = async () => {
 
 // Initialize All Automatic Schedulers
 const initializeAutomaticSchedulers = () => {
-  // Check for birthdays every day at 8:00 AM
-  cron.schedule("0 8 * * *", () => {
-    console.log("⏰ Auto Birthday Check: 8:00 AM");
+  // Check for birthdays every day at 12:00 AM (midnight)
+  cron.schedule("0 0 * * *", () => {
+    console.log("⏰ Auto Birthday Check: 12:00 AM (Midnight)");
     autoBirthdayCheck();
   });
 
@@ -499,7 +505,7 @@ const initializeAutomaticSchedulers = () => {
   });
 
   console.log("✅ Automatic Schedulers Initialized:");
-  console.log("   🎂 Birthday Check: Every day at 8:00 AM");
+  console.log("   🎂 Birthday Check: Every day at 12:00 AM (Midnight)");
   console.log("   🗑️  Cleanup Expired: Every hour on the hour");
 };
 
