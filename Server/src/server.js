@@ -27,6 +27,7 @@ const SuspensionRoutes = require("./routes/admin&hr/document-routes/suspendedRou
 const EmployeeOffenses = require("./routes/employee/documents/employeeoffenseRoutes.js");
 const EmployeeSuspendedRoutes = require("./routes/employee/documents/employeesuspendedRoutes.js");
 const Announcement = require("./routes/admin&hr/announcements/announcementsRoutes.js");
+const payrollRoutes = require("./routes/payrollRoutes/payrollRoutes.js");
 // =======================
 //   INITIALIZATION
 // =======================
@@ -90,6 +91,7 @@ app.use("/api/Suspension", SuspensionRoutes);
 app.use("/api/employeeOffenses", EmployeeOffenses);
 app.use("/api/employeeSuspended", EmployeeSuspendedRoutes);
 app.use("/api/announcements", Announcement);
+app.use("/api/payroll", payrollRoutes);
 
 // =======================
 //   ERROR HANDLING

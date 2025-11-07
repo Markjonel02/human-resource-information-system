@@ -1,9 +1,9 @@
 // ==================== FILE: controllers/payrollController.js ====================
-const Payroll = require("../models/Payroll");
-const PayrollHistory = require("../models/PayrollHistory");
-const User = require("../models/user");
-const LeaveCredits = require("../models/LeaveCredits");
-const Attendance = require("../models/Attendance");
+const Payroll = require("../../models/payroll/payrollSchema");
+const PayrollHistory = require("../../models/payroll/payrollHistorySchema");
+const User = require("../../models/user");
+const LeaveCredits = require("../../models/LeaveSchema/leaveCreditsSchema");
+const Attendance = require("../../models/attendance");
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
