@@ -1,14 +1,104 @@
-// ==================== FILE: controllers/payrollController.js ====================
+// ==================== FILE: controllers/payroll/payrollController.js ====================
 const Payroll = require("../../models/payroll/payrollSchema");
 const PayrollHistory = require("../../models/payroll/payrollHistorySchema");
 const User = require("../../models/user");
 const LeaveCredits = require("../../models/LeaveSchema/leaveCreditsSchema");
 const Attendance = require("../../models/attendance");
 const PDFDocument = require("pdfkit");
-const fs = require("fs");
-const path = require("path");
+const cron = require("node-cron");
+
+// ==================== PHILIPPINE HOLIDAYS ====================
+
+const PH_HOLIDAYS_2025 = [
+  "2025-01-01", // New Year
+  "2025-02-10", // EDSA Revolution
+  "2025-02-25", // EDSA Revolution
+  "2025-04-09", // Day of Valor
+  "2025-04-18", // Good Friday
+  "2025-04-19", // Black Saturday
+  "2025-04-21", // Easter Monday
+  "2025-06-12", // Independence Day
+  "2025-08-21", // Ninoy Aquino Day
+  "2025-11-01", // All Saints Day
+  "2025-11-30", // Bonifacio Day
+  "2025-12-08", // Feast of Immaculate Conception
+  "2025-12-25", // Christmas Day
+  "2025-12-30", // Rizal Day
+  "2025-12-31", // New Year's Eve
+];
 
 // ==================== HELPER FUNCTIONS ====================
+
+/**
+ * Check if date is weekend (Saturday or Sunday)
+ */
+const isWeekend = (date) => {
+  const day = new Date(date).getDay();
+  return day === 0 || day === 6;
+};
+
+/**
+ * Check if date is Philippine holiday
+ */
+const isPhilippineHoliday = (date) => {
+  const dateStr = date.toISOString().split("T")[0];
+  return PH_HOLIDAYS_2025.includes(dateStr);
+};
+
+/**
+ * Get next working day (skip weekends and holidays)
+ */
+const getNextWorkingDay = (date) => {
+  let nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + 1);
+
+  while (isWeekend(nextDate) || isPhilippineHoliday(nextDate)) {
+    nextDate.setDate(nextDate.getDate() + 1);
+  }
+
+  return nextDate;
+};
+
+/**
+ * Get previous working day (skip weekends and holidays)
+ */
+const getPreviousWorkingDay = (date) => {
+  let prevDate = new Date(date);
+  prevDate.setDate(prevDate.getDate() - 1);
+
+  while (isWeekend(prevDate) || isPhilippineHoliday(prevDate)) {
+    prevDate.setDate(prevDate.getDate() - 1);
+  }
+
+  return prevDate;
+};
+
+/**
+ * Adjust release date if it falls on weekend or holiday
+ * If weekend/holiday, release on the day before
+ */
+const adjustReleaseDate = (date) => {
+  let releaseDate = new Date(date);
+
+  if (isWeekend(releaseDate) || isPhilippineHoliday(releaseDate)) {
+    releaseDate = getPreviousWorkingDay(releaseDate);
+  }
+
+  return releaseDate;
+};
+
+/**
+ * Calculate next 15-day payroll release date
+ */
+const calculateNextPayrollReleaseDate = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let releaseDate = new Date(today);
+  releaseDate.setDate(releaseDate.getDate() + 15);
+
+  return adjustReleaseDate(releaseDate);
+};
 
 /**
  * Calculate daily rate from monthly salary
@@ -23,52 +113,66 @@ const calculateDailyRate = (monthlySalary) => {
  * Get attendance data for payroll period
  */
 const getAttendanceData = async (employeeId, startDate, endDate) => {
-  const attendanceRecords = await Attendance.find({
-    employee: employeeId,
-    date: {
-      $gte: startDate,
-      $lte: endDate,
-    },
-  });
+  try {
+    const attendanceRecords = await Attendance.find({
+      employee: employeeId,
+      date: {
+        $gte: startDate,
+        $lte: endDate,
+      },
+    });
 
-  let daysPresent = 0;
-  let daysAbsent = 0;
-  let daysLate = 0;
-  let daysOnLeave = 0;
-  let totalTardinessMinutes = 0;
-  let totalHoursRendered = 0;
+    let daysPresent = 0;
+    let daysAbsent = 0;
+    let daysLate = 0;
+    let daysOnLeave = 0;
+    let totalTardinessMinutes = 0;
+    let totalHoursRendered = 0;
 
-  attendanceRecords.forEach((record) => {
-    switch (record.status) {
-      case "present":
-        daysPresent++;
-        totalHoursRendered += record.hoursRendered || 480; // 8 hours default
-        break;
-      case "absent":
-        daysAbsent++;
-        break;
-      case "late":
-        daysLate++;
-        totalTardinessMinutes += record.tardinessMinutes || 0;
-        totalHoursRendered += record.hoursRendered || 480;
-        break;
-      case "on_leave":
-        daysOnLeave++;
-        break;
-    }
-  });
+    attendanceRecords.forEach((record) => {
+      switch (record.status) {
+        case "present":
+          daysPresent++;
+          totalHoursRendered += record.hoursRendered || 480; // 8 hours default
+          break;
+        case "absent":
+          daysAbsent++;
+          break;
+        case "late":
+          daysLate++;
+          totalTardinessMinutes += record.tardinessMinutes || 0;
+          totalHoursRendered += record.hoursRendered || 480;
+          break;
+        case "on_leave":
+          daysOnLeave++;
+          break;
+      }
+    });
 
-  const totalWorkingDays = daysPresent + daysAbsent + daysLate + daysOnLeave;
+    const totalWorkingDays = daysPresent + daysAbsent + daysLate + daysOnLeave;
 
-  return {
-    totalWorkingDays,
-    daysPresent,
-    daysAbsent,
-    daysLate,
-    daysOnLeave,
-    totalTardinessMinutes,
-    totalHoursRendered,
-  };
+    return {
+      totalWorkingDays,
+      daysPresent,
+      daysAbsent,
+      daysLate,
+      daysOnLeave,
+      totalTardinessMinutes,
+      totalHoursRendered,
+    };
+  } catch (error) {
+    console.error("Error getting attendance data:", error);
+    // Return default values if no attendance records
+    return {
+      totalWorkingDays: 0,
+      daysPresent: 0,
+      daysAbsent: 0,
+      daysLate: 0,
+      daysOnLeave: 0,
+      totalTardinessMinutes: 0,
+      totalHoursRendered: 0,
+    };
+  }
 };
 
 /**
@@ -82,27 +186,27 @@ const calculateEarnings = (
   generalAllowance = 0
 ) => {
   const basicRegularAmount = dailyRate * daysPresent;
-  const sickLeaveAmount = dailyRate * daysOnLeave; // Assuming on_leave is paid
-  const absencesAmount = -dailyRate * daysAbsent; // Negative for deduction
+  const sickLeaveAmount = dailyRate * daysOnLeave;
+  const absencesAmount = -dailyRate * daysAbsent;
 
   return {
     basicRegular: {
       unit: daysPresent,
-      rate: dailyRate,
-      amount: basicRegularAmount,
+      rate: parseFloat(dailyRate.toFixed(2)),
+      amount: parseFloat(basicRegularAmount.toFixed(2)),
     },
     sickLeave: {
       unit: daysOnLeave,
-      rate: dailyRate,
-      amount: sickLeaveAmount,
+      rate: parseFloat(dailyRate.toFixed(2)),
+      amount: parseFloat(sickLeaveAmount.toFixed(2)),
     },
     generalAllowance: {
-      amount: generalAllowance,
+      amount: parseFloat(generalAllowance.toFixed(2)),
     },
     absences: {
       unit: daysAbsent,
-      rate: dailyRate,
-      amount: absencesAmount,
+      rate: parseFloat(dailyRate.toFixed(2)),
+      amount: parseFloat(absencesAmount.toFixed(2)),
     },
   };
 };
@@ -111,11 +215,10 @@ const calculateEarnings = (
  * Calculate deductions (SSS, PhilHealth, Pag-IBIG, Tax)
  */
 const calculateDeductions = (grossPay) => {
-  // Sample rates (adjust based on actual regulations)
   const sssRate = 0.045; // 4.5%
   const philhealthRate = 0.025; // 2.5%
   const pagIbigRate = 0.02; // 2%
-  const taxRate = 0.12; // 12% (simplified)
+  const taxRate = 0.12; // 12%
 
   const sssDeduction = grossPay * sssRate;
   const philhealthDeduction = grossPay * philhealthRate;
@@ -125,22 +228,30 @@ const calculateDeductions = (grossPay) => {
   return {
     sss: {
       description: "Social Security System",
-      deducted: Math.round(sssDeduction * 100) / 100,
-      balance: Math.round(sssDeduction * 100) / 100,
+      deducted: parseFloat((Math.round(sssDeduction * 100) / 100).toFixed(2)),
+      balance: parseFloat((Math.round(sssDeduction * 100) / 100).toFixed(2)),
     },
     philhealth: {
       description: "PhilHealth",
-      deducted: Math.round(philhealthDeduction * 100) / 100,
-      balance: Math.round(philhealthDeduction * 100) / 100,
+      deducted: parseFloat(
+        (Math.round(philhealthDeduction * 100) / 100).toFixed(2)
+      ),
+      balance: parseFloat(
+        (Math.round(philhealthDeduction * 100) / 100).toFixed(2)
+      ),
     },
     pagIbig: {
       description: "Pag-IBIG",
-      deducted: Math.round(pagIbigDeduction * 100) / 100,
-      balance: Math.round(pagIbigDeduction * 100) / 100,
+      deducted: parseFloat(
+        (Math.round(pagIbigDeduction * 100) / 100).toFixed(2)
+      ),
+      balance: parseFloat(
+        (Math.round(pagIbigDeduction * 100) / 100).toFixed(2)
+      ),
     },
     withholdingTax: {
       description: "Withholding Tax",
-      deducted: Math.round(taxDeduction * 100) / 100,
+      deducted: parseFloat((Math.round(taxDeduction * 100) / 100).toFixed(2)),
     },
     otherDeductions: [],
   };
@@ -150,12 +261,25 @@ const calculateDeductions = (grossPay) => {
  * Get leave credits snapshot
  */
 const getLeaveCreditsSnapshot = async (employeeId, year) => {
-  const leaveCredits = await LeaveCredits.findOne({
-    employee: employeeId,
-    year,
-  });
+  try {
+    const leaveCredits = await LeaveCredits.findOne({
+      employee: employeeId,
+      year,
+    });
 
-  if (!leaveCredits) {
+    if (!leaveCredits) {
+      return {
+        VL: { total: 5, used: 0, balance: 5 },
+        SL: { total: 5, used: 0, balance: 5 },
+        LWOP: { total: 0, used: 0, balance: 0 },
+        BL: { total: 5, used: 0, balance: 5 },
+        CL: { total: 5, used: 0, balance: 5 },
+      };
+    }
+
+    return leaveCredits.credits;
+  } catch (error) {
+    console.error("Error getting leave credits:", error);
     return {
       VL: { total: 5, used: 0, balance: 5 },
       SL: { total: 5, used: 0, balance: 5 },
@@ -164,8 +288,6 @@ const getLeaveCreditsSnapshot = async (employeeId, year) => {
       CL: { total: 5, used: 0, balance: 5 },
     };
   }
-
-  return leaveCredits.credits;
 };
 
 /**
@@ -180,18 +302,200 @@ const createPayrollHistory = async (
   newValues = null,
   reason = null
 ) => {
-  const history = new PayrollHistory({
-    payroll: payrollId,
-    employee: employeeId,
-    action,
-    previousValues,
-    newValues,
-    changedBy,
-    reason,
+  try {
+    const history = new PayrollHistory({
+      payroll: payrollId,
+      employee: employeeId,
+      action,
+      previousValues,
+      newValues,
+      changedBy,
+      reason,
+    });
+
+    await history.save();
+    return history;
+  } catch (error) {
+    console.error("Error creating payroll history:", error);
+  }
+};
+
+// ==================== AUTO RELEASE ENDPOINTS ====================
+
+/**
+ * Get next payroll release date
+ */
+exports.getNextPayrollReleaseDate = async (req, res) => {
+  try {
+    const releaseDate = calculateNextPayrollReleaseDate();
+
+    const isWeekendDate = isWeekend(releaseDate);
+    const isHolidayDate = isPhilippineHoliday(releaseDate);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        nextReleaseDate: releaseDate,
+        formattedDate: releaseDate.toLocaleDateString("en-PH", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+        isWeekend: isWeekendDate,
+        isHoliday: isHolidayDate,
+        adjustedReason: isWeekendDate
+          ? "weekend"
+          : isHolidayDate
+          ? "Philippine holiday"
+          : "regular",
+      },
+    });
+  } catch (error) {
+    console.error("Error calculating release date:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error calculating release date",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Auto-release payroll for all employees every 15 days
+ */
+exports.autoReleasePayroll = async (req, res) => {
+  try {
+    console.log("⏰ Starting automatic payroll release process...");
+
+    const releaseDate = calculateNextPayrollReleaseDate();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Check if today is the release date
+    if (releaseDate.getTime() !== today.getTime()) {
+      console.log(
+        `⏭️  Next release date is ${releaseDate.toDateString()}, skipping for today`
+      );
+      return res.status(200).json({
+        success: true,
+        message: "Not release date yet",
+        data: {
+          nextReleaseDate: releaseDate,
+          released: 0,
+        },
+      });
+    }
+
+    console.log(
+      `📅 Processing payroll release for: ${releaseDate.toDateString()}`
+    );
+
+    // Get all draft payrolls that are ready for release
+    const payrollsToRelease = await Payroll.find({
+      status: "draft",
+      "payrollPeriod.endDate": {
+        $lte: releaseDate,
+      },
+    });
+
+    if (payrollsToRelease.length === 0) {
+      console.log("✅ No payrolls pending for release");
+      return res.status(200).json({
+        success: true,
+        message: "No payrolls to release",
+        data: {
+          released: 0,
+          failed: 0,
+        },
+      });
+    }
+
+    let releasedCount = 0;
+    const failedPayrolls = [];
+
+    // Update status to "approved" for auto-release
+    for (const payroll of payrollsToRelease) {
+      try {
+        payroll.status = "approved";
+        payroll.approvalWorkflow.approvedBy = null;
+        payroll.approvalWorkflow.approvalDate = releaseDate;
+        payroll.notes = `Automatically released on ${releaseDate.toDateString()}`;
+
+        await payroll.save();
+
+        // Create history record
+        await createPayrollHistory(
+          payroll._id,
+          payroll.employee,
+          "approved",
+          null,
+          { status: "draft" },
+          { status: "approved" },
+          "System auto-release"
+        );
+
+        releasedCount++;
+        console.log(
+          `✅ Payroll released for employee: ${payroll.employeeInfo.employeeId}`
+        );
+      } catch (error) {
+        failedPayrolls.push({
+          employeeId: payroll.employeeInfo.employeeId,
+          error: error.message,
+        });
+        console.error(
+          `❌ Failed to release payroll for ${payroll.employeeInfo.employeeId}:`,
+          error.message
+        );
+      }
+    }
+
+    console.log(
+      `✨ Auto-release completed: ${releasedCount} released, ${failedPayrolls.length} failed`
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: `Auto-release completed: ${releasedCount} released`,
+      data: {
+        released: releasedCount,
+        failed: failedPayrolls.length,
+        failedPayrolls,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error in auto-release process:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error in auto-release process",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Initialize CRON job for auto payroll release
+ */
+exports.initializePayrollScheduler = () => {
+  console.log("🚀 Initializing payroll auto-release scheduler...");
+
+  // Run at 12:00 AM every day
+  cron.schedule("0 0 * * *", async () => {
+    try {
+      console.log("⏰ Running scheduled payroll auto-release...");
+      await exports.autoReleasePayroll(
+        {},
+        {
+          status: () => ({ json: () => {} }),
+          json: () => {},
+        }
+      );
+    } catch (error) {
+      console.error("Error in scheduled payroll release:", error);
+    }
   });
 
-  await history.save();
-  return history;
+  console.log("✅ Payroll scheduler initialized (runs daily at 12:00 AM)");
 };
 
 // ==================== MANUAL PAYROLL CREATION ====================
@@ -210,7 +514,6 @@ exports.createManualPayroll = async (req, res) => {
       otherDeductions = [],
     } = req.body;
 
-    // Validate input
     if (!employeeId || !startDate || !endDate || !paymentDate) {
       return res.status(400).json({
         success: false,
@@ -219,7 +522,6 @@ exports.createManualPayroll = async (req, res) => {
       });
     }
 
-    // Get employee
     const employee = await User.findById(employeeId);
     if (!employee) {
       return res.status(404).json({
@@ -228,17 +530,13 @@ exports.createManualPayroll = async (req, res) => {
       });
     }
 
-    // Get attendance data
     const attendanceData = await getAttendanceData(
       employeeId,
       new Date(startDate),
       new Date(endDate)
     );
 
-    // Calculate daily rate
     const dailyRate = calculateDailyRate(employee.salaryRate);
-
-    // Calculate earnings
     const earnings = calculateEarnings(
       dailyRate,
       attendanceData.daysPresent,
@@ -247,39 +545,32 @@ exports.createManualPayroll = async (req, res) => {
       generalAllowance
     );
 
-    // Calculate gross pay
     const grossPay =
       earnings.basicRegular.amount +
       earnings.sickLeave.amount +
       earnings.generalAllowance.amount +
       earnings.absences.amount;
 
-    // Calculate deductions
     const deductions = calculateDeductions(grossPay);
 
-    // Add other deductions
     if (otherDeductions.length > 0) {
       deductions.otherDeductions = otherDeductions;
     }
 
-    // Calculate total deductions
     const totalDeductions =
       deductions.sss.deducted +
       deductions.philhealth.deducted +
       deductions.pagIbig.deducted +
       deductions.withholdingTax.deducted +
-      otherDeductions.reduce((sum, ded) => sum + ded.amount, 0);
+      otherDeductions.reduce((sum, ded) => sum + (ded.amount || 0), 0);
 
-    // Calculate net pay
     const netPay = grossPay - totalDeductions;
 
-    // Get leave credits snapshot
     const leaveEntitlements = await getLeaveCreditsSnapshot(
       employeeId,
       new Date(startDate).getFullYear()
     );
 
-    // Create payroll document
     const payroll = new Payroll({
       employee: employeeId,
       employeeInfo: {
@@ -303,12 +594,12 @@ exports.createManualPayroll = async (req, res) => {
       earnings,
       deductions,
       summary: {
-        grossThisPay: Math.round(grossPay * 100) / 100,
-        totalDeductionsThisPay: Math.round(totalDeductions * 100) / 100,
-        netPayThisPay: Math.round(netPay * 100) / 100,
-        grossYearToDate: Math.round(grossPay * 100) / 100,
-        totalDeductionsYearToDate: Math.round(totalDeductions * 100) / 100,
-        netPayYearToDate: Math.round(netPay * 100) / 100,
+        grossThisPay: parseFloat(grossPay.toFixed(2)),
+        totalDeductionsThisPay: parseFloat(totalDeductions.toFixed(2)),
+        netPayThisPay: parseFloat(netPay.toFixed(2)),
+        grossYearToDate: parseFloat(grossPay.toFixed(2)),
+        totalDeductionsYearToDate: parseFloat(totalDeductions.toFixed(2)),
+        netPayYearToDate: parseFloat(netPay.toFixed(2)),
       },
       leaveCredits: null,
       leaveEntitlements,
@@ -321,7 +612,6 @@ exports.createManualPayroll = async (req, res) => {
 
     await payroll.save();
 
-    // Create history record
     await createPayrollHistory(
       payroll._id,
       employeeId,
@@ -360,7 +650,6 @@ exports.createAutomaticPayroll = async (req, res) => {
       departmentFilter = null,
     } = req.body;
 
-    // Validate input
     if (!startDate || !endDate || !paymentDate) {
       return res.status(400).json({
         success: false,
@@ -368,8 +657,7 @@ exports.createAutomaticPayroll = async (req, res) => {
       });
     }
 
-    // Get all active employees
-    let query = { employeeStatus: 1 }; // Active employees
+    let query = { employeeStatus: 1 };
     if (departmentFilter) {
       query.department = departmentFilter;
     }
@@ -386,20 +674,15 @@ exports.createAutomaticPayroll = async (req, res) => {
     const createdPayrolls = [];
     const failedPayrolls = [];
 
-    // Create payroll for each employee
     for (const employee of employees) {
       try {
-        // Get attendance data
         const attendanceData = await getAttendanceData(
           employee._id,
           new Date(startDate),
           new Date(endDate)
         );
 
-        // Calculate daily rate
         const dailyRate = calculateDailyRate(employee.salaryRate);
-
-        // Calculate earnings
         const earnings = calculateEarnings(
           dailyRate,
           attendanceData.daysPresent,
@@ -408,33 +691,27 @@ exports.createAutomaticPayroll = async (req, res) => {
           0
         );
 
-        // Calculate gross pay
         const grossPay =
           earnings.basicRegular.amount +
           earnings.sickLeave.amount +
           earnings.generalAllowance.amount +
           earnings.absences.amount;
 
-        // Calculate deductions
         const deductions = calculateDeductions(grossPay);
 
-        // Calculate total deductions
         const totalDeductions =
           deductions.sss.deducted +
           deductions.philhealth.deducted +
           deductions.pagIbig.deducted +
           deductions.withholdingTax.deducted;
 
-        // Calculate net pay
         const netPay = grossPay - totalDeductions;
 
-        // Get leave credits snapshot
         const leaveEntitlements = await getLeaveCreditsSnapshot(
           employee._id,
           new Date(startDate).getFullYear()
         );
 
-        // Create payroll document
         const payroll = new Payroll({
           employee: employee._id,
           employeeInfo: {
@@ -458,12 +735,12 @@ exports.createAutomaticPayroll = async (req, res) => {
           earnings,
           deductions,
           summary: {
-            grossThisPay: Math.round(grossPay * 100) / 100,
-            totalDeductionsThisPay: Math.round(totalDeductions * 100) / 100,
-            netPayThisPay: Math.round(netPay * 100) / 100,
-            grossYearToDate: Math.round(grossPay * 100) / 100,
-            totalDeductionsYearToDate: Math.round(totalDeductions * 100) / 100,
-            netPayYearToDate: Math.round(netPay * 100) / 100,
+            grossThisPay: parseFloat(grossPay.toFixed(2)),
+            totalDeductionsThisPay: parseFloat(totalDeductions.toFixed(2)),
+            netPayThisPay: parseFloat(netPay.toFixed(2)),
+            grossYearToDate: parseFloat(grossPay.toFixed(2)),
+            totalDeductionsYearToDate: parseFloat(totalDeductions.toFixed(2)),
+            netPayYearToDate: parseFloat(netPay.toFixed(2)),
           },
           leaveCredits: null,
           leaveEntitlements,
@@ -476,7 +753,6 @@ exports.createAutomaticPayroll = async (req, res) => {
 
         await payroll.save();
 
-        // Create history record
         await createPayrollHistory(
           payroll._id,
           employee._id,
@@ -522,7 +798,6 @@ exports.generatePayslipPDF = async (req, res) => {
   try {
     const { payrollId } = req.params;
 
-    // Get payroll data
     const payroll = await Payroll.findById(payrollId).populate("employee");
 
     if (!payroll) {
@@ -532,13 +807,11 @@ exports.generatePayslipPDF = async (req, res) => {
       });
     }
 
-    // Create PDF document
     const doc = new PDFDocument({
       margin: 40,
       size: "A4",
     });
 
-    // Set response headers
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
@@ -549,7 +822,6 @@ exports.generatePayslipPDF = async (req, res) => {
       ).padStart(2, "0")}.pdf"`
     );
 
-    // Pipe to response
     doc.pipe(res);
 
     // Title
@@ -558,7 +830,7 @@ exports.generatePayslipPDF = async (req, res) => {
     });
     doc.fontSize(10).text("", { align: "center" });
 
-    // Company Info Section
+    // Employee Information
     doc.fontSize(11).font("Helvetica-Bold").text("EMPLOYEE INFORMATION", {
       underline: true,
     });
@@ -586,7 +858,7 @@ exports.generatePayslipPDF = async (req, res) => {
 
     doc.moveDown();
 
-    // Payroll Period Section
+    // Payroll Period
     doc.fontSize(11).font("Helvetica-Bold").text("PAYROLL PERIOD", {
       underline: true,
     });
@@ -611,13 +883,13 @@ exports.generatePayslipPDF = async (req, res) => {
 
     doc.moveDown();
 
-    // Earnings Section
+    // Earnings
     doc.fontSize(11).font("Helvetica-Bold").text("EARNINGS", {
       underline: true,
     });
+    doc.fontSize(8).font("Helvetica");
 
-    const earningsData = [
-      ["Description", "Unit", "Rate", "Amount", { align: "right", width: 60 }],
+    const earningsRows = [
       [
         "Basic Regular",
         payroll.earnings.basicRegular.unit,
@@ -633,7 +905,7 @@ exports.generatePayslipPDF = async (req, res) => {
     ];
 
     if (payroll.earnings.absences.amount !== 0) {
-      earningsData.push([
+      earningsRows.push([
         "Absences",
         payroll.earnings.absences.unit,
         `₱${payroll.earnings.absences.rate.toFixed(2)}`,
@@ -641,37 +913,23 @@ exports.generatePayslipPDF = async (req, res) => {
       ]);
     }
 
-    doc.fontSize(8);
-    earningsData.forEach((row, index) => {
-      if (index === 0) {
-        doc.font("Helvetica-Bold");
-      } else {
-        doc.font("Helvetica");
-      }
-
-      row.forEach((cell, colIndex) => {
-        if (colIndex === 0) {
-          doc.text(cell, 50, null, { width: 100 });
-        } else if (colIndex === 1) {
-          doc.moveUp().text(cell, 150, null, { width: 60, align: "right" });
-        } else if (colIndex === 2) {
-          doc.moveUp().text(cell, 210, null, { width: 70, align: "right" });
-        } else {
-          doc.moveUp().text(cell, 280, null, { width: 80, align: "right" });
-        }
-      });
+    earningsRows.forEach((row) => {
+      doc.text(row[0], 50, null, { width: 100 });
+      doc.moveUp().text(row[1], 150, null, { width: 60, align: "right" });
+      doc.moveUp().text(row[2], 210, null, { width: 70, align: "right" });
+      doc.moveUp().text(row[3], 280, null, { width: 80, align: "right" });
       doc.moveDown();
     });
 
     doc.moveDown();
 
-    // Deductions Section
+    // Deductions
     doc.fontSize(11).font("Helvetica-Bold").text("DEDUCTIONS", {
       underline: true,
     });
+    doc.fontSize(8).font("Helvetica");
 
-    const deductionsData = [
-      ["Description", "Amount"],
+    const deductionsRows = [
       ["SSS", `₱${payroll.deductions.sss.deducted.toFixed(2)}`],
       ["PhilHealth", `₱${payroll.deductions.philhealth.deducted.toFixed(2)}`],
       ["Pag-IBIG", `₱${payroll.deductions.pagIbig.deducted.toFixed(2)}`],
@@ -681,14 +939,7 @@ exports.generatePayslipPDF = async (req, res) => {
       ],
     ];
 
-    doc.fontSize(8);
-    deductionsData.forEach((row, index) => {
-      if (index === 0) {
-        doc.font("Helvetica-Bold");
-      } else {
-        doc.font("Helvetica");
-      }
-
+    deductionsRows.forEach((row) => {
       doc.text(row[0], 50, null, { width: 200 });
       doc.moveUp().text(row[1], 300, null, { width: 80, align: "right" });
       doc.moveDown();
@@ -696,13 +947,13 @@ exports.generatePayslipPDF = async (req, res) => {
 
     doc.moveDown();
 
-    // Summary Section
+    // Summary
     doc.fontSize(11).font("Helvetica-Bold").text("SUMMARY", {
       underline: true,
     });
     doc.fontSize(9).font("Helvetica");
 
-    const summaryData = [
+    const summaryRows = [
       ["Gross Pay", `₱${payroll.summary.grossThisPay.toFixed(2)}`],
       [
         "Total Deductions",
@@ -711,7 +962,7 @@ exports.generatePayslipPDF = async (req, res) => {
       ["Net Pay", `₱${payroll.summary.netPayThisPay.toFixed(2)}`],
     ];
 
-    summaryData.forEach(([label, value]) => {
+    summaryRows.forEach(([label, value]) => {
       doc
         .font("Helvetica-Bold")
         .text(label, 50, null, { width: 200, align: "left" })
@@ -722,14 +973,13 @@ exports.generatePayslipPDF = async (req, res) => {
 
     doc.moveDown(2);
 
-    // Leave Entitlements Section
+    // Leave Balance
     doc.fontSize(11).font("Helvetica-Bold").text("LEAVE BALANCE", {
       underline: true,
     });
     doc.fontSize(8).font("Helvetica");
 
-    const leaveData = [
-      ["Leave Type", "Entitled", "Used", "Balance"],
+    const leaveRows = [
       [
         "Vacation Leave",
         payroll.leaveEntitlements.VL.total,
@@ -744,23 +994,11 @@ exports.generatePayslipPDF = async (req, res) => {
       ],
     ];
 
-    leaveData.forEach((row, index) => {
-      if (index === 0) {
-        doc.font("Helvetica-Bold");
-      } else {
-        doc.font("Helvetica");
-      }
-
-      row.forEach((cell, colIndex) => {
-        if (colIndex === 0) {
-          doc.text(cell, 50, null, { width: 100 });
-        } else {
-          doc.moveUp().text(cell, 200 + colIndex * 60, null, {
-            width: 50,
-            align: "right",
-          });
-        }
-      });
+    leaveRows.forEach((row) => {
+      doc.text(row[0], 50, null, { width: 100 });
+      doc.moveUp().text(row[1], 150, null, { width: 50, align: "right" });
+      doc.moveUp().text(row[2], 200, null, { width: 50, align: "right" });
+      doc.moveUp().text(row[3], 250, null, { width: 50, align: "right" });
       doc.moveDown();
     });
 
@@ -777,7 +1015,6 @@ exports.generatePayslipPDF = async (req, res) => {
         { width: 480, align: "center" }
       );
 
-    // Finalize PDF
     doc.end();
   } catch (error) {
     console.error("Error generating PDF:", error);
@@ -790,7 +1027,7 @@ exports.generatePayslipPDF = async (req, res) => {
 };
 
 /**
- * Generate PDF payslips for multiple employees
+ * Generate bulk payslips
  */
 exports.generateBulkPayslipPDF = async (req, res) => {
   try {
@@ -803,7 +1040,6 @@ exports.generateBulkPayslipPDF = async (req, res) => {
       });
     }
 
-    // Get all payrolls
     const payrolls = await Payroll.find({ _id: { $in: payrollIds } }).populate(
       "employee"
     );
@@ -815,7 +1051,6 @@ exports.generateBulkPayslipPDF = async (req, res) => {
       });
     }
 
-    // Set response headers for ZIP or multiple PDFs
     res.setHeader("Content-Type", "application/json");
 
     const generatedFiles = [];
@@ -848,7 +1083,7 @@ exports.generateBulkPayslipPDF = async (req, res) => {
   }
 };
 
-// ==================== OTHER OPERATIONS ====================
+// ==================== PAYROLL RETRIEVAL ====================
 
 /**
  * Get payroll by ID
@@ -871,6 +1106,7 @@ exports.getPayroll = async (req, res) => {
       data: payroll,
     });
   } catch (error) {
+    console.error("Error fetching payroll:", error);
     return res.status(500).json({
       success: false,
       message: "Error fetching payroll",
@@ -897,6 +1133,7 @@ exports.getPayrollHistory = async (req, res) => {
       data: history,
     });
   } catch (error) {
+    console.error("Error fetching payroll history:", error);
     return res.status(500).json({
       success: false,
       message: "Error fetching payroll history",
@@ -906,185 +1143,7 @@ exports.getPayrollHistory = async (req, res) => {
 };
 
 /**
- * Update payroll status
- */
-exports.updatePayrollStatus = async (req, res) => {
-  try {
-    const { payrollId } = req.params;
-    const { status, approvalReason } = req.body;
-
-    const validStatuses = [
-      "draft",
-      "pending",
-      "approved",
-      "processed",
-      "paid",
-      "cancelled",
-    ];
-
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid status",
-      });
-    }
-
-    const payroll = await Payroll.findById(payrollId);
-
-    if (!payroll) {
-      return res.status(404).json({
-        success: false,
-        message: "Payroll not found",
-      });
-    }
-
-    const previousStatus = payroll.status;
-
-    payroll.status = status;
-
-    if (status === "approved") {
-      payroll.approvalWorkflow.approvedBy = req.user._id;
-      payroll.approvalWorkflow.approvalDate = new Date();
-    }
-
-    await payroll.save();
-
-    // Create history record
-    await createPayrollHistory(
-      payrollId,
-      payroll.employee,
-      status,
-      req.user._id,
-      { status: previousStatus },
-      { status: status },
-      approvalReason
-    );
-
-    return res.status(200).json({
-      success: true,
-      message: `Payroll status updated to ${status}`,
-      data: payroll,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: "Error updating payroll status",
-      error: error.message,
-    });
-  }
-};
-
-/**
- * Approve payroll
- */
-exports.approvePayroll = async (req, res) => {
-  try {
-    const { payrollId } = req.params;
-    const { reason } = req.body;
-
-    const payroll = await Payroll.findById(payrollId);
-
-    if (!payroll) {
-      return res.status(404).json({
-        success: false,
-        message: "Payroll not found",
-      });
-    }
-
-    if (payroll.status === "approved") {
-      return res.status(400).json({
-        success: false,
-        message: "Payroll is already approved",
-      });
-    }
-
-    payroll.status = "approved";
-    payroll.approvalWorkflow.approvedBy = req.user._id;
-    payroll.approvalWorkflow.approvalDate = new Date();
-
-    await payroll.save();
-
-    // Create history record
-    await createPayrollHistory(
-      payrollId,
-      payroll.employee,
-      "approved",
-      req.user._id,
-      null,
-      { status: "approved" },
-      reason
-    );
-
-    return res.status(200).json({
-      success: true,
-      message: "Payroll approved successfully",
-      data: payroll,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: "Error approving payroll",
-      error: error.message,
-    });
-  }
-};
-
-/**
- * Reject payroll
- */
-exports.rejectPayroll = async (req, res) => {
-  try {
-    const { payrollId } = req.params;
-    const { reason } = req.body;
-
-    if (!reason) {
-      return res.status(400).json({
-        success: false,
-        message: "Rejection reason is required",
-      });
-    }
-
-    const payroll = await Payroll.findById(payrollId);
-
-    if (!payroll) {
-      return res.status(404).json({
-        success: false,
-        message: "Payroll not found",
-      });
-    }
-
-    payroll.status = "draft";
-    payroll.approvalWorkflow.rejectionReason = reason;
-
-    await payroll.save();
-
-    // Create history record
-    await createPayrollHistory(
-      payrollId,
-      payroll.employee,
-      "rejected",
-      req.user._id,
-      null,
-      { status: "draft" },
-      reason
-    );
-
-    return res.status(200).json({
-      success: true,
-      message: "Payroll rejected",
-      data: payroll,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: "Error rejecting payroll",
-      error: error.message,
-    });
-  }
-};
-
-/**
- * Get payrolls for employee (with pagination)
+ * Get employee payrolls
  */
 exports.getEmployeePayrolls = async (req, res) => {
   try {
@@ -1114,12 +1173,13 @@ exports.getEmployeePayrolls = async (req, res) => {
       success: true,
       data: payrolls,
       pagination: {
-        currentPage: page,
+        currentPage: parseInt(page),
         totalPages: Math.ceil(total / limit),
         totalRecords: total,
       },
     });
   } catch (error) {
+    console.error("Error fetching employee payrolls:", error);
     return res.status(500).json({
       success: false,
       message: "Error fetching employee payrolls",
@@ -1129,7 +1189,7 @@ exports.getEmployeePayrolls = async (req, res) => {
 };
 
 /**
- * Get all payrolls for a period (with filtering)
+ * Get payrolls by period
  */
 exports.getPayrollsByPeriod = async (req, res) => {
   try {
@@ -1175,12 +1235,13 @@ exports.getPayrollsByPeriod = async (req, res) => {
       success: true,
       data: payrolls,
       pagination: {
-        currentPage: page,
+        currentPage: parseInt(page),
         totalPages: Math.ceil(total / limit),
         totalRecords: total,
       },
     });
   } catch (error) {
+    console.error("Error fetching payrolls by period:", error);
     return res.status(500).json({
       success: false,
       message: "Error fetching payrolls",
@@ -1189,8 +1250,187 @@ exports.getPayrollsByPeriod = async (req, res) => {
   }
 };
 
+// ==================== PAYROLL MANAGEMENT ====================
+
 /**
- * Delete payroll (only if draft status)
+ * Update payroll status
+ */
+exports.updatePayrollStatus = async (req, res) => {
+  try {
+    const { payrollId } = req.params;
+    const { status, approvalReason } = req.body;
+
+    const validStatuses = [
+      "draft",
+      "pending",
+      "approved",
+      "processed",
+      "paid",
+      "cancelled",
+    ];
+
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status",
+      });
+    }
+
+    const payroll = await Payroll.findById(payrollId);
+
+    if (!payroll) {
+      return res.status(404).json({
+        success: false,
+        message: "Payroll not found",
+      });
+    }
+
+    const previousStatus = payroll.status;
+    payroll.status = status;
+
+    if (status === "approved") {
+      payroll.approvalWorkflow.approvedBy = req.user._id;
+      payroll.approvalWorkflow.approvalDate = new Date();
+    }
+
+    await payroll.save();
+
+    await createPayrollHistory(
+      payrollId,
+      payroll.employee,
+      status,
+      req.user._id,
+      { status: previousStatus },
+      { status: status },
+      approvalReason
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: `Payroll status updated to ${status}`,
+      data: payroll,
+    });
+  } catch (error) {
+    console.error("Error updating payroll status:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error updating payroll status",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Approve payroll
+ */
+exports.approvePayroll = async (req, res) => {
+  try {
+    const { payrollId } = req.params;
+    const { reason } = req.body;
+
+    const payroll = await Payroll.findById(payrollId);
+
+    if (!payroll) {
+      return res.status(404).json({
+        success: false,
+        message: "Payroll not found",
+      });
+    }
+
+    if (payroll.status === "approved") {
+      return res.status(400).json({
+        success: false,
+        message: "Payroll is already approved",
+      });
+    }
+
+    payroll.status = "approved";
+    payroll.approvalWorkflow.approvedBy = req.user._id;
+    payroll.approvalWorkflow.approvalDate = new Date();
+
+    await payroll.save();
+
+    await createPayrollHistory(
+      payrollId,
+      payroll.employee,
+      "approved",
+      req.user._id,
+      null,
+      { status: "approved" },
+      reason
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Payroll approved successfully",
+      data: payroll,
+    });
+  } catch (error) {
+    console.error("Error approving payroll:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error approving payroll",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Reject payroll
+ */
+exports.rejectPayroll = async (req, res) => {
+  try {
+    const { payrollId } = req.params;
+    const { reason } = req.body;
+
+    if (!reason) {
+      return res.status(400).json({
+        success: false,
+        message: "Rejection reason is required",
+      });
+    }
+
+    const payroll = await Payroll.findById(payrollId);
+
+    if (!payroll) {
+      return res.status(404).json({
+        success: false,
+        message: "Payroll not found",
+      });
+    }
+
+    payroll.status = "draft";
+    payroll.approvalWorkflow.rejectionReason = reason;
+
+    await payroll.save();
+
+    await createPayrollHistory(
+      payrollId,
+      payroll.employee,
+      "rejected",
+      req.user._id,
+      null,
+      { status: "draft" },
+      reason
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Payroll rejected",
+      data: payroll,
+    });
+  } catch (error) {
+    console.error("Error rejecting payroll:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error rejecting payroll",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Delete payroll
  */
 exports.deletePayroll = async (req, res) => {
   try {
@@ -1214,7 +1454,6 @@ exports.deletePayroll = async (req, res) => {
 
     await Payroll.findByIdAndDelete(payrollId);
 
-    // Create history record
     await createPayrollHistory(
       payrollId,
       payroll.employee,
@@ -1227,6 +1466,7 @@ exports.deletePayroll = async (req, res) => {
       message: "Payroll deleted successfully",
     });
   } catch (error) {
+    console.error("Error deleting payroll:", error);
     return res.status(500).json({
       success: false,
       message: "Error deleting payroll",
