@@ -18,7 +18,7 @@ router.use(verifyJWT);
  * Access: Admin, HR
  */
 router.get(
-  "/search/employees",
+  "/search-employees",
   authorizeRoles("admin", "hr"),
   payslipAdminController.searchEmployees
 );
