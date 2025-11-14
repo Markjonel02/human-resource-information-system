@@ -88,5 +88,10 @@ router.get(
   authorizeRoles("admin", "hr"),
   payslipAdminController.getAllPayslips
 );
+router.get(
+  "/payslip/:payslipId/download",
+  authorizeRoles("admin", "hr"),
+  payslipAdminController.downloadPayslipPdf
+);
 
 module.exports = router;

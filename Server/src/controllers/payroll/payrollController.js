@@ -791,4 +791,113 @@ exports.getAllPayslips = async (req, res) => {
   }
 };
 
+// ==================== DOWNLOAD PAYSLIP PDF ====================
+
+exports.downloadPayslipPdf = async (req, res) => {
+  try {
+    const { payslipId } = req.params;
+
+    // Fetch payslip
+    const payslip = await Payroll.findById(payslipId);
+    if (!payslip) {
+      return res.status(404).json({
+        success: false,
+        message: "Payslip not found",
+      });
+    }
+
+    // Set PDF headers
+    const filename = `Payslip-${payslip.employeeInfo.lastname}-${
+      payslip.payrollPeriod.startDate.toISOString().split("T")[0]
+    }.pdf`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=${filename}`);
+
+    // PDF generator
+    const PDFDocument = require("pdfkit");
+    const doc = new PDFDocument({ margin: 40 });
+
+    doc.pipe(res);
+
+    // ===== HEADER =====
+    doc.fontSize(18).text("PAYSLIP", { align: "center" }).moveDown();
+
+    doc
+      .fontSize(12)
+      .text(
+        `Employee: ${payslip.employeeInfo.firstname} ${payslip.employeeInfo.lastname}`
+      )
+      .text(`Employee ID: ${payslip.employeeInfo.employeeId}`)
+      .text(`Department: ${payslip.employeeInfo.department}`)
+      .text(`Position: ${payslip.employeeInfo.jobPosition}`)
+      .moveDown();
+
+    doc
+      .fontSize(12)
+      .text(
+        `Payroll Period: ${payslip.payrollPeriod.startDate.toLocaleDateString()} - ${payslip.payrollPeriod.endDate.toLocaleDateString()}`
+      )
+      .text(`Payment Date: ${payslip.paymentDate.toLocaleDateString()}`)
+      .moveDown(2);
+
+    // ===== EARNINGS TABLE =====
+    doc.fontSize(14).text("Earnings", { underline: true }).moveDown(0.5);
+
+    const earnings = payslip.earnings;
+
+    doc.fontSize(12);
+    doc.text(
+      `Basic Pay (${earnings.basicRegular.unit} day/s @ ${earnings.basicRegular.rate}): ₱${earnings.basicRegular.amount}`
+    );
+    doc.text(
+      `Sick Leave (${earnings.sickLeave.unit} day/s): ₱${earnings.sickLeave.amount}`
+    );
+    doc.text(`General Allowance: ₱${earnings.generalAllowance.amount}`);
+    doc.text(
+      `Absences (${earnings.absences.unit}): ₱${earnings.absences.amount}`
+    );
+    doc.moveDown(2);
+
+    // ===== DEDUCTIONS TABLE =====
+    doc.fontSize(14).text("Deductions", { underline: true }).moveDown(0.5);
+
+    const d = payslip.deductions;
+
+    doc.fontSize(12);
+    doc.text(`SSS: ₱${d.sss.deducted}`);
+    doc.text(`PhilHealth: ₱${d.philhealth.deducted}`);
+    doc.text(`Pag-IBIG: ₱${d.pagIbig.deducted}`);
+    doc.text(`Withholding Tax: ₱${d.withholdingTax.deducted}`);
+
+    if (d.otherDeductions && d.otherDeductions.length > 0) {
+      doc.moveDown(0.5).text("Other Deductions:");
+      d.otherDeductions.forEach((item) => {
+        doc.text(`- ${item.description}: ₱${item.amount}`);
+      });
+    }
+
+    doc.moveDown(2);
+
+    // ===== SUMMARY =====
+    doc.fontSize(14).text("Summary", { underline: true }).moveDown(0.5);
+
+    const summary = payslip.summary;
+
+    doc.fontSize(12);
+    doc.text(`Gross Pay This Period: ₱${summary.grossThisPay}`);
+    doc.text(`Total Deductions: ₱${summary.totalDeductionsThisPay}`);
+    doc.text(`Net Pay: ₱${summary.netPayThisPay}`, { bold: true });
+
+    // ===== END =====
+    doc.end();
+  } catch (error) {
+    console.error("Error generating payslip PDF:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error generating payslip PDF",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = exports;

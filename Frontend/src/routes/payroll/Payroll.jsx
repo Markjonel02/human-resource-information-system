@@ -237,11 +237,7 @@ export default function PayslipAdminSystem() {
   };
 
   return (
-    <Box
-      bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-      minH="100vh"
-      py={8}
-    >
+    <Box minH="100vh" py={8}>
       <Container maxW="8xl">
         {/* Header */}
         <VStack spacing={6} align="stretch" mb={8}>
@@ -535,6 +531,11 @@ export default function PayslipAdminSystem() {
                                       aria-label="View"
                                     />
                                     <IconButton
+                                      onClick={() =>
+                                        window.open(
+                                          `/payroll/payslip/${payslip._id}/download`
+                                        )
+                                      }
                                       icon={<DownloadIcon />}
                                       size="sm"
                                       colorScheme="green"
