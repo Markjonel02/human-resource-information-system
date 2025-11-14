@@ -12,7 +12,7 @@ This HRMS is a full-stack web application built with **MongoDB, Express.js, Reac
 ### 🚀 Tech Stack
 | Layer        | Technology         |
 |--------------|--------------------|
-| Frontend     | React.js + TailwindCSS |
+| Frontend     | React.js + Chakra Ui |
 | Backend      | Node.js + Express.js |
 | Database     | MongoDB (Mongoose ORM) |
 | Auth         | JWT (JSON Web Tokens) |
@@ -110,4 +110,5 @@ npm start
 ```
 
 ---
+
 
