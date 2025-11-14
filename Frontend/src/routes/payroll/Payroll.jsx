@@ -4,7 +4,6 @@ import {
   Button,
   Container,
   Flex,
-  Grid,
   Heading,
   Input,
   Select,
@@ -18,164 +17,104 @@ import {
   VStack,
   HStack,
   Text,
-  Divider,
-  Spinner,
-  useToast,
+  Card,
+  CardBody,
+  CardHeader,
+  IconButton,
+  InputGroup,
+  InputLeftElement,
   Tabs,
   TabList,
   TabPanels,
   Tab,
   TabPanel,
-  SimpleGrid,
-  Card,
-  CardBody,
-  CardHeader,
-  Stat,
-  StatLabel,
-  StatNumber,
-  InputGroup,
-  InputLeftElement,
+  useToast,
+  Grid,
+  GridItem,
+  Divider,
+  Tag,
+  TagLabel,
+  TagCloseButton,
+  Spinner,
+  Center,
   Icon,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-  useDisclosure,
-  FormControl,
-  FormLabel,
-  NumberInput,
-  NumberInputField,
-  Checkbox,
-  CheckboxGroup,
-  Stack,
 } from "@chakra-ui/react";
 import {
+  SearchIcon,
+  AddIcon,
   DownloadIcon,
   ViewIcon,
-  SearchIcon,
   CalendarIcon,
-  AddIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CheckCircleIcon,
+  TimeIcon,
+  CloseIcon,
 } from "@chakra-ui/icons";
-import axiosInstance from "../../lib/axiosInstance"; // Your axios instance
-import CreatePayslipComponent from "../payroll/CreatePayslip"; // Import the new component
+import CreatePayslipComponent from "./CreatePayslip";
+import axiosInstance from "../../lib/axiosInstance";
 
-export default function PayslipFrontend() {
-  // Employee/User role from auth context or state
-  const userRole = localStorage.getItem("userRole");
-
-  // Payroll List State
-  const [payrolls, setPayrolls] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedPayslip, setSelectedPayslip] = useState(null);
-  const [employeeId, setEmployeeId] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [sortBy, setSortBy] = useState("date-desc");
-  const [nextReleaseDate, setNextReleaseDate] = useState(null);
+export default function PayslipAdminSystem() {
   const [activeTab, setActiveTab] = useState(0);
-
-  // Admin Features State
-  const [searchResults, setSearchResults] = useState([]);
+  const [payslips, setPayslips] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [payrollPeriodInfo, setPayrollPeriodInfo] = useState(null);
-  const [daysWorked, setDaysWorked] = useState("");
-  const [generalAllowance, setGeneralAllowance] = useState("");
-  const [otherDeductions, setOtherDeductions] = useState("");
-  const [customStartDate, setCustomStartDate] = useState("");
-  const [customEndDate, setCustomEndDate] = useState("");
-  const [selectedEmployeesForBatch, setSelectedEmployeesForBatch] = useState(
-    []
-  );
-
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [filters, setFilters] = useState({
+    status: "",
+    department: "",
+    startDate: "",
+    endDate: "",
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [periodInfo, setPeriodInfo] = useState(null);
   const toast = useToast();
 
-  // Fetch next release date
+  // Create form state
+  const [createForm, setCreateForm] = useState({
+    employeeId: "",
+    customStartDate: "",
+    customEndDate: "",
+    daysWorked: "",
+    generalAllowance: 0,
+    otherDeductions: [],
+  });
+
+  // Batch create state
+  const [selectedEmployees, setSelectedEmployees] = useState([]);
+  const [selectedEmployeeNames, setSelectedEmployeeNames] = useState([]);
+
   useEffect(() => {
-    fetchNextReleaseDate();
-    if (userRole === "admin" || userRole === "hr") {
-      fetchPayrollPeriodInfo();
-    }
-  }, []);
+    fetchPeriodInfo();
+    fetchPayslips();
+  }, [currentPage, filters]);
 
-  const fetchNextReleaseDate = async () => {
+  const fetchPeriodInfo = async () => {
     try {
-      const response = await axiosInstance.get("/payroll/release-date/next");
-      setNextReleaseDate(response.data.data);
+      const { data } = await axiosInstance.get("/payroll/period-info");
+      setPeriodInfo(data.data);
     } catch (error) {
-      console.error("Error fetching release date:", error);
+      console.error("Error fetching period info:", error);
     }
   };
 
-  const fetchPayrollPeriodInfo = async () => {
-    try {
-      const response = await axiosInstance.get("/payslip/admin/period-info");
-      setPayrollPeriodInfo(response.data.data.currentPeriod);
-    } catch (error) {
-      console.error("Error fetching payroll period info:", error);
-    }
-  };
-
-  const fetchPayrolls = async () => {
+  const fetchPayslips = async () => {
     setLoading(true);
     try {
-      let url;
-      let response;
-
-      if (userRole === "admin" || userRole === "hr") {
-        // Admin/HR view all payslips
-        url = "/payslip/admin/all";
-        const params = {
-          page: 1,
-          limit: 50,
-        };
-        if (startDate) params.startDate = startDate;
-        if (endDate) params.endDate = endDate;
-
-        response = await axiosInstance.get(url, { params });
-        const data = response.data.data || [];
-        setPayrolls(data);
-        applySort(data);
-      } else {
-        // Employee view own payslips
-        if (!employeeId) {
-          toast({
-            title: "Error",
-            description: "Employee ID is required",
-            status: "error",
-            duration: 3000,
-            isClosable: true,
-          });
-          setLoading(false);
-          return;
-        }
-
-        url = `/payroll/employee/${employeeId}`;
-        const params = {};
-        if (startDate) params.startDate = startDate;
-        if (endDate) params.endDate = endDate;
-
-        response = await axiosInstance.get(url, { params });
-        const data = response.data.data || [];
-        setPayrolls(data);
-        applySort(data);
-      }
-
-      toast({
-        title: "Success",
-        description: `Loaded ${response.data.data?.length || 0} payslips`,
-        status: "success",
-        duration: 2000,
-        isClosable: true,
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: 20,
+        ...filters,
       });
+      const { data } = await axiosInstance.get(`/payroll/all?${params}`);
+      setPayslips(data.data || []);
+      setTotalPages(data.pagination?.totalPages || 1);
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error fetching payslips:", error);
       toast({
         title: "Error",
-        description: error.response?.data?.message || error.message,
+        description: "Failed to fetch payslips",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -185,107 +124,57 @@ export default function PayslipFrontend() {
     }
   };
 
-  const applySort = (data) => {
-    let sorted = [...data];
-
-    switch (sortBy) {
-      case "date-desc":
-        sorted.sort(
-          (a, b) => new Date(b.paymentDate) - new Date(a.paymentDate)
-        );
-        break;
-      case "date-asc":
-        sorted.sort(
-          (a, b) => new Date(a.paymentDate) - new Date(b.paymentDate)
-        );
-        break;
-      case "amount-high":
-        sorted.sort(
-          (a, b) =>
-            (b.summary?.netPayThisPay || 0) - (a.summary?.netPayThisPay || 0)
-        );
-        break;
-      case "amount-low":
-        sorted.sort(
-          (a, b) =>
-            (a.summary?.netPayThisPay || 0) - (b.summary?.netPayThisPay || 0)
-        );
-        break;
-      default:
-        break;
+  const searchEmployees = async (query) => {
+    if (!query || query.length < 2) return;
+    try {
+      const { data } = await axiosInstance.get(
+        `/payroll//search-employees?query=${query}`
+      );
+      setEmployees(data.data || []);
+    } catch (error) {
+      console.error("Error searching employees:", error);
     }
-
-    setPayrolls(sorted);
   };
 
-  // Handle when a new payslip is created
-  const handlePayslipCreated = (newPayslip) => {
-    // Refresh the payroll list
-    fetchPayrolls();
-    // Close the modal
-    onClose();
-    // Show success message
-    toast({
-      title: "Success",
-      description: "Payslip created successfully",
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
-  };
-
-  // Admin: Create batch payslips
-  const createBatchPayslips = async () => {
-    if (selectedEmployeesForBatch.length === 0) {
+  const handleBatchCreate = async () => {
+    if (selectedEmployees.length === 0) {
       toast({
-        title: "Error",
+        title: "Validation Error",
         description: "Please select at least one employee",
-        status: "error",
-        duration: 2000,
+        status: "warning",
+        duration: 3000,
         isClosable: true,
       });
       return;
     }
 
+    setLoading(true);
     try {
-      setLoading(true);
-      const payload = {
-        employeeIds: selectedEmployeesForBatch.map((emp) => emp._id),
-        generalAllowance: generalAllowance ? parseFloat(generalAllowance) : 0,
-      };
-
-      if (customStartDate) payload.customStartDate = customStartDate;
-      if (customEndDate) payload.customEndDate = customEndDate;
-
-      const response = await axiosInstance.post(
-        "/payslip/admin/create-batch",
-        payload
-      );
+      const response = await axiosInstance.post("/payroll/create-batch", {
+        employeeIds: selectedEmployees,
+        customStartDate: createForm.customStartDate,
+        customEndDate: createForm.customEndDate,
+        generalAllowance: createForm.generalAllowance,
+      });
 
       toast({
         title: "Success",
-        description: response.data.message,
+        description: `Created ${response.data.data.created} payslips successfully!`,
         status: "success",
         duration: 3000,
         isClosable: true,
       });
 
-      // Reset
-      setSelectedEmployeesForBatch([]);
-      setGeneralAllowance("");
-      setOtherDeductions("");
-      setCustomStartDate("");
-      setCustomEndDate("");
-      onClose();
-
-      // Refresh
-      fetchPayrolls();
+      setActiveTab(0);
+      fetchPayslips();
+      setSelectedEmployees([]);
+      setSelectedEmployeeNames([]);
+      resetCreateForm();
     } catch (error) {
-      console.error("Error creating batch payslips:", error);
       toast({
         title: "Error",
         description:
-          error.response?.data?.message || "Failed to create payslips",
+          error.response?.data?.message || "Error creating batch payslips",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -295,61 +184,16 @@ export default function PayslipFrontend() {
     }
   };
 
-  const downloadPayslip = async (payrollId) => {
-    try {
-      setLoading(true);
-      const response = await axiosInstance.get(`/payroll/${payrollId}/pdf`, {
-        responseType: "blob",
-      });
-
-      const url = window.URL.createObjectURL(response.data);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Payslip_${payrollId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast({
-        title: "Success",
-        description: "Payslip downloaded successfully",
-        status: "success",
-        duration: 2000,
-        isClosable: true,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to download",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const viewPayslip = (payroll) => {
-    setSelectedPayslip(payroll);
-    setActiveTab(1);
-  };
-
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat("en-PH", {
-      style: "currency",
-      currency: "PHP",
-    }).format(value || 0);
-  };
-
-  const formatDate = (date) => {
-    if (!date) return "N/A";
-    return new Date(date).toLocaleDateString("en-PH", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
+  const resetCreateForm = () => {
+    setCreateForm({
+      employeeId: "",
+      customStartDate: "",
+      customEndDate: "",
+      daysWorked: "",
+      generalAllowance: 0,
+      otherDeductions: [],
     });
+    setSearchQuery("");
   };
 
   const getStatusColor = (status) => {
@@ -364,927 +208,617 @@ export default function PayslipFrontend() {
     return colors[status] || "gray";
   };
 
-  return (
-    <Box bg="white" minH="100vh" py={8}>
-      <Container maxW="6xl">
-        {/* Header */}
-        <VStack spacing={8} align="stretch" mb={12}>
-          <Flex justify="space-between" align="start">
-            <Box>
-              <Heading as="h1" size="2xl" color="gray.900" mb={2}>
-                Payroll Slips
-              </Heading>
-              <Text color="gray.600" fontSize="md">
-                {userRole === "admin" || userRole === "hr"
-                  ? "Manage payroll slips"
-                  : "View and download your payroll slips"}
-              </Text>
-            </Box>
-            {(userRole === "admin" || userRole === "hr") && (
-              <Button
-                leftIcon={<AddIcon />}
-                bg="gray.900"
-                color="white"
-                fontWeight="600"
-                onClick={onOpen}
-                _hover={{ bg: "gray.800" }}
-              >
-                Create Payslip
-              </Button>
-            )}
-          </Flex>
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "approved":
+        return CheckCircleIcon;
+      case "pending":
+        return TimeIcon;
+      case "cancelled":
+        return CloseIcon;
+      default:
+        return CalendarIcon;
+    }
+  };
 
-          {/* Next Release Date */}
-          {nextReleaseDate && (
-            <Card bg="blue.50" border="1px solid" borderColor="blue.200">
-              <CardBody>
-                <HStack spacing={4} align="center">
-                  <Box color="blue.600" fontSize="2xl">
-                    📅
-                  </Box>
-                  <Box>
-                    <Text
-                      fontSize="sm"
-                      color="blue.600"
-                      fontWeight="500"
-                      mb={1}
-                    >
-                      Next Payroll Release
-                    </Text>
-                    <Heading size="md" color="blue.700">
-                      {formatDate(nextReleaseDate.nextReleaseDate)}
-                    </Heading>
-                    <Text fontSize="xs" color="blue.600" mt={1}>
-                      Period:{" "}
-                      {formatDate(nextReleaseDate.payrollPeriod?.startDate)} to{" "}
-                      {formatDate(nextReleaseDate.payrollPeriod?.endDate)}
-                    </Text>
-                  </Box>
-                </HStack>
-              </CardBody>
-            </Card>
-          )}
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("en-PH", {
+      style: "currency",
+      currency: "PHP",
+    }).format(amount || 0);
+  };
+
+  const formatDate = (date) => {
+    return new Date(date).toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  return (
+    <Box
+      bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+      minH="100vh"
+      py={8}
+    >
+      <Container maxW="8xl">
+        {/* Header */}
+        <VStack spacing={6} align="stretch" mb={8}>
+          <Card bg="white" boxShadow="xl" borderRadius="2xl">
+            <CardBody p={8}>
+              <Flex
+                justify="space-between"
+                align="center"
+                flexWrap="wrap"
+                gap={4}
+              >
+                <Box>
+                  <Heading size="xl" color="gray.800" mb={2}>
+                    💼 Payslip Management
+                  </Heading>
+                  <Text color="gray.600" fontSize="lg">
+                    Admin Dashboard
+                  </Text>
+                </Box>
+
+                {periodInfo && (
+                  <Card
+                    bg="purple.50"
+                    borderRadius="xl"
+                    border="2px"
+                    borderColor="purple.200"
+                  >
+                    <CardBody p={4}>
+                      <HStack spacing={3}>
+                        <Icon
+                          as={CalendarIcon}
+                          w={5}
+                          h={5}
+                          color="purple.600"
+                        />
+                        <Box>
+                          <Text
+                            fontSize="xs"
+                            fontWeight="bold"
+                            color="purple.600"
+                            mb={1}
+                          >
+                            CURRENT PERIOD
+                          </Text>
+                          <Text
+                            fontSize="md"
+                            fontWeight="bold"
+                            color="purple.900"
+                          >
+                            {periodInfo.currentPeriod?.label}
+                          </Text>
+                        </Box>
+                      </HStack>
+                    </CardBody>
+                  </Card>
+                )}
+              </Flex>
+            </CardBody>
+          </Card>
         </VStack>
 
-        {/* Tabs */}
-        <Tabs index={activeTab} onChange={setActiveTab}>
-          <TabList mb={8} borderBottomWidth="2px" borderBottomColor="gray.200">
+        {/* Main Tabs */}
+        <Tabs
+          index={activeTab}
+          onChange={setActiveTab}
+          variant="enclosed"
+          colorScheme="purple"
+        >
+          <TabList
+            mb={6}
+            bg="white"
+            borderRadius="xl"
+            boxShadow="lg"
+            p={2}
+            border="none"
+          >
             <Tab
-              pb={3}
-              px={0}
-              mr={8}
-              fontWeight="600"
-              color="gray.600"
               _selected={{
-                color: "gray.900",
-                borderBottomColor: "gray.900",
-                borderBottomWidth: "2px",
+                color: "white",
+                bg: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                borderRadius: "lg",
               }}
-              _focus={{ outline: "none" }}
+              fontWeight="bold"
+              fontSize="md"
             >
-              Payroll Slips
+              📋 View Payslips
             </Tab>
-            {selectedPayslip && (
-              <Tab
-                pb={3}
-                px={0}
-                fontWeight="600"
-                color="gray.600"
-                _selected={{
-                  color: "gray.900",
-                  borderBottomColor: "gray.900",
-                  borderBottomWidth: "2px",
-                }}
-                _focus={{ outline: "none" }}
-              >
-                Details
-              </Tab>
-            )}
+            <Tab
+              _selected={{
+                color: "white",
+                bg: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                borderRadius: "lg",
+              }}
+              fontWeight="bold"
+              fontSize="md"
+            >
+              ➕ Create Payslip
+            </Tab>
+            <Tab
+              _selected={{
+                color: "white",
+                bg: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                borderRadius: "lg",
+              }}
+              fontWeight="bold"
+              fontSize="md"
+            >
+              👥 Batch Create
+            </Tab>
           </TabList>
 
           <TabPanels>
-            {/* List Tab */}
-            <TabPanel px={0}>
-              <VStack spacing={8} align="stretch">
-                {/* Search Section */}
-                <Box
-                  bg="gray.50"
-                  p={6}
-                  borderRadius="lg"
-                  border="1px solid"
-                  borderColor="gray.200"
-                >
-                  <Heading size="sm" mb={6} color="gray.900">
-                    Search & Filter
-                  </Heading>
-
-                  <Grid
-                    templateColumns={{
-                      base: "1fr",
-                      md: "repeat(2, 1fr)",
-                      lg: "repeat(4, 1fr)",
-                    }}
-                    gap={4}
-                    mb={6}
-                  >
-                    {!(userRole === "admin" || userRole === "hr") && (
-                      <Box>
-                        <Text
-                          fontSize="sm"
-                          fontWeight="600"
-                          color="gray.700"
-                          mb={2}
-                        >
-                          Employee ID
+            {/* List View */}
+            <TabPanel p={0}>
+              <VStack spacing={6} align="stretch">
+                {/* Filters */}
+                <Card boxShadow="lg" borderRadius="xl">
+                  <CardHeader bg="gray.50" borderBottomWidth="1px">
+                    <HStack>
+                      <Icon as={SearchIcon} color="purple.600" />
+                      <Heading size="md">Filters & Search</Heading>
+                    </HStack>
+                  </CardHeader>
+                  <CardBody>
+                    <Grid
+                      templateColumns={{
+                        base: "1fr",
+                        md: "repeat(2, 1fr)",
+                        lg: "repeat(4, 1fr)",
+                      }}
+                      gap={4}
+                    >
+                      <GridItem>
+                        <Text fontSize="sm" fontWeight="bold" mb={2}>
+                          Status
                         </Text>
-                        <InputGroup>
-                          <InputLeftElement pointerEvents="none">
-                            <SearchIcon color="gray.400" />
-                          </InputLeftElement>
-                          <Input
-                            placeholder="Enter employee ID"
-                            value={employeeId}
-                            onChange={(e) => setEmployeeId(e.target.value)}
-                            bg="white"
-                            border="1px solid"
-                            borderColor="gray.300"
-                            _focus={{
-                              borderColor: "gray.500",
-                              boxShadow: "none",
-                            }}
-                            _placeholder={{ color: "gray.500" }}
-                          />
-                        </InputGroup>
-                      </Box>
-                    )}
-
-                    <Box>
-                      <Text
-                        fontSize="sm"
-                        fontWeight="600"
-                        color="gray.700"
-                        mb={2}
-                      >
-                        Start Date
-                      </Text>
-                      <Input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        bg="white"
-                        border="1px solid"
-                        borderColor="gray.300"
-                        _focus={{
-                          borderColor: "gray.500",
-                          boxShadow: "none",
-                        }}
-                      />
-                    </Box>
-
-                    <Box>
-                      <Text
-                        fontSize="sm"
-                        fontWeight="600"
-                        color="gray.700"
-                        mb={2}
-                      >
-                        End Date
-                      </Text>
-                      <Input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        bg="white"
-                        border="1px solid"
-                        borderColor="gray.300"
-                        _focus={{
-                          borderColor: "gray.500",
-                          boxShadow: "none",
-                        }}
-                      />
-                    </Box>
-
-                    <Box>
-                      <Text
-                        fontSize="sm"
-                        fontWeight="600"
-                        color="gray.700"
-                        mb={2}
-                      >
-                        Sort By
-                      </Text>
-                      <Select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                        bg="white"
-                        border="1px solid"
-                        borderColor="gray.300"
-                        _focus={{
-                          borderColor: "gray.500",
-                          boxShadow: "none",
-                        }}
-                      >
-                        <option value="date-desc">Newest First</option>
-                        <option value="date-asc">Oldest First</option>
-                        <option value="amount-high">
-                          Amount (High to Low)
-                        </option>
-                        <option value="amount-low">Amount (Low to High)</option>
-                      </Select>
-                    </Box>
-                  </Grid>
-
-                  <Button
-                    w={{ base: "full", md: "auto" }}
-                    bg="gray.900"
-                    color="white"
-                    fontWeight="600"
-                    onClick={fetchPayrolls}
-                    isLoading={loading}
-                    _hover={{ bg: "gray.800" }}
-                    _active={{ bg: "gray.900" }}
-                  >
-                    Search
-                  </Button>
-                </Box>
+                        <Select
+                          value={filters.status}
+                          onChange={(e) =>
+                            setFilters({ ...filters, status: e.target.value })
+                          }
+                          placeholder="All Status"
+                        >
+                          <option value="draft">Draft</option>
+                          <option value="pending">Pending</option>
+                          <option value="approved">Approved</option>
+                          <option value="processed">Processed</option>
+                          <option value="paid">Paid</option>
+                        </Select>
+                      </GridItem>
+                      <GridItem>
+                        <Text fontSize="sm" fontWeight="bold" mb={2}>
+                          Department
+                        </Text>
+                        <Input
+                          value={filters.department}
+                          onChange={(e) =>
+                            setFilters({
+                              ...filters,
+                              department: e.target.value,
+                            })
+                          }
+                          placeholder="Enter department"
+                        />
+                      </GridItem>
+                      <GridItem>
+                        <Text fontSize="sm" fontWeight="bold" mb={2}>
+                          Start Date
+                        </Text>
+                        <Input
+                          type="date"
+                          value={filters.startDate}
+                          onChange={(e) =>
+                            setFilters({
+                              ...filters,
+                              startDate: e.target.value,
+                            })
+                          }
+                        />
+                      </GridItem>
+                      <GridItem>
+                        <Text fontSize="sm" fontWeight="bold" mb={2}>
+                          End Date
+                        </Text>
+                        <Input
+                          type="date"
+                          value={filters.endDate}
+                          onChange={(e) =>
+                            setFilters({ ...filters, endDate: e.target.value })
+                          }
+                        />
+                      </GridItem>
+                    </Grid>
+                  </CardBody>
+                </Card>
 
                 {/* Payslips Table */}
-                <Box
-                  overflowX="auto"
-                  border="1px solid"
-                  borderColor="gray.200"
-                  borderRadius="lg"
-                >
+                <Card boxShadow="lg" borderRadius="xl" overflow="hidden">
                   {loading ? (
-                    <Box p={12} textAlign="center">
-                      <Spinner size="xl" mb={4} />
-                      <Text fontSize="md" color="gray.500">
-                        Loading payslips...
-                      </Text>
-                    </Box>
-                  ) : payrolls.length === 0 ? (
-                    <Box p={12} textAlign="center">
-                      <Text fontSize="md" color="gray.500" mb={2}>
-                        No payslips found
-                      </Text>
-                      <Text fontSize="sm" color="gray.400">
-                        Try adjusting your search filters
-                      </Text>
-                    </Box>
+                    <Center h="400px">
+                      <VStack spacing={4}>
+                        <Spinner size="xl" color="purple.500" thickness="4px" />
+                        <Text color="gray.600">Loading payslips...</Text>
+                      </VStack>
+                    </Center>
+                  ) : payslips.length === 0 ? (
+                    <Center h="400px">
+                      <VStack spacing={4}>
+                        <Text fontSize="6xl">📄</Text>
+                        <Heading size="md" color="gray.400">
+                          No payslips found
+                        </Heading>
+                        <Text color="gray.500">
+                          Try adjusting your filters or create a new payslip
+                        </Text>
+                      </VStack>
+                    </Center>
                   ) : (
-                    <Table>
-                      <Thead
-                        bg="gray.50"
-                        borderBottomWidth="1px"
-                        borderBottomColor="gray.200"
-                      >
-                        <Tr>
-                          <Th fontSize="sm" fontWeight="600" color="gray.700">
-                            Employee
-                          </Th>
-                          <Th fontSize="sm" fontWeight="600" color="gray.700">
-                            Period
-                          </Th>
-                          <Th fontSize="sm" fontWeight="600" color="gray.700">
-                            Payment Date
-                          </Th>
-                          <Th
-                            fontSize="sm"
-                            fontWeight="600"
-                            color="gray.700"
-                            isNumeric
-                          >
-                            Gross Pay
-                          </Th>
-                          <Th
-                            fontSize="sm"
-                            fontWeight="600"
-                            color="gray.700"
-                            isNumeric
-                          >
-                            Deductions
-                          </Th>
-                          <Th
-                            fontSize="sm"
-                            fontWeight="600"
-                            color="gray.700"
-                            isNumeric
-                          >
-                            Net Pay
-                          </Th>
-                          <Th fontSize="sm" fontWeight="600" color="gray.700">
-                            Status
-                          </Th>
-                          <Th
-                            fontSize="sm"
-                            fontWeight="600"
-                            color="gray.700"
-                            textAlign="center"
-                          >
-                            Actions
-                          </Th>
-                        </Tr>
-                      </Thead>
-                      <Tbody>
-                        {payrolls.map((payroll) => (
-                          <Tr
-                            key={payroll._id}
-                            borderBottomWidth="1px"
-                            borderBottomColor="gray.200"
-                            _hover={{ bg: "gray.50" }}
-                          >
-                            <Td>
-                              <VStack align="start" spacing={0}>
-                                <Text
-                                  fontWeight="600"
-                                  color="gray.900"
-                                  fontSize="sm"
+                    <>
+                      <Box overflowX="auto">
+                        <Table variant="simple">
+                          <Thead bg="gray.50">
+                            <Tr>
+                              <Th>Employee</Th>
+                              <Th>Period</Th>
+                              <Th>Payment Date</Th>
+                              <Th isNumeric>Net Pay</Th>
+                              <Th>Status</Th>
+                              <Th textAlign="center">Actions</Th>
+                            </Tr>
+                          </Thead>
+                          <Tbody>
+                            {payslips.map((payslip) => (
+                              <Tr key={payslip._id} _hover={{ bg: "gray.50" }}>
+                                <Td>
+                                  <VStack align="start" spacing={0}>
+                                    <Text fontWeight="bold">
+                                      {payslip.employeeInfo?.firstname}{" "}
+                                      {payslip.employeeInfo?.lastname}
+                                    </Text>
+                                    <Text fontSize="xs" color="gray.500">
+                                      {payslip.employeeInfo?.employeeId}
+                                    </Text>
+                                  </VStack>
+                                </Td>
+                                <Td fontSize="sm">
+                                  {payslip.payrollPeriod?.startDate &&
+                                    formatDate(
+                                      payslip.payrollPeriod.startDate
+                                    )}{" "}
+                                  -
+                                  {payslip.payrollPeriod?.endDate &&
+                                    formatDate(payslip.payrollPeriod.endDate)}
+                                </Td>
+                                <Td>
+                                  {payslip.paymentDate &&
+                                    formatDate(payslip.paymentDate)}
+                                </Td>
+                                <Td
+                                  isNumeric
+                                  fontWeight="bold"
+                                  color="green.600"
+                                  fontSize="md"
                                 >
-                                  {payroll.employeeInfo?.firstname || "N/A"}{" "}
-                                  {payroll.employeeInfo?.lastname || ""}
-                                </Text>
-                                <Text fontSize="xs" color="gray.500">
-                                  {payroll.employeeInfo?.employeeId || "N/A"}
-                                </Text>
-                              </VStack>
-                            </Td>
-                            <Td fontSize="sm" color="gray.700">
-                              {formatDate(payroll.payrollPeriod?.startDate)} –{" "}
-                              {formatDate(payroll.payrollPeriod?.endDate)}
-                            </Td>
-                            <Td fontSize="sm" color="gray.700" fontWeight="500">
-                              {formatDate(payroll.paymentDate)}
-                            </Td>
-                            <Td
-                              isNumeric
-                              fontSize="sm"
-                              color="gray.900"
-                              fontWeight="600"
-                            >
-                              {formatCurrency(payroll.summary?.grossThisPay)}
-                            </Td>
-                            <Td isNumeric fontSize="sm" color="gray.700">
-                              {formatCurrency(
-                                payroll.summary?.totalDeductionsThisPay
-                              )}
-                            </Td>
-                            <Td
-                              isNumeric
-                              fontSize="sm"
-                              fontWeight="600"
-                              color="gray.900"
-                            >
-                              {formatCurrency(payroll.summary?.netPayThisPay)}
-                            </Td>
-                            <Td>
-                              <Badge
-                                fontSize="xs"
-                                fontWeight="600"
-                                colorScheme={getStatusColor(payroll.status)}
-                                variant="subtle"
-                              >
-                                {payroll.status?.charAt(0).toUpperCase() +
-                                  payroll.status?.slice(1) || "Unknown"}
-                              </Badge>
-                            </Td>
-                            <Td>
-                              <HStack spacing={2} justify="center">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  leftIcon={<ViewIcon />}
-                                  color="gray.700"
-                                  fontWeight="600"
-                                  fontSize="xs"
-                                  onClick={() => viewPayslip(payroll)}
-                                  _hover={{ bg: "gray.100" }}
-                                >
-                                  View
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  leftIcon={<DownloadIcon />}
-                                  color="gray.700"
-                                  fontWeight="600"
-                                  fontSize="xs"
-                                  onClick={() => downloadPayslip(payroll._id)}
-                                  isLoading={loading}
-                                  _hover={{ bg: "gray.100" }}
-                                >
-                                  PDF
-                                </Button>
-                              </HStack>
-                            </Td>
-                          </Tr>
-                        ))}
-                      </Tbody>
-                    </Table>
-                  )}
-                </Box>
+                                  {formatCurrency(
+                                    payslip.summary?.netPayThisPay
+                                  )}
+                                </Td>
+                                <Td>
+                                  <Badge
+                                    colorScheme={getStatusColor(payslip.status)}
+                                    px={3}
+                                    py={1}
+                                    borderRadius="full"
+                                    display="flex"
+                                    alignItems="center"
+                                    gap={2}
+                                    w="fit-content"
+                                  >
+                                    <Icon as={getStatusIcon(payslip.status)} />
+                                    {payslip.status?.toUpperCase()}
+                                  </Badge>
+                                </Td>
+                                <Td>
+                                  <HStack justify="center" spacing={2}>
+                                    <IconButton
+                                      icon={<ViewIcon />}
+                                      size="sm"
+                                      colorScheme="blue"
+                                      variant="ghost"
+                                      aria-label="View"
+                                    />
+                                    <IconButton
+                                      icon={<DownloadIcon />}
+                                      size="sm"
+                                      colorScheme="green"
+                                      variant="ghost"
+                                      aria-label="Download"
+                                    />
+                                  </HStack>
+                                </Td>
+                              </Tr>
+                            ))}
+                          </Tbody>
+                        </Table>
+                      </Box>
 
-                {!loading && (
-                  <Text fontSize="sm" color="gray.600">
-                    Showing {payrolls.length} payslip
-                    {payrolls.length !== 1 ? "s" : ""}
-                  </Text>
-                )}
+                      {/* Pagination */}
+                      <Box bg="gray.50" px={6} py={4} borderTopWidth="1px">
+                        <Flex justify="space-between" align="center">
+                          <Text fontSize="sm" color="gray.700">
+                            Page <strong>{currentPage}</strong> of{" "}
+                            <strong>{totalPages}</strong>
+                          </Text>
+                          <HStack spacing={2}>
+                            <IconButton
+                              icon={<ChevronLeftIcon />}
+                              size="sm"
+                              onClick={() =>
+                                setCurrentPage(Math.max(1, currentPage - 1))
+                              }
+                              isDisabled={currentPage === 1}
+                              aria-label="Previous page"
+                            />
+                            <IconButton
+                              icon={<ChevronRightIcon />}
+                              size="sm"
+                              onClick={() =>
+                                setCurrentPage(
+                                  Math.min(totalPages, currentPage + 1)
+                                )
+                              }
+                              isDisabled={currentPage === totalPages}
+                              aria-label="Next page"
+                            />
+                          </HStack>
+                        </Flex>
+                      </Box>
+                    </>
+                  )}
+                </Card>
               </VStack>
             </TabPanel>
 
-            {/* Details Tab */}
-            <TabPanel px={0}>
-              {selectedPayslip ? (
-                <VStack spacing={8} align="stretch">
-                  {/* Header */}
-                  <HStack justify="space-between" align="flex-start">
+            {/* Create Single Payslip */}
+            <TabPanel p={0}>
+              <CreatePayslipComponent
+                onPayslipCreated={(payslip) => {
+                  toast({
+                    title: "Success",
+                    description: "Payslip created successfully!",
+                    status: "success",
+                    duration: 3000,
+                    isClosable: true,
+                  });
+                  setActiveTab(0);
+                  fetchPayslips();
+                }}
+              />
+            </TabPanel>
+
+            {/* Batch Create */}
+            <TabPanel p={0}>
+              <Card boxShadow="lg" borderRadius="xl">
+                <CardHeader bg="purple.50" borderBottomWidth="1px">
+                  <Heading size="md" color="purple.900">
+                    Batch Create Payslips
+                  </Heading>
+                </CardHeader>
+                <CardBody>
+                  <VStack spacing={6} align="stretch">
+                    {/* Employee Search */}
                     <Box>
-                      <Heading size="lg" color="gray.900" mb={1}>
-                        {selectedPayslip.employeeInfo?.firstname || "N/A"}{" "}
-                        {selectedPayslip.employeeInfo?.lastname || ""}
-                      </Heading>
-                      <Text color="gray.600" fontSize="sm">
-                        {selectedPayslip.employeeInfo?.employeeId || "N/A"}
+                      <Text fontSize="sm" fontWeight="bold" mb={2}>
+                        Search Employees
                       </Text>
-                    </Box>
-                    <Button
-                      leftIcon={<DownloadIcon />}
-                      bg="gray.900"
-                      color="white"
-                      fontWeight="600"
-                      onClick={() => downloadPayslip(selectedPayslip._id)}
-                      isLoading={loading}
-                      _hover={{ bg: "gray.800" }}
-                    >
-                      Download PDF
-                    </Button>
-                  </HStack>
+                      <InputGroup>
+                        <InputLeftElement pointerEvents="none">
+                          <SearchIcon color="gray.400" />
+                        </InputLeftElement>
+                        <Input
+                          value={searchQuery}
+                          onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            searchEmployees(e.target.value);
+                          }}
+                          placeholder="Search by name or employee ID..."
+                          size="lg"
+                        />
+                      </InputGroup>
 
-                  {/* Key Metrics */}
-                  <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
-                    <Card border="1px solid" borderColor="gray.200">
-                      <CardBody>
-                        <Stat>
-                          <StatLabel
-                            color="gray.600"
-                            fontSize="sm"
-                            fontWeight="500"
-                          >
-                            Gross Pay
-                          </StatLabel>
-                          <StatNumber fontSize="2xl" color="gray.900" mt={2}>
-                            {formatCurrency(
-                              selectedPayslip.summary?.grossThisPay
-                            )}
-                          </StatNumber>
-                        </Stat>
-                      </CardBody>
-                    </Card>
-
-                    <Card border="1px solid" borderColor="gray.200">
-                      <CardBody>
-                        <Stat>
-                          <StatLabel
-                            color="gray.600"
-                            fontSize="sm"
-                            fontWeight="500"
-                          >
-                            Deductions
-                          </StatLabel>
-                          <StatNumber fontSize="2xl" color="gray.900" mt={2}>
-                            {formatCurrency(
-                              selectedPayslip.summary?.totalDeductionsThisPay
-                            )}
-                          </StatNumber>
-                        </Stat>
-                      </CardBody>
-                    </Card>
-
-                    <Card
-                      bg="gray.900"
-                      border="1px solid"
-                      borderColor="gray.900"
-                    >
-                      <CardBody>
-                        <Stat>
-                          <StatLabel
-                            color="gray.300"
-                            fontSize="sm"
-                            fontWeight="500"
-                          >
-                            Net Pay
-                          </StatLabel>
-                          <StatNumber fontSize="2xl" color="white" mt={2}>
-                            {formatCurrency(
-                              selectedPayslip.summary?.netPayThisPay
-                            )}
-                          </StatNumber>
-                        </Stat>
-                      </CardBody>
-                    </Card>
-                  </SimpleGrid>
-
-                  {/* Employee & Period Info */}
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                    <Card border="1px solid" borderColor="gray.200">
-                      <CardHeader
-                        borderBottomWidth="1px"
-                        borderBottomColor="gray.200"
-                        pb={4}
-                      >
-                        <Heading size="sm" color="gray.900">
-                          Employee Information
-                        </Heading>
-                      </CardHeader>
-                      <CardBody>
-                        <VStack align="stretch" spacing={4}>
-                          <Flex justify="space-between">
-                            <Text
-                              color="gray.600"
-                              fontSize="sm"
-                              fontWeight="500"
-                            >
-                              Position
-                            </Text>
-                            <Text
-                              color="gray.900"
-                              fontSize="sm"
-                              fontWeight="600"
-                            >
-                              {selectedPayslip.employeeInfo?.jobPosition ||
-                                "N/A"}
-                            </Text>
-                          </Flex>
-                          <Flex justify="space-between">
-                            <Text
-                              color="gray.600"
-                              fontSize="sm"
-                              fontWeight="500"
-                            >
-                              Department
-                            </Text>
-                            <Text
-                              color="gray.900"
-                              fontSize="sm"
-                              fontWeight="600"
-                            >
-                              {selectedPayslip.employeeInfo?.department ||
-                                "N/A"}
-                            </Text>
-                          </Flex>
-                          <Flex justify="space-between">
-                            <Text
-                              color="gray.600"
-                              fontSize="sm"
-                              fontWeight="500"
-                            >
-                              Business Unit
-                            </Text>
-                            <Text
-                              color="gray.900"
-                              fontSize="sm"
-                              fontWeight="600"
-                            >
-                              {selectedPayslip.employeeInfo?.businessUnit ||
-                                "N/A"}
-                            </Text>
-                          </Flex>
-                        </VStack>
-                      </CardBody>
-                    </Card>
-
-                    <Card border="1px solid" borderColor="gray.200">
-                      <CardHeader
-                        borderBottomWidth="1px"
-                        borderBottomColor="gray.200"
-                        pb={4}
-                      >
-                        <Heading size="sm" color="gray.900">
-                          Payroll Period
-                        </Heading>
-                      </CardHeader>
-                      <CardBody>
-                        <VStack align="stretch" spacing={4}>
-                          <Box>
-                            <Text
-                              color="gray.600"
-                              fontSize="sm"
-                              fontWeight="500"
-                              mb={1}
-                            >
-                              Period
-                            </Text>
-                            <Text
-                              color="gray.900"
-                              fontSize="sm"
-                              fontWeight="600"
-                            >
-                              {formatDate(
-                                selectedPayslip.payrollPeriod?.startDate
-                              )}{" "}
-                              –{" "}
-                              {formatDate(
-                                selectedPayslip.payrollPeriod?.endDate
-                              )}
-                            </Text>
-                          </Box>
-                          <Box>
-                            <Text
-                              color="gray.600"
-                              fontSize="sm"
-                              fontWeight="500"
-                              mb={1}
-                            >
-                              Payment Date
-                            </Text>
-                            <Text
-                              color="gray.900"
-                              fontSize="sm"
-                              fontWeight="600"
-                            >
-                              {formatDate(selectedPayslip.paymentDate)}
-                            </Text>
-                          </Box>
-                          <Box>
-                            <Text
-                              color="gray.600"
-                              fontSize="sm"
-                              fontWeight="500"
-                              mb={1}
-                            >
-                              Status
-                            </Text>
-                            <Badge
-                              fontSize="xs"
-                              fontWeight="600"
-                              colorScheme={getStatusColor(
-                                selectedPayslip.status
-                              )}
-                              variant="subtle"
-                              w="fit-content"
-                            >
-                              {selectedPayslip.status?.charAt(0).toUpperCase() +
-                                selectedPayslip.status?.slice(1) || "Unknown"}
-                            </Badge>
-                          </Box>
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  </SimpleGrid>
-
-                  {/* Earnings */}
-                  <Card border="1px solid" borderColor="gray.200">
-                    <CardHeader
-                      borderBottomWidth="1px"
-                      borderBottomColor="gray.200"
-                      pb={4}
-                    >
-                      <Heading size="sm" color="gray.900">
-                        Earnings
-                      </Heading>
-                    </CardHeader>
-                    <CardBody>
-                      <VStack align="stretch" spacing={0}>
-                        <Flex
-                          justify="space-between"
-                          py={3}
-                          borderBottomWidth="1px"
-                          borderBottomColor="gray.100"
+                      {employees.length > 0 && (
+                        <Card
+                          mt={2}
+                          maxH="200px"
+                          overflowY="auto"
+                          variant="outline"
                         >
-                          <Text fontSize="sm" color="gray.700">
-                            Basic Regular (
-                            {selectedPayslip.earnings?.basicRegular?.unit || 0}{" "}
-                            days)
-                          </Text>
-                          <Text fontSize="sm" fontWeight="600" color="gray.900">
-                            {formatCurrency(
-                              selectedPayslip.earnings?.basicRegular?.amount
-                            )}
-                          </Text>
-                        </Flex>
-                        {(selectedPayslip.earnings?.sickLeave?.unit || 0) >
-                          0 && (
-                          <Flex
-                            justify="space-between"
-                            py={3}
-                            borderBottomWidth="1px"
-                            borderBottomColor="gray.100"
-                          >
-                            <Text fontSize="sm" color="gray.700">
-                              Sick Leave (
-                              {selectedPayslip.earnings?.sickLeave?.unit} days)
-                            </Text>
-                            <Text
-                              fontSize="sm"
-                              fontWeight="600"
-                              color="gray.900"
-                            >
-                              {formatCurrency(
-                                selectedPayslip.earnings?.sickLeave?.amount
-                              )}
-                            </Text>
-                          </Flex>
-                        )}
-                        {(selectedPayslip.earnings?.generalAllowance?.amount ||
-                          0) > 0 && (
-                          <Flex
-                            justify="space-between"
-                            py={3}
-                            borderBottomWidth="1px"
-                            borderBottomColor="gray.100"
-                          >
-                            <Text fontSize="sm" color="gray.700">
-                              General Allowance
-                            </Text>
-                            <Text
-                              fontSize="sm"
-                              fontWeight="600"
-                              color="gray.900"
-                            >
-                              {formatCurrency(
-                                selectedPayslip.earnings?.generalAllowance
-                                  ?.amount
-                              )}
-                            </Text>
-                          </Flex>
-                        )}
-                        {(selectedPayslip.earnings?.absences?.amount || 0) !==
-                          0 && (
-                          <Flex justify="space-between" py={3}>
-                            <Text fontSize="sm" color="red.600">
-                              Absences (
-                              {selectedPayslip.earnings?.absences?.unit || 0}{" "}
-                              days)
-                            </Text>
-                            <Text
-                              fontSize="sm"
-                              fontWeight="600"
-                              color="red.600"
-                            >
-                              {formatCurrency(
-                                selectedPayslip.earnings?.absences?.amount
-                              )}
-                            </Text>
-                          </Flex>
-                        )}
-                      </VStack>
-                    </CardBody>
-                  </Card>
-
-                  {/* Deductions */}
-                  <Card border="1px solid" borderColor="gray.200">
-                    <CardHeader
-                      borderBottomWidth="1px"
-                      borderBottomColor="gray.200"
-                      pb={4}
-                    >
-                      <Heading size="sm" color="gray.900">
-                        Deductions
-                      </Heading>
-                    </CardHeader>
-                    <CardBody>
-                      <VStack align="stretch" spacing={0}>
-                        <Flex
-                          justify="space-between"
-                          py={3}
-                          borderBottomWidth="1px"
-                          borderBottomColor="gray.100"
-                        >
-                          <Text fontSize="sm" color="gray.700">
-                            SSS
-                          </Text>
-                          <Text fontSize="sm" fontWeight="600" color="gray.900">
-                            {formatCurrency(
-                              selectedPayslip.deductions?.sss?.deducted
-                            )}
-                          </Text>
-                        </Flex>
-                        <Flex
-                          justify="space-between"
-                          py={3}
-                          borderBottomWidth="1px"
-                          borderBottomColor="gray.100"
-                        >
-                          <Text fontSize="sm" color="gray.700">
-                            PhilHealth
-                          </Text>
-                          <Text fontSize="sm" fontWeight="600" color="gray.900">
-                            {formatCurrency(
-                              selectedPayslip.deductions?.philhealth?.deducted
-                            )}
-                          </Text>
-                        </Flex>
-                        <Flex
-                          justify="space-between"
-                          py={3}
-                          borderBottomWidth="1px"
-                          borderBottomColor="gray.100"
-                        >
-                          <Text fontSize="sm" color="gray.700">
-                            Pag-IBIG
-                          </Text>
-                          <Text fontSize="sm" fontWeight="600" color="gray.900">
-                            {formatCurrency(
-                              selectedPayslip.deductions?.pagIbig?.deducted
-                            )}
-                          </Text>
-                        </Flex>
-                        <Flex justify="space-between" py={3}>
-                          <Text fontSize="sm" color="gray.700">
-                            Withholding Tax
-                          </Text>
-                          <Text fontSize="sm" fontWeight="600" color="gray.900">
-                            {formatCurrency(
-                              selectedPayslip.deductions?.withholdingTax
-                                ?.deducted
-                            )}
-                          </Text>
-                        </Flex>
-                      </VStack>
-                    </CardBody>
-                  </Card>
-
-                  {/* Leave Balance */}
-                  <Card border="1px solid" borderColor="gray.200">
-                    <CardHeader
-                      borderBottomWidth="1px"
-                      borderBottomColor="gray.200"
-                      pb={4}
-                    >
-                      <Heading size="sm" color="gray.900">
-                        Leave Balance
-                      </Heading>
-                    </CardHeader>
-                    <CardBody>
-                      <SimpleGrid columns={{ base: 2, md: 5 }} spacing={4}>
-                        {selectedPayslip.leaveEntitlements &&
-                          Object.entries(selectedPayslip.leaveEntitlements).map(
-                            ([key, value]) => (
+                          <VStack spacing={0} align="stretch">
+                            {employees.map((emp) => (
                               <Box
-                                key={key}
-                                p={4}
-                                bg="gray.50"
-                                borderRadius="md"
-                                textAlign="center"
-                                border="1px solid"
-                                borderColor="gray.200"
+                                key={emp._id}
+                                p={3}
+                                cursor="pointer"
+                                _hover={{ bg: "gray.50" }}
+                                borderBottomWidth="1px"
+                                onClick={() => {
+                                  if (!selectedEmployees.includes(emp._id)) {
+                                    setSelectedEmployees([
+                                      ...selectedEmployees,
+                                      emp._id,
+                                    ]);
+                                    setSelectedEmployeeNames([
+                                      ...selectedEmployeeNames,
+                                      `${emp.firstname} ${emp.lastname}`,
+                                    ]);
+                                  }
+                                  setSearchQuery("");
+                                  setEmployees([]);
+                                }}
                               >
-                                <Text
-                                  fontSize="xs"
-                                  fontWeight="600"
-                                  color="gray.600"
-                                  mb={2}
-                                  textTransform="uppercase"
-                                >
-                                  {key === "VL"
-                                    ? "Vacation"
-                                    : key === "SL"
-                                    ? "Sick"
-                                    : key === "LWOP"
-                                    ? "LWOP"
-                                    : key === "BL"
-                                    ? "Bereavement"
-                                    : "Christmas"}
+                                <Text fontWeight="bold">
+                                  {emp.firstname} {emp.lastname}
                                 </Text>
-                                <Text
-                                  fontSize="2xl"
-                                  fontWeight="700"
-                                  color="gray.900"
-                                >
-                                  {value.balance}
-                                </Text>
-                                <Text fontSize="xs" color="gray.500" mt={1}>
-                                  of {value.total}
+                                <Text fontSize="sm" color="gray.500">
+                                  {emp.employeeId} • {emp.department}
                                 </Text>
                               </Box>
-                            )
-                          )}
-                      </SimpleGrid>
-                    </CardBody>
-                  </Card>
-                </VStack>
-              ) : (
-                <Box textAlign="center" py={12}>
-                  <Text color="gray.500">No payslip selected</Text>
-                </Box>
-              )}
+                            ))}
+                          </VStack>
+                        </Card>
+                      )}
+                    </Box>
+
+                    {/* Selected Employees */}
+                    {selectedEmployees.length > 0 && (
+                      <Card
+                        bg="purple.50"
+                        variant="outline"
+                        borderColor="purple.200"
+                      >
+                        <CardBody>
+                          <Flex justify="space-between" align="center" mb={3}>
+                            <Text fontWeight="bold" color="purple.900">
+                              Selected Employees ({selectedEmployees.length})
+                            </Text>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              colorScheme="purple"
+                              onClick={() => {
+                                setSelectedEmployees([]);
+                                setSelectedEmployeeNames([]);
+                              }}
+                            >
+                              Clear All
+                            </Button>
+                          </Flex>
+                          <Flex flexWrap="wrap" gap={2}>
+                            {selectedEmployeeNames.map((name, index) => (
+                              <Tag
+                                key={index}
+                                size="lg"
+                                borderRadius="full"
+                                variant="solid"
+                                colorScheme="purple"
+                              >
+                                <TagLabel>{name}</TagLabel>
+                                <TagCloseButton
+                                  onClick={() => {
+                                    setSelectedEmployees(
+                                      selectedEmployees.filter(
+                                        (_, i) => i !== index
+                                      )
+                                    );
+                                    setSelectedEmployeeNames(
+                                      selectedEmployeeNames.filter(
+                                        (_, i) => i !== index
+                                      )
+                                    );
+                                  }}
+                                />
+                              </Tag>
+                            ))}
+                          </Flex>
+                        </CardBody>
+                      </Card>
+                    )}
+
+                    <Divider />
+
+                    <Grid
+                      templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }}
+                      gap={6}
+                    >
+                      <GridItem>
+                        <Text fontSize="sm" fontWeight="bold" mb={2}>
+                          Custom Start Date
+                        </Text>
+                        <Input
+                          type="date"
+                          value={createForm.customStartDate}
+                          onChange={(e) =>
+                            setCreateForm({
+                              ...createForm,
+                              customStartDate: e.target.value,
+                            })
+                          }
+                          size="lg"
+                        />
+                      </GridItem>
+                      <GridItem>
+                        <Text fontSize="sm" fontWeight="bold" mb={2}>
+                          Custom End Date
+                        </Text>
+                        <Input
+                          type="date"
+                          value={createForm.customEndDate}
+                          onChange={(e) =>
+                            setCreateForm({
+                              ...createForm,
+                              customEndDate: e.target.value,
+                            })
+                          }
+                          size="lg"
+                        />
+                      </GridItem>
+                      <GridItem>
+                        <Text fontSize="sm" fontWeight="bold" mb={2}>
+                          General Allowance
+                        </Text>
+                        <Input
+                          type="number"
+                          value={createForm.generalAllowance}
+                          onChange={(e) =>
+                            setCreateForm({
+                              ...createForm,
+                              generalAllowance: parseFloat(e.target.value) || 0,
+                            })
+                          }
+                          placeholder="0.00"
+                          size="lg"
+                        />
+                      </GridItem>
+                    </Grid>
+
+                    <HStack spacing={4} pt={4}>
+                      <Button
+                        leftIcon={<AddIcon />}
+                        colorScheme="purple"
+                        size="lg"
+                        flex={1}
+                        onClick={handleBatchCreate}
+                        isLoading={loading}
+                        isDisabled={selectedEmployees.length === 0}
+                      >
+                        Create {selectedEmployees.length} Payslips
+                      </Button>
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        onClick={() => {
+                          setActiveTab(0);
+                          resetCreateForm();
+                          setSelectedEmployees([]);
+                          setSelectedEmployeeNames([]);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </HStack>
+                  </VStack>
+                </CardBody>
+              </Card>
             </TabPanel>
           </TabPanels>
         </Tabs>
-
-        {/* Create Payslip Modal - Now using the new component */}
-        <Modal isOpen={isOpen} onClose={onClose} size="3xl">
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader bg="gray.900" color="white">
-              Create New Payslip
-            </ModalHeader>
-            <ModalCloseButton color="white" />
-            <ModalBody p={0}>
-              <CreatePayslipComponent onPayslipCreated={handlePayslipCreated} />
-            </ModalBody>
-          </ModalContent>
-        </Modal>
       </Container>
     </Box>
   );
