@@ -258,6 +258,9 @@ const createPayrollHistory = async (
 /**
  * Generate Payslip PDF
  */
+/**
+ * Generate Elegant Payslip PDF
+ */
 const generatePayslipPDF = async (payslip) => {
   return new Promise((resolve, reject) => {
     try {
@@ -274,23 +277,58 @@ const generatePayslipPDF = async (payslip) => {
       const filepath = path.join(uploadsDir, filename);
 
       // Create PDF
-      const doc = new PDFDocument({ margin: 50, size: "A4" });
+      const doc = new PDFDocument({
+        margin: 50,
+        size: "A4",
+        bufferPages: true,
+      });
       const writeStream = fs.createWriteStream(filepath);
 
       doc.pipe(writeStream);
 
-      // ===== HEADER =====
+      // Define colors
+      const primaryColor = "#2563eb"; // Blue
+      const secondaryColor = "#64748b"; // Slate
+      const accentColor = "#10b981"; // Green
+      const lightGray = "#f1f5f9";
+      const darkGray = "#334155";
+
+      // ===== HEADER WITH LOGO AREA =====
+      doc.rect(0, 0, doc.page.width, 140).fill(primaryColor);
+
+      // Company name/logo placeholder
+      doc
+        .fontSize(28)
+        .font("Helvetica-Bold")
+        .fillColor("#ffffff")
+        .text("YOUR COMPANY NAME", 50, 40, { align: "center" });
+
+      doc
+        .fontSize(11)
+        .font("Helvetica")
+        .fillColor("#e0e7ff")
+        .text("Human Resources Department", 50, 75, { align: "center" })
+        .text("Payroll Division", 50, 90, { align: "center" });
+
+      // Move past header
+      doc.fillColor("#000000");
+      doc.moveDown(8);
+
+      // ===== DOCUMENT TITLE =====
       doc
         .fontSize(24)
         .font("Helvetica-Bold")
+        .fillColor(darkGray)
         .text("PAYSLIP", { align: "center" })
-        .moveDown(0.5);
+        .moveDown(0.3);
 
       doc
         .fontSize(10)
         .font("Helvetica")
+        .fillColor(secondaryColor)
         .text(
           `Generated on: ${new Date().toLocaleDateString("en-PH", {
+            weekday: "long",
             year: "numeric",
             month: "long",
             day: "numeric",
@@ -299,15 +337,19 @@ const generatePayslipPDF = async (payslip) => {
         )
         .moveDown(2);
 
-      // ===== EMPLOYEE INFORMATION =====
-      doc
-        .fontSize(14)
-        .font("Helvetica-Bold")
-        .text("Employee Information")
-        .moveDown(0.5);
+      // ===== EMPLOYEE & PERIOD INFORMATION CARD =====
+      const infoBoxY = doc.y;
 
-      doc.fontSize(11).font("Helvetica");
-      const employeeInfo = [
+      // Left column - Employee Info
+      doc
+        .fontSize(9)
+        .font("Helvetica-Bold")
+        .fillColor(primaryColor)
+        .text("EMPLOYEE INFORMATION", 50, infoBoxY);
+
+      doc.fontSize(10).font("Helvetica").fillColor(darkGray);
+
+      const employeeData = [
         [
           "Name:",
           `${payslip.employeeInfo.firstname} ${payslip.employeeInfo.lastname}`,
@@ -315,230 +357,314 @@ const generatePayslipPDF = async (payslip) => {
         ["Employee ID:", payslip.employeeInfo.employeeId],
         ["Department:", payslip.employeeInfo.department],
         ["Position:", payslip.employeeInfo.jobPosition],
-        ["TIN:", payslip.employeeInfo.tinNumber || "N/A"],
-        ["SSS:", payslip.employeeInfo.sssNumber || "N/A"],
-        ["PhilHealth:", payslip.employeeInfo.philhealthNumber || "N/A"],
-        ["Pag-IBIG:", payslip.employeeInfo.pagibigNumber || "N/A"],
       ];
 
-      employeeInfo.forEach(([label, value]) => {
-        doc.text(label, 50, doc.y, { continued: true, width: 150 });
-        doc.text(value, 200);
+      let currentY = infoBoxY + 20;
+      employeeData.forEach(([label, value]) => {
+        doc
+          .fontSize(9)
+          .font("Helvetica")
+          .fillColor(secondaryColor)
+          .text(label, 50, currentY, { width: 100 });
+        doc
+          .fontSize(10)
+          .font("Helvetica-Bold")
+          .fillColor(darkGray)
+          .text(value, 150, currentY, { width: 200 });
+        currentY += 18;
       });
 
-      doc.moveDown(1.5);
-
-      // ===== PAYROLL PERIOD =====
+      // Right column - Period & Tax Info
       doc
-        .fontSize(14)
+        .fontSize(9)
         .font("Helvetica-Bold")
-        .text("Payroll Period")
-        .moveDown(0.5);
+        .fillColor(primaryColor)
+        .text("PAYROLL PERIOD", 320, infoBoxY);
 
-      doc.fontSize(11).font("Helvetica");
-      doc.text(
-        `Period: ${payslip.payrollPeriod.startDate.toLocaleDateString(
-          "en-PH"
-        )} - ${payslip.payrollPeriod.endDate.toLocaleDateString("en-PH")}`
-      );
-      doc.text(
-        `Payment Date: ${payslip.paymentDate.toLocaleDateString("en-PH")}`
-      );
+      const periodData = [
+        [
+          "Period:",
+          `${payslip.payrollPeriod.startDate.toLocaleDateString(
+            "en-PH"
+          )} to ${payslip.payrollPeriod.endDate.toLocaleDateString("en-PH")}`,
+        ],
+        ["Payment Date:", payslip.paymentDate.toLocaleDateString("en-PH")],
+        ["TIN:", payslip.employeeInfo.tinNumber || "N/A"],
+        ["Status:", payslip.status.toUpperCase()],
+      ];
+
+      currentY = infoBoxY + 20;
+      periodData.forEach(([label, value]) => {
+        doc
+          .fontSize(9)
+          .font("Helvetica")
+          .fillColor(secondaryColor)
+          .text(label, 320, currentY, { width: 100 });
+        doc
+          .fontSize(10)
+          .font("Helvetica-Bold")
+          .fillColor(darkGray)
+          .text(value, 420, currentY, { width: 130 });
+        currentY += 18;
+      });
+
       doc.moveDown(2);
 
-      // ===== EARNINGS TABLE =====
-      doc.fontSize(14).font("Helvetica-Bold").text("EARNINGS").moveDown(0.5);
+      // ===== EARNINGS SECTION =====
+      const earningsY = doc.y + 20;
 
-      // Table headers
-      const tableTop = doc.y;
-      doc.fontSize(10).font("Helvetica-Bold");
-      doc.text("Description", 50, tableTop, { width: 250 });
-      doc.text("Units", 300, tableTop, { width: 80, align: "right" });
-      doc.text("Rate", 380, tableTop, { width: 80, align: "right" });
-      doc.text("Amount", 460, tableTop, { width: 90, align: "right" });
+      // Section header with background
+      doc.rect(50, earningsY - 5, doc.page.width - 100, 25).fill(lightGray);
 
-      doc.moveDown(0.5);
       doc
-        .strokeColor("#cccccc")
+        .fontSize(12)
+        .font("Helvetica-Bold")
+        .fillColor(primaryColor)
+        .text("EARNINGS", 60, earningsY, { width: 200 });
+
+      // Table header
+      const tableHeaderY = earningsY + 30;
+      doc.fontSize(9).font("Helvetica-Bold").fillColor(secondaryColor);
+
+      doc.text("Description", 60, tableHeaderY, { width: 200 });
+      doc.text("Units", 260, tableHeaderY, { width: 60, align: "center" });
+      doc.text("Rate", 330, tableHeaderY, { width: 80, align: "right" });
+      doc.text("Amount", 420, tableHeaderY, { width: 120, align: "right" });
+
+      // Divider line
+      doc
+        .strokeColor("#cbd5e1")
         .lineWidth(1)
-        .moveTo(50, doc.y)
-        .lineTo(550, doc.y)
+        .moveTo(50, tableHeaderY + 15)
+        .lineTo(550, tableHeaderY + 15)
         .stroke();
-      doc.moveDown(0.3);
 
       // Earnings rows
-      doc.fontSize(10).font("Helvetica");
       const earnings = payslip.earnings;
+      let rowY = tableHeaderY + 25;
 
       const earningsData = [
-        [
-          "Basic Pay",
-          earnings.basicRegular.unit,
-          `₱${earnings.basicRegular.rate.toLocaleString()}`,
-          `₱${earnings.basicRegular.amount.toLocaleString()}`,
-        ],
-        [
-          "Sick Leave",
-          earnings.sickLeave.unit,
-          `₱${earnings.sickLeave.rate.toLocaleString()}`,
-          `₱${earnings.sickLeave.amount.toLocaleString()}`,
-        ],
-        [
-          "General Allowance",
-          "-",
-          "-",
-          `₱${earnings.generalAllowance.amount.toLocaleString()}`,
-        ],
+        {
+          desc: "Basic Pay",
+          units: earnings.basicRegular.unit,
+          rate: earnings.basicRegular.rate,
+          amount: earnings.basicRegular.amount,
+        },
+        {
+          desc: "Sick Leave",
+          units: earnings.sickLeave.unit,
+          rate: earnings.sickLeave.rate,
+          amount: earnings.sickLeave.amount,
+        },
+        {
+          desc: "General Allowance",
+          units: "-",
+          rate: "-",
+          amount: earnings.generalAllowance.amount,
+        },
       ];
 
       if (earnings.absences.unit > 0) {
-        earningsData.push([
-          "Absences",
-          earnings.absences.unit,
-          `₱${earnings.absences.rate.toLocaleString()}`,
-          `₱${earnings.absences.amount.toLocaleString()}`,
-        ]);
+        earningsData.push({
+          desc: "Absences (Deduction)",
+          units: earnings.absences.unit,
+          rate: earnings.absences.rate,
+          amount: earnings.absences.amount,
+          isNegative: true,
+        });
       }
 
-      earningsData.forEach((row) => {
-        const y = doc.y;
-        doc.text(row[0], 50, y, { width: 250 });
-        doc.text(row[1].toString(), 300, y, { width: 80, align: "right" });
-        doc.text(row[2], 380, y, { width: 80, align: "right" });
-        doc.text(row[3], 460, y, { width: 90, align: "right" });
-        doc.moveDown(0.8);
+      doc.fontSize(10).font("Helvetica");
+
+      earningsData.forEach((row, index) => {
+        const bgColor = index % 2 === 0 ? "#ffffff" : "#f8fafc";
+        doc.rect(50, rowY - 5, doc.page.width - 100, 20).fill(bgColor);
+
+        doc
+          .fillColor(row.isNegative ? "#dc2626" : darkGray)
+          .text(row.desc, 60, rowY, { width: 200 });
+        doc.text(row.units.toString(), 260, rowY, {
+          width: 60,
+          align: "center",
+        });
+        doc.text(
+          typeof row.rate === "number"
+            ? `₱${row.rate.toLocaleString("en-PH", {
+                minimumFractionDigits: 2,
+              })}`
+            : row.rate,
+          330,
+          rowY,
+          { width: 80, align: "right" }
+        );
+        doc.font("Helvetica-Bold").text(
+          `₱${Math.abs(row.amount).toLocaleString("en-PH", {
+            minimumFractionDigits: 2,
+          })}`,
+          420,
+          rowY,
+          { width: 120, align: "right" }
+        );
+        doc.font("Helvetica");
+        rowY += 20;
       });
 
-      doc.moveDown(0.5);
-      doc
-        .strokeColor("#cccccc")
-        .lineWidth(1)
-        .moveTo(50, doc.y)
-        .lineTo(550, doc.y)
-        .stroke();
-      doc.moveDown(0.3);
+      // Gross Pay Total
+      rowY += 10;
+      doc.rect(320, rowY - 5, doc.page.width - 370, 25).fill(primaryColor);
 
-      // Total Earnings
-      doc.fontSize(11).font("Helvetica-Bold");
-      const grossY = doc.y;
-      doc.text("GROSS PAY:", 300, grossY, { width: 160, align: "right" });
+      doc
+        .fontSize(11)
+        .font("Helvetica-Bold")
+        .fillColor("#ffffff")
+        .text("GROSS PAY:", 330, rowY, { width: 90, align: "left" });
       doc.text(
-        `₱${payslip.summary.grossThisPay.toLocaleString()}`,
-        460,
-        grossY,
-        { width: 90, align: "right" }
+        `₱${payslip.summary.grossThisPay.toLocaleString("en-PH", {
+          minimumFractionDigits: 2,
+        })}`,
+        420,
+        rowY,
+        { width: 120, align: "right" }
       );
 
-      doc.moveDown(2);
+      rowY += 40;
 
-      // ===== DEDUCTIONS TABLE =====
-      doc.fontSize(14).font("Helvetica-Bold").text("DEDUCTIONS").moveDown(0.5);
+      // ===== DEDUCTIONS SECTION =====
+      doc.rect(50, rowY - 5, doc.page.width - 100, 25).fill(lightGray);
 
-      // Table headers
-      const deductTableTop = doc.y;
-      doc.fontSize(10).font("Helvetica-Bold");
-      doc.text("Description", 50, deductTableTop, { width: 400 });
-      doc.text("Amount", 460, deductTableTop, { width: 90, align: "right" });
-
-      doc.moveDown(0.5);
       doc
-        .strokeColor("#cccccc")
+        .fontSize(12)
+        .font("Helvetica-Bold")
+        .fillColor("#dc2626")
+        .text("DEDUCTIONS", 60, rowY, { width: 200 });
+
+      // Table header
+      const deductHeaderY = rowY + 30;
+      doc.fontSize(9).font("Helvetica-Bold").fillColor(secondaryColor);
+
+      doc.text("Description", 60, deductHeaderY, { width: 350 });
+      doc.text("Amount", 420, deductHeaderY, { width: 120, align: "right" });
+
+      // Divider line
+      doc
+        .strokeColor("#cbd5e1")
         .lineWidth(1)
-        .moveTo(50, doc.y)
-        .lineTo(550, doc.y)
+        .moveTo(50, deductHeaderY + 15)
+        .lineTo(550, deductHeaderY + 15)
         .stroke();
-      doc.moveDown(0.3);
 
       // Deductions rows
-      doc.fontSize(10).font("Helvetica");
       const d = payslip.deductions;
+      rowY = deductHeaderY + 25;
 
       const deductionsData = [
-        ["SSS Contribution", `₱${d.sss.deducted.toLocaleString()}`],
-        [
-          "PhilHealth Contribution",
-          `₱${d.philhealth.deducted.toLocaleString()}`,
-        ],
-        ["Pag-IBIG Contribution", `₱${d.pagIbig.deducted.toLocaleString()}`],
-        ["Withholding Tax", `₱${d.withholdingTax.deducted.toLocaleString()}`],
+        { desc: "SSS Contribution", amount: d.sss.deducted },
+        { desc: "PhilHealth Contribution", amount: d.philhealth.deducted },
+        { desc: "Pag-IBIG Contribution", amount: d.pagIbig.deducted },
+        { desc: "Withholding Tax", amount: d.withholdingTax.deducted },
       ];
 
       if (d.otherDeductions && d.otherDeductions.length > 0) {
         d.otherDeductions.forEach((item) => {
-          deductionsData.push([
-            item.description,
-            `₱${item.amount.toLocaleString()}`,
-          ]);
+          deductionsData.push({ desc: item.description, amount: item.amount });
         });
       }
 
-      deductionsData.forEach((row) => {
-        const y = doc.y;
-        doc.text(row[0], 50, y, { width: 400 });
-        doc.text(row[1], 460, y, { width: 90, align: "right" });
-        doc.moveDown(0.8);
-      });
+      doc.fontSize(10).font("Helvetica");
 
-      doc.moveDown(0.5);
-      doc
-        .strokeColor("#cccccc")
-        .lineWidth(1)
-        .moveTo(50, doc.y)
-        .lineTo(550, doc.y)
-        .stroke();
-      doc.moveDown(0.3);
+      deductionsData.forEach((row, index) => {
+        const bgColor = index % 2 === 0 ? "#ffffff" : "#fef2f2";
+        doc.rect(50, rowY - 5, doc.page.width - 100, 20).fill(bgColor);
+
+        doc.fillColor(darkGray).text(row.desc, 60, rowY, { width: 350 });
+        doc
+          .font("Helvetica-Bold")
+          .fillColor("#dc2626")
+          .text(
+            `₱${row.amount.toLocaleString("en-PH", {
+              minimumFractionDigits: 2,
+            })}`,
+            420,
+            rowY,
+            { width: 120, align: "right" }
+          );
+        doc.font("Helvetica");
+        rowY += 20;
+      });
 
       // Total Deductions
-      doc.fontSize(11).font("Helvetica-Bold");
-      const totalDeductY = doc.y;
-      doc.text("TOTAL DEDUCTIONS:", 300, totalDeductY, {
-        width: 160,
-        align: "right",
-      });
+      rowY += 10;
+      doc.rect(320, rowY - 5, doc.page.width - 370, 25).fill("#dc2626");
+
+      doc
+        .fontSize(11)
+        .font("Helvetica-Bold")
+        .fillColor("#ffffff")
+        .text("TOTAL DEDUCTIONS:", 330, rowY, { width: 90, align: "left" });
       doc.text(
-        `₱${payslip.summary.totalDeductionsThisPay.toLocaleString()}`,
-        460,
-        totalDeductY,
-        { width: 90, align: "right" }
+        `₱${payslip.summary.totalDeductionsThisPay.toLocaleString("en-PH", {
+          minimumFractionDigits: 2,
+        })}`,
+        420,
+        rowY,
+        { width: 120, align: "right" }
       );
 
-      doc.moveDown(3);
+      rowY += 50;
 
-      // ===== NET PAY =====
+      // ===== NET PAY HIGHLIGHT =====
+      doc.rect(50, rowY - 10, doc.page.width - 100, 50).fill(accentColor);
+
       doc
-        .fontSize(16)
+        .fontSize(14)
         .font("Helvetica-Bold")
-        .fillColor("#2c5282")
-        .text("NET PAY:", 300, doc.y, { width: 160, align: "right" });
-      doc
-        .fontSize(18)
-        .text(
-          `₱${payslip.summary.netPayThisPay.toLocaleString()}`,
-          460,
-          doc.y - 20,
-          { width: 90, align: "right" }
-        );
+        .fillColor("#ffffff")
+        .text("NET PAY:", 60, rowY + 5);
 
-      doc.fillColor("#000000");
-      doc.moveDown(3);
+      doc.fontSize(24).text(
+        `₱${payslip.summary.netPayThisPay.toLocaleString("en-PH", {
+          minimumFractionDigits: 2,
+        })}`,
+        doc.page.width - 250,
+        rowY,
+        { width: 200, align: "right" }
+      );
 
       // ===== FOOTER =====
+      const footerY = doc.page.height - 100;
+
       doc
         .fontSize(8)
         .font("Helvetica")
+        .fillColor(secondaryColor)
         .text(
-          "This is a system-generated payslip. No signature required.",
+          "This is a system-generated payslip and does not require a physical signature.",
           50,
-          doc.page.height - 100,
-          { align: "center", width: 500 }
+          footerY,
+          { align: "center", width: doc.page.width - 100 }
         );
 
-      doc.text(
-        `Status: ${payslip.status.toUpperCase()}`,
-        50,
-        doc.page.height - 80,
-        { align: "center", width: 500 }
-      );
+      doc
+        .fontSize(7)
+        .fillColor(secondaryColor)
+        .text(
+          `Document ID: ${
+            payslip._id
+          } | Generated: ${new Date().toISOString()}`,
+          50,
+          footerY + 15,
+          { align: "center", width: doc.page.width - 100 }
+        );
+
+      // Status badge
+      doc
+        .fontSize(9)
+        .font("Helvetica-Bold")
+        .fillColor(payslip.status === "paid" ? accentColor : primaryColor)
+        .text(`Status: ${payslip.status.toUpperCase()}`, 50, footerY + 30, {
+          align: "center",
+          width: doc.page.width - 100,
+        });
 
       doc.end();
 
@@ -552,7 +678,348 @@ const generatePayslipPDF = async (payslip) => {
     }
   });
 };
+// ==================== EDIT/UPDATE PAYSLIP ====================
 
+/**
+ * Get single payslip for editing
+ */
+exports.getPayslipById = async (req, res) => {
+  try {
+    const { payslipId } = req.params;
+
+    const payslip = await Payroll.findById(payslipId).populate(
+      "employee",
+      "firstname lastname employeeId"
+    );
+
+    if (!payslip) {
+      return res.status(404).json({
+        success: false,
+        message: "Payslip not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: payslip,
+    });
+  } catch (error) {
+    console.error("Error fetching payslip:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching payslip",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Update/Edit payslip
+ */
+exports.updatePayslip = async (req, res) => {
+  try {
+    const { payslipId } = req.params;
+    const {
+      customStartDate,
+      customEndDate,
+      daysWorked,
+      generalAllowance,
+      otherDeductions,
+      status,
+      notes,
+    } = req.body;
+
+    // Find existing payslip
+    const existingPayslip = await Payroll.findById(payslipId);
+    if (!existingPayslip) {
+      return res.status(404).json({
+        success: false,
+        message: "Payslip not found",
+      });
+    }
+
+    // Check if payslip can be edited
+    if (
+      existingPayslip.status === "paid" ||
+      existingPayslip.status === "processed"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot edit payslip with status: ${existingPayslip.status}`,
+      });
+    }
+
+    // Store previous values for history
+    const previousValues = {
+      payrollPeriod: existingPayslip.payrollPeriod,
+      earnings: existingPayslip.earnings,
+      deductions: existingPayslip.deductions,
+      summary: existingPayslip.summary,
+      status: existingPayslip.status,
+      notes: existingPayslip.notes,
+    };
+
+    // Get employee
+    const employee = await User.findById(existingPayslip.employee);
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found",
+      });
+    }
+
+    // Determine payroll period
+    let startDate, endDate, paymentDate;
+
+    if (customStartDate && customEndDate) {
+      startDate = new Date(customStartDate);
+      endDate = new Date(customEndDate);
+      paymentDate = endDate;
+    } else {
+      startDate = existingPayslip.payrollPeriod.startDate;
+      endDate = existingPayslip.payrollPeriod.endDate;
+      paymentDate = existingPayslip.paymentDate;
+    }
+
+    // Get attendance data
+    const attendanceData = await getAttendanceData(
+      existingPayslip.employee,
+      startDate,
+      endDate
+    );
+
+    // Use custom days worked or attendance data
+    const actualDaysWorked = daysWorked || attendanceData.daysPresent;
+
+    // Recalculate
+    const dailyRate = calculateDailyRate(employee.salaryRate);
+    const earnings = calculateEarnings(
+      dailyRate,
+      actualDaysWorked,
+      attendanceData.daysOnLeave,
+      attendanceData.daysAbsent,
+      generalAllowance !== undefined
+        ? generalAllowance
+        : existingPayslip.earnings.generalAllowance.amount
+    );
+
+    const grossPay =
+      earnings.basicRegular.amount +
+      earnings.sickLeave.amount +
+      earnings.generalAllowance.amount +
+      earnings.absences.amount;
+
+    const deductions = calculateDeductions(grossPay);
+
+    if (otherDeductions && otherDeductions.length > 0) {
+      deductions.otherDeductions = otherDeductions;
+    } else if (existingPayslip.deductions.otherDeductions) {
+      deductions.otherDeductions = existingPayslip.deductions.otherDeductions;
+    }
+
+    const totalDeductions =
+      deductions.sss.deducted +
+      deductions.philhealth.deducted +
+      deductions.pagIbig.deducted +
+      deductions.withholdingTax.deducted +
+      deductions.otherDeductions.reduce(
+        (sum, ded) => sum + (ded.amount || 0),
+        0
+      );
+
+    const netPay = grossPay - totalDeductions;
+
+    // Update payslip
+    existingPayslip.payrollPeriod = {
+      startDate,
+      endDate,
+    };
+    existingPayslip.paymentDate = paymentDate;
+    existingPayslip.earnings = earnings;
+    existingPayslip.deductions = deductions;
+    existingPayslip.summary = {
+      grossThisPay: parseFloat(grossPay.toFixed(2)),
+      totalDeductionsThisPay: parseFloat(totalDeductions.toFixed(2)),
+      netPayThisPay: parseFloat(netPay.toFixed(2)),
+      grossYearToDate: parseFloat(grossPay.toFixed(2)),
+      totalDeductionsYearToDate: parseFloat(totalDeductions.toFixed(2)),
+      netPayYearToDate: parseFloat(netPay.toFixed(2)),
+    };
+    existingPayslip.attendanceSummary = attendanceData;
+
+    if (status) {
+      existingPayslip.status = status;
+    }
+
+    if (notes !== undefined) {
+      existingPayslip.notes = notes;
+    }
+
+    await existingPayslip.save();
+
+    // Regenerate PDF
+    try {
+      const pdfResult = await generatePayslipPDF(existingPayslip);
+      existingPayslip.pdfFilename = pdfResult.filename;
+      existingPayslip.pdfPath = pdfResult.filepath;
+      existingPayslip.pdfGeneratedAt = new Date();
+      await existingPayslip.save();
+    } catch (pdfError) {
+      console.error("Error regenerating PDF:", pdfError);
+    }
+
+    // Create history record
+    await createPayrollHistory(
+      existingPayslip._id,
+      existingPayslip.employee,
+      "updated",
+      req.user._id,
+      previousValues,
+      {
+        payrollPeriod: existingPayslip.payrollPeriod,
+        earnings: existingPayslip.earnings,
+        deductions: existingPayslip.deductions,
+        summary: existingPayslip.summary,
+        status: existingPayslip.status,
+        notes: existingPayslip.notes,
+      },
+      "Payslip manually updated"
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Payslip updated successfully",
+      data: {
+        ...existingPayslip.toObject(),
+        pdfDownloadUrl: `/api/payslip/admin/${existingPayslip._id}/download-pdf`,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating payslip:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error updating payslip",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Delete payslip (soft delete - change status to cancelled)
+ */
+exports.deletePayslip = async (req, res) => {
+  try {
+    const { payslipId } = req.params;
+    const { reason } = req.body;
+
+    const payslip = await Payroll.findById(payslipId);
+    if (!payslip) {
+      return res.status(404).json({
+        success: false,
+        message: "Payslip not found",
+      });
+    }
+
+    // Check if payslip can be deleted
+    if (payslip.status === "paid" || payslip.status === "processed") {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete payslip with status: ${payslip.status}`,
+      });
+    }
+
+    const previousStatus = payslip.status;
+    payslip.status = "cancelled";
+    payslip.notes = `${payslip.notes}\n\nCANCELLED: ${
+      reason || "No reason provided"
+    }`;
+    await payslip.save();
+
+    // Create history record
+    await createPayrollHistory(
+      payslip._id,
+      payslip.employee,
+      "cancelled",
+      req.user._id,
+      { status: previousStatus },
+      { status: "cancelled" },
+      reason || "Payslip cancelled"
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Payslip cancelled successfully",
+      data: payslip,
+    });
+  } catch (error) {
+    console.error("Error deleting payslip:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error deleting payslip",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Approve payslip
+ */
+exports.approvePayslip = async (req, res) => {
+  try {
+    const { payslipId } = req.params;
+    const { notes } = req.body;
+
+    const payslip = await Payroll.findById(payslipId);
+    if (!payslip) {
+      return res.status(404).json({
+        success: false,
+        message: "Payslip not found",
+      });
+    }
+
+    if (payslip.status !== "pending" && payslip.status !== "draft") {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot approve payslip with status: ${payslip.status}`,
+      });
+    }
+
+    const previousStatus = payslip.status;
+    payslip.status = "approved";
+    payslip.approvalWorkflow.approvedBy = req.user._id;
+    payslip.approvalWorkflow.approvalDate = new Date();
+
+    if (notes) {
+      payslip.notes = `${payslip.notes}\n\nAPPROVED: ${notes}`;
+    }
+
+    await payslip.save();
+
+    // Create history record
+    await createPayrollHistory(
+      payslip._id,
+      payslip.employee,
+      "approved",
+      req.user._id,
+      { status: previousStatus },
+      { status: "approved", approvedBy: req.user._id },
+      notes || "Payslip approved"
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Payslip approved successfully",
+      data: payslip,
+    });
+  } catch (error) {
+    console.error("Error approving payslip:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error approving payslip",
+      error: error.message,
+    });
+  }
+};
 // ==================== SEARCH EMPLOYEES ====================
 
 /**

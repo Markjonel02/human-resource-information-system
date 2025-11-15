@@ -114,5 +114,39 @@ router.get(
   authorizeRoles("admin", "hr"),
   payslipAdminController.viewPayslipPdf
 );
+router.get(
+  "/:payslipId",
+  authorizeRoles("admin", "hr"),
+  payslipAdminController.getPayslipById
+);
 
+/**
+ * PUT /api/payslip/admin/:payslipId
+ * Update/edit payslip
+ */
+router.put(
+  "/:payslipId",
+  authorizeRoles("admin", "hr"),
+  payslipAdminController.updatePayslip
+);
+
+/**
+ * DELETE /api/payslip/admin/:payslipId
+ * Cancel/delete payslip (soft delete)
+ */
+router.delete(
+  "/:payslipId",
+  authorizeRoles("admin", "hr"),
+  payslipAdminController.deletePayslip
+);
+
+/**
+ * POST /api/payslip/admin/:payslipId/approve
+ * Approve payslip
+ */
+router.post(
+  "/:payslipId/approve",
+  authorizeRoles("admin", "hr"),
+  payslipAdminController.approvePayslip
+);
 module.exports = router;
