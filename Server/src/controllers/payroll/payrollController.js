@@ -839,7 +839,7 @@ exports.createPayslipManual = async (req, res) => {
       message: `Payslip created successfully for ${employee.firstname} ${employee.lastname} (${periodLabel})`,
       data: {
         ...payslip.toObject(),
-        pdfDownloadUrl: `/api/payroll/${payslip._id}/download-pdf`,
+        pdfDownloadUrl: `/payroll/${payslip._id}/download-pdf`,
       },
     });
   } catch (error) {
