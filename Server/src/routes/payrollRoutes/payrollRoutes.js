@@ -12,7 +12,7 @@ router.use(verifyJWT);
 // ==================== SEARCH ENDPOINTS ====================
 
 /**
- * GET /api/payslip/admin/search/employees
+ * GET /api/payslip/admin/search-employees
  * Search employees by name or employee ID
  * Query params: query
  * Access: Admin, HR
@@ -87,6 +87,32 @@ router.get(
   "/all",
   authorizeRoles("admin", "hr"),
   payslipAdminController.getAllPayslips
+);
+
+// ==================== PDF ENDPOINTS ====================
+
+/**
+ * GET /api/payslip/admin/:payslipId/download-pdf
+ * Download payslip as PDF (attachment)
+ * Params: payslipId
+ * Access: Admin, HR
+ */
+router.get(
+  "/:payslipId/download-pdf",
+  authorizeRoles("admin", "hr"),
+  payslipAdminController.downloadPayslipPdf
+);
+
+/**
+ * GET /api/payslip/admin/:payslipId/view-pdf
+ * View payslip PDF in browser (inline)
+ * Params: payslipId
+ * Access: Admin, HR
+ */
+router.get(
+  "/:payslipId/view-pdf",
+  authorizeRoles("admin", "hr"),
+  payslipAdminController.viewPayslipPdf
 );
 
 module.exports = router;

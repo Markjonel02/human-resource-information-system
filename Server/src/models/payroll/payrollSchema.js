@@ -183,6 +183,23 @@ const PayrollSchema = new mongoose.Schema(
       totalHoursRendered: { type: Number, default: 0 }, // in minutes
     },
 
+    // ========== PDF STORAGE ==========
+    pdfFilename: {
+      type: String,
+      default: null,
+      description: "Filename of the generated PDF payslip",
+    },
+    pdfPath: {
+      type: String,
+      default: null,
+      description: "File system path to the PDF payslip",
+    },
+    pdfGeneratedAt: {
+      type: Date,
+      default: null,
+      description: "Timestamp when PDF was generated",
+    },
+
     // ========== STATUS & METADATA ==========
     status: {
       type: String,
@@ -232,6 +249,7 @@ PayrollSchema.index({
   "payrollPeriod.startDate": 1,
   "payrollPeriod.endDate": 1,
 });
+PayrollSchema.index({ pdfFilename: 1 }); // Index for PDF lookups
 
 module.exports =
   mongoose.models.Payroll || mongoose.model("Payroll", PayrollSchema);

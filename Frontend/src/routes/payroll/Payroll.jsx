@@ -128,7 +128,7 @@ export default function PayslipAdminSystem() {
     if (!query || query.length < 2) return;
     try {
       const { data } = await axiosInstance.get(
-        `/payroll//search-employees?query=${query}`
+        `/payroll/search-employees?query=${query}`
       );
       setEmployees(data.data || []);
     } catch (error) {
@@ -196,6 +196,49 @@ export default function PayslipAdminSystem() {
     setSearchQuery("");
   };
 
+  const handleDownloadPDF = async (payslipId, employeeLastname) => {
+    try {
+      const response = await axiosInstance.get(
+        `/payroll/${payslipId}/download-pdf`,
+        {
+          responseType: "blob",
+        }
+      );
+
+      // Create blob link to download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `Payslip-${employeeLastname || "Employee"}-${
+          new Date().toISOString().split("T")[0]
+        }.pdf`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: "Payslip PDF downloaded successfully!",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+      toast({
+        title: "Error",
+        description: "Failed to download PDF",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
   const getStatusColor = (status) => {
     const colors = {
       draft: "gray",
@@ -237,11 +280,7 @@ export default function PayslipAdminSystem() {
   };
 
   return (
-    <Box
-      bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-      minH="100vh"
-      py={8}
-    >
+    <Box minH="100vh" py={8}>
       <Container maxW="8xl">
         {/* Header */}
         <VStack spacing={6} align="stretch" mb={8}>
@@ -533,6 +572,13 @@ export default function PayslipAdminSystem() {
                                       colorScheme="blue"
                                       variant="ghost"
                                       aria-label="View"
+                                      onClick={() =>
+                                        window.open(
+                                          `/payroll/${payslip._id}/view-pdf`,
+                                          "_blank"
+                                        )
+                                      }
+                                      title="View PDF"
                                     />
                                     <IconButton
                                       icon={<DownloadIcon />}
@@ -540,6 +586,13 @@ export default function PayslipAdminSystem() {
                                       colorScheme="green"
                                       variant="ghost"
                                       aria-label="Download"
+                                      onClick={() =>
+                                        handleDownloadPDF(
+                                          payslip._id,
+                                          payslip.employeeInfo?.lastname
+                                        )
+                                      }
+                                      title="Download PDF"
                                     />
                                   </HStack>
                                 </Td>
