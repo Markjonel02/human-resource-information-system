@@ -1,6 +1,6 @@
 // ==================== FILE: routes/payrollEmployeeRoutes.js ====================
 const express = require("express");
-const payrollEmployeeController = require("../../controllers/payroll/payrollController");
+const payrollEmployeeController = require("../../controllers/employee/payroll/employeePayroll");
 const verifyJWT = require("../../middlewares/verifyJWT");
 
 const router = express.Router();
