@@ -109,7 +109,8 @@ const SideNavigation = () => {
     loggedInUser?.role === "admin" || loggedInUser?.role === "hr"
       ? "/announcements"
       : null;
-
+  const adminpayrollPath =
+    loggedInUser?.role === "employee" ? "/employee-payroll" : "/payroll";
   const menuItems = [
     // Dynamically set the Dashboard path
     { icon: Home, label: "Dashboard", path: dashboardPath },
@@ -132,7 +133,7 @@ const SideNavigation = () => {
     { icon: CheckSquare, label: "Attendances", path: EmployeeRoutespath },
     { icon: Calendar, label: "Calendar", path: calendarPath },
     { icon: MdOutlineRequestPage, label: "Request", path: leavePath },
-    { icon: DollarSign, label: "Payroll", path: "/payroll" },
+    { icon: DollarSign, label: "Payroll", path: adminpayrollPath },
     { icon: FileText, label: "Documents", path: employeeDocumentsPath },
     { icon: AiOutlineMonitor, label: "Monitoring", path: "/monitoring" },
   ].filter((item) => {
