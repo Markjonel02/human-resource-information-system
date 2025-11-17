@@ -149,4 +149,10 @@ router.post(
   authorizeRoles("admin", "hr"),
   payslipAdminController.approvePayslip
 );
+
+router.post(
+  "/bulk-approve",
+  authorizeRoles("admin", "hr"),
+  payslipAdminController.bulkApprovePayslips
+);
 module.exports = router;

@@ -1699,4 +1699,88 @@ exports.viewPayslipPdf = async (req, res) => {
   }
 };
 
+exports.bulkApprovePayslips = async (req, res) => {
+  try {
+    const { payslipIds } = req.body;
+
+    if (!payslipIds || payslipIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one payslip ID is required",
+      });
+    }
+
+    const approvedPayslips = [];
+    const failedPayslips = [];
+
+    for (const payslipId of payslipIds) {
+      try {
+        const payslip = await Payroll.findById(payslipId);
+
+        if (!payslip) {
+          failedPayslips.push({
+            payslipId,
+            reason: "Payslip not found",
+          });
+          continue;
+        }
+
+        if (payslip.status !== "pending" && payslip.status !== "draft") {
+          failedPayslips.push({
+            payslipId,
+            reason: `Cannot approve payslip with status: ${payslip.status}`,
+          });
+          continue;
+        }
+
+        const previousStatus = payslip.status;
+        payslip.status = "approved";
+        payslip.approvalWorkflow.approvedBy = req.user._id;
+        payslip.approvalWorkflow.approvalDate = new Date();
+
+        await payslip.save();
+
+        // Create history record
+        await createPayrollHistory(
+          payslip._id,
+          payslip.employee,
+          "approved",
+          req.user._id,
+          { status: previousStatus },
+          { status: "approved", approvedBy: req.user._id },
+          "Bulk approval"
+        );
+
+        approvedPayslips.push({
+          payslipId: payslip._id,
+          employeeId: payslip.employeeInfo.employeeId,
+          name: `${payslip.employeeInfo.firstname} ${payslip.employeeInfo.lastname}`,
+        });
+      } catch (error) {
+        failedPayslips.push({
+          payslipId,
+          reason: error.message,
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Approved ${approvedPayslips.length} payslips, ${failedPayslips.length} failed`,
+      data: {
+        approved: approvedPayslips.length,
+        failed: failedPayslips.length,
+        approvedPayslips,
+        failedPayslips,
+      },
+    });
+  } catch (error) {
+    console.error("Error bulk approving payslips:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error bulk approving payslips",
+      error: error.message,
+    });
+  }
+};
 module.exports = exports;
