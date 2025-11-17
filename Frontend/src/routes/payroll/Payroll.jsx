@@ -46,7 +46,6 @@ import {
   TimeIcon,
   CloseIcon,
 } from "@chakra-ui/icons";
-import { FaFile } from "react-icons/fa";
 import axiosInstance from "../../lib/axiosInstance";
 
 // Lazy load components
@@ -176,6 +175,7 @@ export default function PayslipAdminSystem() {
     try {
       await axiosInstance.post("/payroll/bulk-approve", {
         payslipIds: selectedPayslips,
+        notes: "Bulk approved via admin dashboard",
       });
 
       toast({
@@ -255,7 +255,9 @@ export default function PayslipAdminSystem() {
   const handleApprove = async (payslipId) => {
     try {
       setLoading(true);
-      await axiosInstance.post(`/payroll/${payslipId}/approve`);
+      await axiosInstance.post(`/payroll/${payslipId}/approve`, {
+        notes: "Approved via admin dashboard",
+      });
 
       toast({
         title: "Success",
@@ -431,7 +433,7 @@ export default function PayslipAdminSystem() {
               >
                 <Box>
                   <Heading size="xl" color="gray.800" mb={2}>
-                    Payslip Management
+                    💼 Payslip Management
                   </Heading>
                   <Text color="gray.600" fontSize="lg">
                     Admin Dashboard
@@ -503,8 +505,7 @@ export default function PayslipAdminSystem() {
               fontWeight="bold"
               fontSize="md"
             >
-              <Icon as={FaFile} mr={2} />
-              View Payslips
+              📋 View Payslips
             </Tab>
             <Tab
               _selected={{

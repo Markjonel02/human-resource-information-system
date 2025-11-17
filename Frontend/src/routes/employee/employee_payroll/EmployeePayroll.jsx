@@ -216,22 +216,22 @@ export default function EmployeePayslips() {
                 <Flex align="center" justify="space-between">
                   <Box>
                     <Text
-                      color="blue.100"
+                      color="blue.200"
                       fontSize="sm"
                       fontWeight="600"
                       mb={1}
                     >
                       YEAR-TO-DATE EARNINGS
                     </Text>
-                    <Heading size="lg" color="white">
+                    <Heading size="lg" color="blue.200">
                       {formatCurrency(summary.yearToDate.totalGross)}
                     </Heading>
-                    <Text color="blue.100" fontSize="xs" mt={2}>
+                    <Text color="blue.300" fontSize="xs" mt={2}>
                       {summary.yearToDate.payslipCount} payslips in{" "}
                       {summary.yearToDate.year}
                     </Text>
                   </Box>
-                  <Icon as={FaMoneyBillWave} boxSize={12} color="blue.100" />
+                  <Icon as={FaMoneyBillWave} boxSize={12} color="blue.300" />
                 </Flex>
               </CardBody>
             </Card>
@@ -244,17 +244,17 @@ export default function EmployeePayslips() {
               <CardBody p={6}>
                 <Flex align="center" justify="space-between">
                   <Box>
-                    <Text color="red.100" fontSize="sm" fontWeight="600" mb={1}>
+                    <Text color="red.200" fontSize="sm" fontWeight="600" mb={1}>
                       TOTAL DEDUCTIONS
                     </Text>
-                    <Heading size="lg" color="white">
+                    <Heading size="lg" color="red.200">
                       {formatCurrency(summary.yearToDate.totalDeductions)}
                     </Heading>
-                    <Text color="red.100" fontSize="xs" mt={2}>
+                    <Text color="red.300" fontSize="xs" mt={2}>
                       SSS, PhilHealth, Pag-IBIG, Tax
                     </Text>
                   </Box>
-                  <Icon as={FaChartLine} boxSize={12} color="red.100" />
+                  <Icon as={FaChartLine} boxSize={12} color="red.300" />
                 </Flex>
               </CardBody>
             </Card>
@@ -268,18 +268,18 @@ export default function EmployeePayslips() {
                 <Flex align="center" justify="space-between">
                   <Box>
                     <Text
-                      color="green.100"
+                      color="green.200"
                       fontSize="sm"
                       fontWeight="600"
                       mb={1}
                     >
                       NET PAY YTD
                     </Text>
-                    <Heading size="lg" color="white">
+                    <Heading size="lg" color="green.200">
                       {formatCurrency(summary.yearToDate.totalNet)}
                     </Heading>
                     {summary.latestPayslip && (
-                      <Text color="green.100" fontSize="xs" mt={2}>
+                      <Text color="green.300" fontSize="xs" mt={2}>
                         Last payment:{" "}
                         {formatCurrency(summary.latestPayslip.netPay)}
                       </Text>
@@ -288,7 +288,7 @@ export default function EmployeePayslips() {
                   <Icon
                     as={FaFileInvoiceDollar}
                     boxSize={12}
-                    color="green.100"
+                    color="green.300"
                   />
                 </Flex>
               </CardBody>

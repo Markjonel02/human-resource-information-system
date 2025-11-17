@@ -258,9 +258,7 @@ const createPayrollHistory = async (
 /**
  * Generate Payslip PDF
  */
-/**
- * Generate Elegant Payslip PDF
- */
+
 const generatePayslipPDF = async (payslip) => {
   return new Promise((resolve, reject) => {
     try {
@@ -287,43 +285,55 @@ const generatePayslipPDF = async (payslip) => {
       doc.pipe(writeStream);
 
       // Define colors
-      const primaryColor = "#2563eb"; // Blue
+      const primaryColor = "#4f46e5"; // Indigo
       const secondaryColor = "#64748b"; // Slate
       const accentColor = "#10b981"; // Green
-      const lightGray = "#f1f5f9";
-      const darkGray = "#334155";
+      const redColor = "#ef4444"; // Red
+      const lightGray = "#f8fafc";
+      const darkGray = "#1e293b";
+      const borderColor = "#e2e8f0";
 
-      // ===== HEADER WITH LOGO AREA =====
-      doc.rect(0, 0, doc.page.width, 140).fill(primaryColor);
+      // Page dimensions
+      const pageWidth = doc.page.width;
+      const leftMargin = 50;
+      const rightMargin = pageWidth - 50;
+      const contentWidth = rightMargin - leftMargin;
 
-      // Company name/logo placeholder
+      // ===== HEADER =====
+      doc.rect(0, 0, pageWidth, 100).fill(primaryColor);
+
       doc
         .fontSize(28)
         .font("Helvetica-Bold")
         .fillColor("#ffffff")
-        .text("YOUR COMPANY NAME", 50, 40, { align: "center" });
+        .text("YOUR COMPANY NAME", leftMargin, 30, {
+          width: contentWidth,
+          align: "center",
+        });
 
       doc
-        .fontSize(11)
+        .fontSize(9)
         .font("Helvetica")
-        .fillColor("#e0e7ff")
-        .text("Human Resources Department", 50, 75, { align: "center" })
-        .text("Payroll Division", 50, 90, { align: "center" });
+        .fillColor("#c7d2fe")
+        .text("Human Resources Department · Payroll Division", leftMargin, 65, {
+          width: contentWidth,
+          align: "center",
+        });
 
-      // Move past header
       doc.fillColor("#000000");
-      doc.moveDown(8);
 
-      // ===== DOCUMENT TITLE =====
+      // ===== PAYSLIP TITLE =====
       doc
         .fontSize(24)
         .font("Helvetica-Bold")
         .fillColor(darkGray)
-        .text("PAYSLIP", { align: "center" })
-        .moveDown(0.3);
+        .text("PAYSLIP", leftMargin, 125, {
+          width: contentWidth,
+          align: "center",
+        });
 
       doc
-        .fontSize(10)
+        .fontSize(8)
         .font("Helvetica")
         .fillColor(secondaryColor)
         .text(
@@ -333,23 +343,42 @@ const generatePayslipPDF = async (payslip) => {
             month: "long",
             day: "numeric",
           })}`,
-          { align: "center" }
-        )
-        .moveDown(2);
+          leftMargin,
+          152,
+          {
+            width: contentWidth,
+            align: "center",
+          }
+        );
 
-      // ===== EMPLOYEE & PERIOD INFORMATION CARD =====
-      const infoBoxY = doc.y;
+      // ===== EMPLOYEE & PAYROLL INFORMATION BOX =====
+      let currentY = 180;
 
-      // Left column - Employee Info
+      doc
+        .roundedRect(leftMargin, currentY, contentWidth, 105, 3)
+        .lineWidth(1)
+        .strokeColor(borderColor)
+        .stroke();
+
+      currentY += 12;
+
+      // Left side - Employee Information
       doc
         .fontSize(9)
         .font("Helvetica-Bold")
         .fillColor(primaryColor)
-        .text("EMPLOYEE INFORMATION", 50, infoBoxY);
+        .text("EMPLOYEE INFORMATION", leftMargin + 15, currentY);
 
-      doc.fontSize(10).font("Helvetica").fillColor(darkGray);
+      doc
+        .fontSize(9)
+        .font("Helvetica-Bold")
+        .fillColor(primaryColor)
+        .text("PAYROLL PERIOD", leftMargin + 300, currentY);
 
-      const employeeData = [
+      currentY += 18;
+
+      // Employee data
+      const employeeDataLeft = [
         [
           "Name:",
           `${payslip.employeeInfo.firstname} ${payslip.employeeInfo.lastname}`,
@@ -359,29 +388,7 @@ const generatePayslipPDF = async (payslip) => {
         ["Position:", payslip.employeeInfo.jobPosition],
       ];
 
-      let currentY = infoBoxY + 20;
-      employeeData.forEach(([label, value]) => {
-        doc
-          .fontSize(9)
-          .font("Helvetica")
-          .fillColor(secondaryColor)
-          .text(label, 50, currentY, { width: 100 });
-        doc
-          .fontSize(10)
-          .font("Helvetica-Bold")
-          .fillColor(darkGray)
-          .text(value, 150, currentY, { width: 200 });
-        currentY += 18;
-      });
-
-      // Right column - Period & Tax Info
-      doc
-        .fontSize(9)
-        .font("Helvetica-Bold")
-        .fillColor(primaryColor)
-        .text("PAYROLL PERIOD", 320, infoBoxY);
-
-      const periodData = [
+      const periodDataRight = [
         [
           "Period:",
           `${payslip.payrollPeriod.startDate.toLocaleDateString(
@@ -390,281 +397,382 @@ const generatePayslipPDF = async (payslip) => {
         ],
         ["Payment Date:", payslip.paymentDate.toLocaleDateString("en-PH")],
         ["TIN:", payslip.employeeInfo.tinNumber || "N/A"],
-        ["Status:", payslip.status.toUpperCase()],
+        ["SSS:", payslip.employeeInfo.sssNumber || "N/A"],
       ];
 
-      currentY = infoBoxY + 20;
-      periodData.forEach(([label, value]) => {
+      const startY = currentY;
+
+      // Render left column
+      employeeDataLeft.forEach(([label, value], index) => {
+        const yPos = startY + index * 16;
         doc
-          .fontSize(9)
+          .fontSize(8)
           .font("Helvetica")
           .fillColor(secondaryColor)
-          .text(label, 320, currentY, { width: 100 });
+          .text(label, leftMargin + 15, yPos, { width: 80 });
         doc
-          .fontSize(10)
+          .fontSize(8)
           .font("Helvetica-Bold")
           .fillColor(darkGray)
-          .text(value, 420, currentY, { width: 130 });
-        currentY += 18;
+          .text(value, leftMargin + 100, yPos, { width: 180 });
       });
 
-      doc.moveDown(2);
+      // Render right column
+      periodDataRight.forEach(([label, value], index) => {
+        const yPos = startY + index * 16;
+        doc
+          .fontSize(8)
+          .font("Helvetica")
+          .fillColor(secondaryColor)
+          .text(label, leftMargin + 300, yPos, { width: 85 });
+        doc
+          .fontSize(8)
+          .font("Helvetica-Bold")
+          .fillColor(darkGray)
+          .text(value, leftMargin + 390, yPos, { width: 105 });
+      });
 
       // ===== EARNINGS SECTION =====
-      const earningsY = doc.y + 20;
-
-      // Section header with background
-      doc.rect(50, earningsY - 5, doc.page.width - 100, 25).fill(lightGray);
+      currentY = 305;
 
       doc
-        .fontSize(12)
+        .roundedRect(leftMargin, currentY, contentWidth, 22, 3)
+        .fill(primaryColor);
+
+      doc
+        .fontSize(11)
         .font("Helvetica-Bold")
-        .fillColor(primaryColor)
-        .text("EARNINGS", 60, earningsY, { width: 200 });
+        .fillColor("#ffffff")
+        .text("EARNINGS", leftMargin + 12, currentY + 7);
 
-      // Table header
-      const tableHeaderY = earningsY + 30;
-      doc.fontSize(9).font("Helvetica-Bold").fillColor(secondaryColor);
+      currentY += 32;
 
-      doc.text("Description", 60, tableHeaderY, { width: 200 });
-      doc.text("Units", 260, tableHeaderY, { width: 60, align: "center" });
-      doc.text("Rate", 330, tableHeaderY, { width: 80, align: "right" });
-      doc.text("Amount", 420, tableHeaderY, { width: 120, align: "right" });
+      // Earnings table header
+      doc.fontSize(8).font("Helvetica-Bold").fillColor(secondaryColor);
 
-      // Divider line
+      doc.text("DESCRIPTION", leftMargin + 12, currentY);
+      doc.text("UNITS", leftMargin + 260, currentY, {
+        width: 50,
+        align: "center",
+      });
+      doc.text("RATE", leftMargin + 340, currentY, {
+        width: 80,
+        align: "right",
+      });
+      doc.text("AMOUNT", leftMargin + 450, currentY, {
+        width: 95,
+        align: "right",
+      });
+
+      currentY += 12;
+
       doc
-        .strokeColor("#cbd5e1")
-        .lineWidth(1)
-        .moveTo(50, tableHeaderY + 15)
-        .lineTo(550, tableHeaderY + 15)
+        .strokeColor(borderColor)
+        .lineWidth(0.5)
+        .moveTo(leftMargin, currentY)
+        .lineTo(rightMargin, currentY)
         .stroke();
+
+      currentY += 8;
 
       // Earnings rows
       const earnings = payslip.earnings;
-      let rowY = tableHeaderY + 25;
-
       const earningsData = [
         {
           desc: "Basic Pay",
-          units: earnings.basicRegular.unit,
-          rate: earnings.basicRegular.rate,
-          amount: earnings.basicRegular.amount,
+          units: earnings.basicRegular.unit || 0,
+          rate: earnings.basicRegular.rate || 0,
+          amount: earnings.basicRegular.amount || 0,
         },
         {
           desc: "Sick Leave",
-          units: earnings.sickLeave.unit,
-          rate: earnings.sickLeave.rate,
-          amount: earnings.sickLeave.amount,
+          units: earnings.sickLeave.unit || 0,
+          rate: earnings.sickLeave.rate || 0,
+          amount: earnings.sickLeave.amount || 0,
         },
         {
           desc: "General Allowance",
           units: "-",
           rate: "-",
-          amount: earnings.generalAllowance.amount,
+          amount: earnings.generalAllowance.amount || 0,
         },
       ];
 
-      if (earnings.absences.unit > 0) {
+      if (earnings.absences && earnings.absences.unit > 0) {
         earningsData.push({
           desc: "Absences (Deduction)",
           units: earnings.absences.unit,
           rate: earnings.absences.rate,
-          amount: earnings.absences.amount,
+          amount: Math.abs(earnings.absences.amount),
           isNegative: true,
         });
       }
 
-      doc.fontSize(10).font("Helvetica");
+      doc.fontSize(9).font("Helvetica");
 
       earningsData.forEach((row, index) => {
-        const bgColor = index % 2 === 0 ? "#ffffff" : "#f8fafc";
-        doc.rect(50, rowY - 5, doc.page.width - 100, 20).fill(bgColor);
+        if (index % 2 === 1) {
+          doc.rect(leftMargin, currentY - 3, contentWidth, 14).fill(lightGray);
+        }
 
         doc
-          .fillColor(row.isNegative ? "#dc2626" : darkGray)
-          .text(row.desc, 60, rowY, { width: 200 });
-        doc.text(row.units.toString(), 260, rowY, {
-          width: 60,
-          align: "center",
-        });
+          .fillColor(row.isNegative ? redColor : darkGray)
+          .text(row.desc, leftMargin + 12, currentY, { width: 240 });
+
         doc.text(
-          typeof row.rate === "number"
-            ? `₱${row.rate.toLocaleString("en-PH", {
+          row.units === "-" ? "-" : row.units.toString(),
+          leftMargin + 260,
+          currentY,
+          { width: 50, align: "center" }
+        );
+
+        const rateText =
+          row.rate === "-"
+            ? "-"
+            : `₱${parseFloat(row.rate).toLocaleString("en-PH", {
                 minimumFractionDigits: 2,
-              })}`
-            : row.rate,
-          330,
-          rowY,
-          { width: 80, align: "right" }
-        );
+                maximumFractionDigits: 2,
+              })}`;
+
+        doc.text(rateText, leftMargin + 340, currentY, {
+          width: 80,
+          align: "right",
+        });
+
         doc.font("Helvetica-Bold").text(
-          `₱${Math.abs(row.amount).toLocaleString("en-PH", {
+          `₱${parseFloat(Math.abs(row.amount)).toLocaleString("en-PH", {
             minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
           })}`,
-          420,
-          rowY,
-          { width: 120, align: "right" }
+          leftMargin + 450,
+          currentY,
+          { width: 95, align: "right" }
         );
+
         doc.font("Helvetica");
-        rowY += 20;
+        currentY += 14;
       });
 
-      // Gross Pay Total
-      rowY += 10;
-      doc.rect(320, rowY - 5, doc.page.width - 370, 25).fill(primaryColor);
+      currentY += 5;
+
+      doc
+        .strokeColor(borderColor)
+        .lineWidth(0.5)
+        .moveTo(leftMargin + 260, currentY)
+        .lineTo(rightMargin, currentY)
+        .stroke();
+
+      currentY += 8;
+
+      // Gross Pay
+      doc
+        .roundedRect(leftMargin + 260, currentY - 3, contentWidth - 260, 22, 3)
+        .fill(primaryColor);
+
+      doc
+        .fontSize(10)
+        .font("Helvetica-Bold")
+        .fillColor("#ffffff")
+        .text("GROSS PAY:", leftMargin + 340, currentY + 4, {
+          width: 80,
+          align: "right",
+        });
+
+      doc.fontSize(11).text(
+        `₱${parseFloat(payslip.summary.grossThisPay).toLocaleString("en-PH", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`,
+        leftMargin + 450,
+        currentY + 4,
+        { width: 95, align: "right" }
+      );
+
+      // ===== DEDUCTIONS SECTION =====
+      currentY += 38;
+
+      doc.roundedRect(leftMargin, currentY, contentWidth, 22, 3).fill(redColor);
 
       doc
         .fontSize(11)
         .font("Helvetica-Bold")
         .fillColor("#ffffff")
-        .text("GROSS PAY:", 330, rowY, { width: 90, align: "left" });
-      doc.text(
-        `₱${payslip.summary.grossThisPay.toLocaleString("en-PH", {
-          minimumFractionDigits: 2,
-        })}`,
-        420,
-        rowY,
-        { width: 120, align: "right" }
-      );
+        .text("DEDUCTIONS", leftMargin + 12, currentY + 7);
 
-      rowY += 40;
+      currentY += 32;
 
-      // ===== DEDUCTIONS SECTION =====
-      doc.rect(50, rowY - 5, doc.page.width - 100, 25).fill(lightGray);
+      // Deductions table header
+      doc.fontSize(8).font("Helvetica-Bold").fillColor(secondaryColor);
+
+      doc.text("DESCRIPTION", leftMargin + 12, currentY);
+      doc.text("AMOUNT", leftMargin + 450, currentY, {
+        width: 95,
+        align: "right",
+      });
+
+      currentY += 12;
 
       doc
-        .fontSize(12)
-        .font("Helvetica-Bold")
-        .fillColor("#dc2626")
-        .text("DEDUCTIONS", 60, rowY, { width: 200 });
-
-      // Table header
-      const deductHeaderY = rowY + 30;
-      doc.fontSize(9).font("Helvetica-Bold").fillColor(secondaryColor);
-
-      doc.text("Description", 60, deductHeaderY, { width: 350 });
-      doc.text("Amount", 420, deductHeaderY, { width: 120, align: "right" });
-
-      // Divider line
-      doc
-        .strokeColor("#cbd5e1")
-        .lineWidth(1)
-        .moveTo(50, deductHeaderY + 15)
-        .lineTo(550, deductHeaderY + 15)
+        .strokeColor(borderColor)
+        .lineWidth(0.5)
+        .moveTo(leftMargin, currentY)
+        .lineTo(rightMargin, currentY)
         .stroke();
+
+      currentY += 8;
 
       // Deductions rows
       const d = payslip.deductions;
-      rowY = deductHeaderY + 25;
-
       const deductionsData = [
-        { desc: "SSS Contribution", amount: d.sss.deducted },
-        { desc: "PhilHealth Contribution", amount: d.philhealth.deducted },
-        { desc: "Pag-IBIG Contribution", amount: d.pagIbig.deducted },
-        { desc: "Withholding Tax", amount: d.withholdingTax.deducted },
+        { desc: "SSS Contribution", amount: d.sss.deducted || 0 },
+        { desc: "PhilHealth Contribution", amount: d.philhealth.deducted || 0 },
+        { desc: "Pag-IBIG Contribution", amount: d.pagIbig.deducted || 0 },
+        { desc: "Withholding Tax", amount: d.withholdingTax.deducted || 0 },
       ];
 
       if (d.otherDeductions && d.otherDeductions.length > 0) {
         d.otherDeductions.forEach((item) => {
-          deductionsData.push({ desc: item.description, amount: item.amount });
+          deductionsData.push({
+            desc: item.description,
+            amount: item.amount || 0,
+          });
         });
       }
 
-      doc.fontSize(10).font("Helvetica");
+      doc.fontSize(9).font("Helvetica");
 
       deductionsData.forEach((row, index) => {
-        const bgColor = index % 2 === 0 ? "#ffffff" : "#fef2f2";
-        doc.rect(50, rowY - 5, doc.page.width - 100, 20).fill(bgColor);
+        if (index % 2 === 1) {
+          doc.rect(leftMargin, currentY - 3, contentWidth, 14).fill("#fef2f2");
+        }
 
-        doc.fillColor(darkGray).text(row.desc, 60, rowY, { width: 350 });
+        doc
+          .fillColor(darkGray)
+          .text(row.desc, leftMargin + 12, currentY, { width: 430 });
+
         doc
           .font("Helvetica-Bold")
-          .fillColor("#dc2626")
+          .fillColor(redColor)
           .text(
-            `₱${row.amount.toLocaleString("en-PH", {
+            `₱${parseFloat(row.amount).toLocaleString("en-PH", {
               minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
             })}`,
-            420,
-            rowY,
-            { width: 120, align: "right" }
+            leftMargin + 450,
+            currentY,
+            { width: 95, align: "right" }
           );
+
         doc.font("Helvetica");
-        rowY += 20;
+        currentY += 14;
       });
 
-      // Total Deductions
-      rowY += 10;
-      doc.rect(320, rowY - 5, doc.page.width - 370, 25).fill("#dc2626");
+      currentY += 5;
 
       doc
-        .fontSize(11)
+        .strokeColor(borderColor)
+        .lineWidth(0.5)
+        .moveTo(leftMargin + 260, currentY)
+        .lineTo(rightMargin, currentY)
+        .stroke();
+
+      currentY += 8;
+
+      // Total Deductions
+      doc
+        .roundedRect(leftMargin + 260, currentY - 3, contentWidth - 260, 22, 3)
+        .fill(redColor);
+
+      doc
+        .fontSize(10)
         .font("Helvetica-Bold")
         .fillColor("#ffffff")
-        .text("TOTAL DEDUCTIONS:", 330, rowY, { width: 90, align: "left" });
-      doc.text(
-        `₱${payslip.summary.totalDeductionsThisPay.toLocaleString("en-PH", {
-          minimumFractionDigits: 2,
-        })}`,
-        420,
-        rowY,
-        { width: 120, align: "right" }
+        .text("TOTAL:", leftMargin + 340, currentY + 4, {
+          width: 80,
+          align: "right",
+        });
+
+      doc.fontSize(11).text(
+        `₱${parseFloat(payslip.summary.totalDeductionsThisPay).toLocaleString(
+          "en-PH",
+          {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }
+        )}`,
+        leftMargin + 450,
+        currentY + 4,
+        { width: 95, align: "right" }
       );
 
-      rowY += 50;
+      // ===== NET PAY =====
+      currentY += 40;
 
-      // ===== NET PAY HIGHLIGHT =====
-      doc.rect(50, rowY - 10, doc.page.width - 100, 50).fill(accentColor);
+      doc
+        .roundedRect(leftMargin, currentY, contentWidth, 45, 5)
+        .fill(accentColor);
 
       doc
         .fontSize(14)
         .font("Helvetica-Bold")
         .fillColor("#ffffff")
-        .text("NET PAY:", 60, rowY + 5);
+        .text("NET PAY:", leftMargin + 15, currentY + 14);
 
-      doc.fontSize(24).text(
-        `₱${payslip.summary.netPayThisPay.toLocaleString("en-PH", {
+      doc.fontSize(22).text(
+        `₱${parseFloat(payslip.summary.netPayThisPay).toLocaleString("en-PH", {
           minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
         })}`,
-        doc.page.width - 250,
-        rowY,
-        { width: 200, align: "right" }
+        leftMargin + 120,
+        currentY + 12,
+        { width: contentWidth - 135, align: "right" }
       );
 
       // ===== FOOTER =====
-      const footerY = doc.page.height - 100;
+      const footerY = doc.page.height - 70;
 
       doc
-        .fontSize(8)
+        .strokeColor(borderColor)
+        .lineWidth(0.5)
+        .moveTo(leftMargin, footerY)
+        .lineTo(rightMargin, footerY)
+        .stroke();
+
+      doc
+        .fontSize(7)
         .font("Helvetica")
         .fillColor(secondaryColor)
         .text(
           "This is a system-generated payslip and does not require a physical signature.",
-          50,
-          footerY,
-          { align: "center", width: doc.page.width - 100 }
+          leftMargin,
+          footerY + 8,
+          { width: contentWidth, align: "center" }
         );
+
+      doc
+        .fontSize(6)
+        .fillColor("#94a3b8")
+        .text(`Document ID: ${payslip._id}`, leftMargin, footerY + 18, {
+          width: contentWidth,
+          align: "center",
+        });
 
       doc
         .fontSize(7)
-        .fillColor(secondaryColor)
-        .text(
-          `Document ID: ${
-            payslip._id
-          } | Generated: ${new Date().toISOString()}`,
-          50,
-          footerY + 15,
-          { align: "center", width: doc.page.width - 100 }
-        );
-
-      // Status badge
-      doc
-        .fontSize(9)
         .font("Helvetica-Bold")
-        .fillColor(payslip.status === "paid" ? accentColor : primaryColor)
-        .text(`Status: ${payslip.status.toUpperCase()}`, 50, footerY + 30, {
-          align: "center",
-          width: doc.page.width - 100,
-        });
+        .fillColor(
+          payslip.status === "paid"
+            ? accentColor
+            : payslip.status === "approved"
+            ? primaryColor
+            : secondaryColor
+        )
+        .text(
+          `STATUS: ${payslip.status.toUpperCase()}`,
+          leftMargin,
+          footerY + 28,
+          { width: contentWidth, align: "center" }
+        );
 
       doc.end();
 
@@ -1559,7 +1667,7 @@ exports.getAllPayslips = async (req, res) => {
 
     const total = await Payroll.countDocuments(query);
     const payslips = await Payroll.find(query)
-      .populate("employee", "firstname lastname employeeId")
+      .populate("employee", "firstname lastname employeeId department")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
