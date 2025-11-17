@@ -141,6 +141,7 @@ export default function EmployeePayslips() {
         description: "Payslip downloaded successfully!",
         status: "success",
         duration: 3000,
+        position: "top",
         isClosable: true,
       });
     } catch (error) {
@@ -193,8 +194,8 @@ export default function EmployeePayslips() {
         <VStack spacing={6} align="stretch" mb={8}>
           <Card bg="white" boxShadow="xl" borderRadius="2xl">
             <CardBody p={8}>
-              <Heading size="xl" color="gray.800" mb={2}>
-                💰 My Payslips
+              <Heading size="lg" color="gray.800" mb={2}>
+                My Payslips
               </Heading>
               <Text color="gray.600" fontSize="lg">
                 View and download your payment history
