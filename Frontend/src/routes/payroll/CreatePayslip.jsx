@@ -216,7 +216,7 @@ export default function CreatePayslipComponent({ onPayslipCreated }) {
 
       toast({
         title: "Success",
-        description: response.data.message || "Payslip created successfully!",
+        description: response.data.message,
         status: "success",
         duration: 3000,
         isClosable: true,

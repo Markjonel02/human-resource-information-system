@@ -66,19 +66,18 @@ const EmployeeCalendar = () => {
 
       setEvents(mappedEvents);
     } catch (err) {
-      /*  toast({
-        title: "Error loading events or no schedule yet",
-        status: "error",
-        position: "top",
-      }); */
+      // Optional toast for error
+      // toast({
+      //   title: "Error loading events or no schedule yet",
+      //   status: "error",
+      //   position: "top",
+      // });
     }
   };
 
-  // Helper function to sort participants with current user first
   const sortParticipants = (participants) => {
     if (!participants || participants.length === 0) return [];
 
-    // Handle different possible structures of currentUser
     const currentUserId = currentUser?._id || currentUser?.id || currentUser;
 
     const currentUserParticipant = participants.find(
@@ -106,12 +105,10 @@ const EmployeeCalendar = () => {
   return (
     <Box p={6} bg="gray.50" minH="100vh">
       <VStack spacing={6} align="stretch">
-        {/* Header */}
         <HStack justify="space-between">
-          <Heading size="lg"> My Calendar</Heading>
+          <Heading size="lg">My Calendar</Heading>
         </HStack>
 
-        {/* FullCalendar */}
         <FullCalendar
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           headerToolbar={{
@@ -124,7 +121,6 @@ const EmployeeCalendar = () => {
           height="100vh"
         />
 
-        {/* Event List */}
         <Box
           bg={useColorModeValue("white", "gray.800")}
           rounded="2xl"
@@ -148,96 +144,110 @@ const EmployeeCalendar = () => {
               </Tr>
             </Thead>
             <Tbody>
-              {events.map((e) => {
-                const sortedParticipants = sortParticipants(
-                  e.extendedProps.participants
-                );
+              {events.length === 0 ? (
+                <Tr>
+                  <Td colSpan={6}>
+                    <Text
+                      textAlign="center"
+                      color="gray.500"
+                      fontSize="md"
+                      py={4}
+                    >
+                      You do not have a schedule for today.
+                    </Text>
+                  </Td>
+                </Tr>
+              ) : (
+                events.map((e) => {
+                  const sortedParticipants = sortParticipants(
+                    e.extendedProps.participants
+                  );
 
-                return (
-                  <Tr
-                    key={e.id}
-                    _hover={{ bg: rowHover, transform: "scale(1.01)" }}
-                    transition="all 0.2s"
-                  >
-                    <Td>
-                      <Text fontWeight="semibold" color="blue.700">
-                        {e.title}
-                      </Text>
-                    </Td>
-                    <Td>{e.extendedProps.date}</Td>
-                    <Td>{e.extendedProps.time}</Td>
-                    <Td>
-                      <Badge
-                        px={3}
-                        py={1}
-                        rounded="full"
-                        colorScheme={
-                          e.extendedProps.type === "meeting"
-                            ? "purple"
-                            : e.extendedProps.type === "call"
-                            ? "blue"
-                            : e.extendedProps.type === "review"
-                            ? "orange"
-                            : "gray"
-                        }
-                      >
-                        {e.extendedProps.type}
-                      </Badge>
-                    </Td>
-                    <Td>
-                      <Badge
-                        px={3}
-                        py={1}
-                        rounded="full"
-                        colorScheme={
-                          e.extendedProps.priority === "high"
-                            ? "red"
-                            : e.extendedProps.priority === "medium"
-                            ? "yellow"
-                            : "green"
-                        }
-                      >
-                        {e.extendedProps.priority}
-                      </Badge>
-                    </Td>
-                    <Td>
-                      {sortedParticipants.length > 0 ? (
-                        <AvatarGroup size="sm" max={3}>
-                          {sortedParticipants.map((p, i) => {
-                            // Handle different possible structures of currentUser
-                            const currentUserId =
-                              currentUser?._id ||
-                              currentUser?.id ||
-                              currentUser;
-                            const isCurrentUser =
-                              p._id === currentUserId ||
-                              p.id === currentUserId ||
-                              p._id === currentUser ||
-                              p.id === currentUser;
-
-                            return (
-                              <Avatar
-                                key={i}
-                                size="sm"
-                                fontSize="0.8em"
-                                name={
-                                  isCurrentUser
-                                    ? "You"
-                                    : `${p.firstname} ${p.lastname}`
-                                }
-                              />
-                            );
-                          })}
-                        </AvatarGroup>
-                      ) : (
-                        <Text color="gray.500" fontSize="sm">
-                          No participants
+                  return (
+                    <Tr
+                      key={e.id}
+                      _hover={{ bg: rowHover, transform: "scale(1.01)" }}
+                      transition="all 0.2s"
+                    >
+                      <Td>
+                        <Text fontWeight="semibold" color="blue.700">
+                          {e.title}
                         </Text>
-                      )}
-                    </Td>
-                  </Tr>
-                );
-              })}
+                      </Td>
+                      <Td>{e.extendedProps.date}</Td>
+                      <Td>{e.extendedProps.time}</Td>
+                      <Td>
+                        <Badge
+                          px={3}
+                          py={1}
+                          rounded="full"
+                          colorScheme={
+                            e.extendedProps.type === "meeting"
+                              ? "purple"
+                              : e.extendedProps.type === "call"
+                              ? "blue"
+                              : e.extendedProps.type === "review"
+                              ? "orange"
+                              : "gray"
+                          }
+                        >
+                          {e.extendedProps.type}
+                        </Badge>
+                      </Td>
+                      <Td>
+                        <Badge
+                          px={3}
+                          py={1}
+                          rounded="full"
+                          colorScheme={
+                            e.extendedProps.priority === "high"
+                              ? "red"
+                              : e.extendedProps.priority === "medium"
+                              ? "yellow"
+                              : "green"
+                          }
+                        >
+                          {e.extendedProps.priority}
+                        </Badge>
+                      </Td>
+                      <Td>
+                        {sortedParticipants.length > 0 ? (
+                          <AvatarGroup size="sm" max={3}>
+                            {sortedParticipants.map((p, i) => {
+                              const currentUserId =
+                                currentUser?._id ||
+                                currentUser?.id ||
+                                currentUser;
+                              const isCurrentUser =
+                                p._id === currentUserId ||
+                                p.id === currentUserId ||
+                                p._id === currentUser ||
+                                p.id === currentUser;
+
+                              return (
+                                <Avatar
+                                  key={i}
+                                  size="sm"
+                                  fontSize="0.8em"
+                                  name={
+                                    isCurrentUser
+                                      ? "You"
+                                      : `${p.firstname} ${p.lastname}`
+                                  }
+                                />
+                              );
+                            })}
+                          </AvatarGroup>
+                        ) : (
+                          <Text color="gray.500" fontSize="sm">
+                            No participants
+                          </Text>
+                        )}
+                      </Td>
+                    </Tr>
+                  );
+                })
+              )}
             </Tbody>
           </Table>
         </Box>
