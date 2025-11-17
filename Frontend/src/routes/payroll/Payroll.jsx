@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import {
   Box,
   Button,
@@ -7,22 +7,12 @@ import {
   Heading,
   Input,
   Select,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Badge,
   VStack,
   HStack,
   Text,
   Card,
   CardBody,
   CardHeader,
-  IconButton,
-  InputGroup,
-  InputLeftElement,
   Tabs,
   TabList,
   TabPanels,
@@ -38,21 +28,30 @@ import {
   Spinner,
   Center,
   Icon,
+  InputGroup,
+  InputLeftElement,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
+  useDisclosure,
 } from "@chakra-ui/react";
 import {
   SearchIcon,
   AddIcon,
-  DownloadIcon,
-  ViewIcon,
   CalendarIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   CheckCircleIcon,
   TimeIcon,
   CloseIcon,
 } from "@chakra-ui/icons";
-import CreatePayslipComponent from "./CreatePayslip";
 import axiosInstance from "../../lib/axiosInstance";
+
+// Lazy load components
+const CreatePayslipComponent = lazy(() => import("./CreatePayslip"));
+const PayslipTable = lazy(() => import("./PayslipTable"));
+const EditPayslipModal = lazy(() => import("./EditPayslipModal"));
 
 export default function PayslipAdminSystem() {
   const [activeTab, setActiveTab] = useState(0);
@@ -69,7 +68,23 @@ export default function PayslipAdminSystem() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [periodInfo, setPeriodInfo] = useState(null);
+  const [selectedPayslips, setSelectedPayslips] = useState([]);
+  const [editingPayslipId, setEditingPayslipId] = useState(null);
+  const [deletingPayslipId, setDeletingPayslipId] = useState(null);
   const toast = useToast();
+  const cancelRef = React.useRef();
+
+  const {
+    isOpen: isEditOpen,
+    onOpen: onEditOpen,
+    onClose: onEditClose,
+  } = useDisclosure();
+
+  const {
+    isOpen: isDeleteOpen,
+    onOpen: onDeleteOpen,
+    onClose: onDeleteClose,
+  } = useDisclosure();
 
   // Create form state
   const [createForm, setCreateForm] = useState({
@@ -110,6 +125,7 @@ export default function PayslipAdminSystem() {
       const { data } = await axiosInstance.get(`/payroll/all?${params}`);
       setPayslips(data.data || []);
       setTotalPages(data.pagination?.totalPages || 1);
+      setSelectedPayslips([]); // Clear selection on refresh
     } catch (error) {
       console.error("Error fetching payslips:", error);
       toast({
@@ -133,6 +149,169 @@ export default function PayslipAdminSystem() {
       setEmployees(data.data || []);
     } catch (error) {
       console.error("Error searching employees:", error);
+    }
+  };
+
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedPayslips(payslips.map((p) => p._id));
+    } else {
+      setSelectedPayslips([]);
+    }
+  };
+
+  const handleSelectPayslip = (payslipId, checked) => {
+    if (checked) {
+      setSelectedPayslips([...selectedPayslips, payslipId]);
+    } else {
+      setSelectedPayslips(selectedPayslips.filter((id) => id !== payslipId));
+    }
+  };
+
+  const handleBulkApprove = async () => {
+    if (selectedPayslips.length === 0) return;
+
+    setLoading(true);
+    try {
+      await axiosInstance.post("/payroll/bulk-approve", {
+        payslipIds: selectedPayslips,
+      });
+
+      toast({
+        title: "Success",
+        description: `${selectedPayslips.length} payslip(s) approved successfully!`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      fetchPayslips();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || "Failed to approve payslips",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleView = (payslipId) => {
+    window.open(`/payroll/${payslipId}/view-pdf`, "_blank");
+  };
+
+  const handleDownloadPDF = async (payslipId, employeeLastname) => {
+    try {
+      const response = await axiosInstance.get(
+        `/payroll/${payslipId}/download-pdf`,
+        {
+          responseType: "blob",
+        }
+      );
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `Payslip-${employeeLastname || "Employee"}-${
+          new Date().toISOString().split("T")[0]
+        }.pdf`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: "Payslip PDF downloaded successfully!",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+      toast({
+        title: "Error",
+        description: "Failed to download PDF",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleEdit = (payslipId) => {
+    setEditingPayslipId(payslipId);
+    onEditOpen();
+  };
+
+  const handleApprove = async (payslipId) => {
+    try {
+      setLoading(true);
+      await axiosInstance.post(`/payroll/${payslipId}/approve`);
+
+      toast({
+        title: "Success",
+        description: "Payslip approved successfully!",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      fetchPayslips();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || "Failed to approve payslip",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = (payslipId) => {
+    setDeletingPayslipId(payslipId);
+    onDeleteOpen();
+  };
+
+  const confirmDelete = async () => {
+    try {
+      setLoading(true);
+      await axiosInstance.delete(`/payroll/${deletingPayslipId}`, {
+        data: { reason: "Deleted by admin" },
+      });
+
+      toast({
+        title: "Success",
+        description: "Payslip cancelled successfully!",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      onDeleteClose();
+      fetchPayslips();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || "Failed to delete payslip",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -194,49 +373,6 @@ export default function PayslipAdminSystem() {
       otherDeductions: [],
     });
     setSearchQuery("");
-  };
-
-  const handleDownloadPDF = async (payslipId, employeeLastname) => {
-    try {
-      const response = await axiosInstance.get(
-        `/payroll/${payslipId}/download-pdf`,
-        {
-          responseType: "blob",
-        }
-      );
-
-      // Create blob link to download
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute(
-        "download",
-        `Payslip-${employeeLastname || "Employee"}-${
-          new Date().toISOString().split("T")[0]
-        }.pdf`
-      );
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast({
-        title: "Success",
-        description: "Payslip PDF downloaded successfully!",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-    } catch (error) {
-      console.error("Error downloading PDF:", error);
-      toast({
-        title: "Error",
-        description: "Failed to download PDF",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
   };
 
   const getStatusColor = (status) => {
@@ -499,141 +635,33 @@ export default function PayslipAdminSystem() {
                       </VStack>
                     </Center>
                   ) : (
-                    <>
-                      <Box overflowX="auto">
-                        <Table variant="simple">
-                          <Thead bg="gray.50">
-                            <Tr>
-                              <Th>Employee</Th>
-                              <Th>Period</Th>
-                              <Th>Payment Date</Th>
-                              <Th isNumeric>Net Pay</Th>
-                              <Th>Status</Th>
-                              <Th textAlign="center">Actions</Th>
-                            </Tr>
-                          </Thead>
-                          <Tbody>
-                            {payslips.map((payslip) => (
-                              <Tr key={payslip._id} _hover={{ bg: "gray.50" }}>
-                                <Td>
-                                  <VStack align="start" spacing={0}>
-                                    <Text fontWeight="bold">
-                                      {payslip.employeeInfo?.firstname}{" "}
-                                      {payslip.employeeInfo?.lastname}
-                                    </Text>
-                                    <Text fontSize="xs" color="gray.500">
-                                      {payslip.employeeInfo?.employeeId}
-                                    </Text>
-                                  </VStack>
-                                </Td>
-                                <Td fontSize="sm">
-                                  {payslip.payrollPeriod?.startDate &&
-                                    formatDate(
-                                      payslip.payrollPeriod.startDate
-                                    )}{" "}
-                                  -
-                                  {payslip.payrollPeriod?.endDate &&
-                                    formatDate(payslip.payrollPeriod.endDate)}
-                                </Td>
-                                <Td>
-                                  {payslip.paymentDate &&
-                                    formatDate(payslip.paymentDate)}
-                                </Td>
-                                <Td
-                                  isNumeric
-                                  fontWeight="bold"
-                                  color="green.600"
-                                  fontSize="md"
-                                >
-                                  {formatCurrency(
-                                    payslip.summary?.netPayThisPay
-                                  )}
-                                </Td>
-                                <Td>
-                                  <Badge
-                                    colorScheme={getStatusColor(payslip.status)}
-                                    px={3}
-                                    py={1}
-                                    borderRadius="full"
-                                    display="flex"
-                                    alignItems="center"
-                                    gap={2}
-                                    w="fit-content"
-                                  >
-                                    <Icon as={getStatusIcon(payslip.status)} />
-                                    {payslip.status?.toUpperCase()}
-                                  </Badge>
-                                </Td>
-                                <Td>
-                                  <HStack justify="center" spacing={2}>
-                                    <IconButton
-                                      icon={<ViewIcon />}
-                                      size="sm"
-                                      colorScheme="blue"
-                                      variant="ghost"
-                                      aria-label="View"
-                                      onClick={() =>
-                                        window.open(
-                                          `/payroll/${payslip._id}/view-pdf`,
-                                          "_blank"
-                                        )
-                                      }
-                                      title="View PDF"
-                                    />
-                                    <IconButton
-                                      icon={<DownloadIcon />}
-                                      size="sm"
-                                      colorScheme="green"
-                                      variant="ghost"
-                                      aria-label="Download"
-                                      onClick={() =>
-                                        handleDownloadPDF(
-                                          payslip._id,
-                                          payslip.employeeInfo?.lastname
-                                        )
-                                      }
-                                      title="Download PDF"
-                                    />
-                                  </HStack>
-                                </Td>
-                              </Tr>
-                            ))}
-                          </Tbody>
-                        </Table>
-                      </Box>
-
-                      {/* Pagination */}
-                      <Box bg="gray.50" px={6} py={4} borderTopWidth="1px">
-                        <Flex justify="space-between" align="center">
-                          <Text fontSize="sm" color="gray.700">
-                            Page <strong>{currentPage}</strong> of{" "}
-                            <strong>{totalPages}</strong>
-                          </Text>
-                          <HStack spacing={2}>
-                            <IconButton
-                              icon={<ChevronLeftIcon />}
-                              size="sm"
-                              onClick={() =>
-                                setCurrentPage(Math.max(1, currentPage - 1))
-                              }
-                              isDisabled={currentPage === 1}
-                              aria-label="Previous page"
-                            />
-                            <IconButton
-                              icon={<ChevronRightIcon />}
-                              size="sm"
-                              onClick={() =>
-                                setCurrentPage(
-                                  Math.min(totalPages, currentPage + 1)
-                                )
-                              }
-                              isDisabled={currentPage === totalPages}
-                              aria-label="Next page"
-                            />
-                          </HStack>
-                        </Flex>
-                      </Box>
-                    </>
+                    <Suspense
+                      fallback={
+                        <Center p={10}>
+                          <Spinner size="xl" />
+                        </Center>
+                      }
+                    >
+                      <PayslipTable
+                        payslips={payslips}
+                        selectedPayslips={selectedPayslips}
+                        onSelectAll={handleSelectAll}
+                        onSelectPayslip={handleSelectPayslip}
+                        onBulkApprove={handleBulkApprove}
+                        onView={handleView}
+                        onDownload={handleDownloadPDF}
+                        onEdit={handleEdit}
+                        onApprove={handleApprove}
+                        onDelete={handleDelete}
+                        formatCurrency={formatCurrency}
+                        formatDate={formatDate}
+                        getStatusColor={getStatusColor}
+                        getStatusIcon={getStatusIcon}
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                      />
+                    </Suspense>
                   )}
                 </Card>
               </VStack>
@@ -641,19 +669,27 @@ export default function PayslipAdminSystem() {
 
             {/* Create Single Payslip */}
             <TabPanel p={0}>
-              <CreatePayslipComponent
-                onPayslipCreated={(payslip) => {
-                  toast({
-                    title: "Success",
-                    description: "Payslip created successfully!",
-                    status: "success",
-                    duration: 3000,
-                    isClosable: true,
-                  });
-                  setActiveTab(0);
-                  fetchPayslips();
-                }}
-              />
+              <Suspense
+                fallback={
+                  <Center p={10}>
+                    <Spinner size="xl" />
+                  </Center>
+                }
+              >
+                <CreatePayslipComponent
+                  onPayslipCreated={(payslip) => {
+                    toast({
+                      title: "Success",
+                      description: "Payslip created successfully!",
+                      status: "success",
+                      duration: 3000,
+                      isClosable: true,
+                    });
+                    setActiveTab(0);
+                    fetchPayslips();
+                  }}
+                />
+              </Suspense>
             </TabPanel>
 
             {/* Batch Create */}
@@ -873,6 +909,50 @@ export default function PayslipAdminSystem() {
           </TabPanels>
         </Tabs>
       </Container>
+
+      {/* Edit Modal */}
+      <Suspense fallback={null}>
+        <EditPayslipModal
+          isOpen={isEditOpen}
+          onClose={onEditClose}
+          payslipId={editingPayslipId}
+          onSuccess={fetchPayslips}
+        />
+      </Suspense>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        isOpen={isDeleteOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onDeleteClose}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Cancel Payslip
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              Are you sure you want to cancel this payslip? This action will
+              mark it as cancelled.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={onDeleteClose}>
+                No, Keep It
+              </Button>
+              <Button
+                colorScheme="red"
+                onClick={confirmDelete}
+                ml={3}
+                isLoading={loading}
+              >
+                Yes, Cancel Payslip
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </Box>
   );
 }
