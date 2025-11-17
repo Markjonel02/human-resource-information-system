@@ -46,6 +46,9 @@ const Announcements = lazy(() =>
   import("./routes/Admin&Hr/announcementsroutes/Announcements")
 );
 
+const EmployeePayroll = lazy(() =>
+  import("./routes/employee/employee_payroll/EmployeePayroll")
+);
 /**
  * Loader Component
  * Displays a full-screen, centered loading spinner with a semi-transparent background.
@@ -151,6 +154,10 @@ const App = () => {
                             <Route path="/request" element={<Request />} />
                             <Route path="/payroll" element={<Payroll />} />
                             <Route path="/documents" element={<Documents />} />
+                            <Route
+                              path="/employee-payroll"
+                              element={<EmployeePayroll />}
+                            />
                             <Route
                               path="/employee-documents"
                               element={<EmployeeDocuments />}
