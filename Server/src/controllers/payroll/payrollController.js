@@ -280,6 +280,14 @@ const generatePayslipPDF = async (payslip) => {
       const writeStream = fs.createWriteStream(filepath);
       doc.pipe(writeStream);
 
+      // Helper function for consistent Philippine Peso formatting
+      const formatPHP = (amount) => {
+        return `₱${parseFloat(amount).toLocaleString("en-PH", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`;
+      };
+
       // ===== COLORS =====
       const primaryBlue = "#3b82f6"; // Blue-500
       const lightBlue = "#dbeafe"; // Blue-100
@@ -449,12 +457,12 @@ const generatePayslipPDF = async (payslip) => {
 
       // FIXED TABLE COLUMNS - Better alignment
       const colDesc = leftMargin + 15;
-      const colUnits = leftMargin + 280;
-      const colUnitsWidth = 60;
-      const colRate = leftMargin + 360;
-      const colRateWidth = 85;
-      const colAmount = rightMargin - 85;
-      const colAmountWidth = 85;
+      const colUnits = leftMargin + 220;
+      const colUnitsWidth = 50;
+      const colRate = leftMargin + 285;
+      const colRateWidth = 100;
+      const colAmount = leftMargin + 400;
+      const colAmountWidth = 100;
 
       // Table header
       doc.fontSize(8).font("Helvetica-Bold").fillColor(textLight);
@@ -464,11 +472,11 @@ const generatePayslipPDF = async (payslip) => {
         width: colUnitsWidth,
         align: "center",
       });
-      doc.text("RATE", colRate, currentY, {
+      doc.text("RATE (PHP)", colRate, currentY, {
         width: colRateWidth,
         align: "right",
       });
-      doc.text("AMOUNT", colAmount, currentY, {
+      doc.text("AMOUNT (PHP)", colAmount, currentY, {
         width: colAmountWidth,
         align: "right",
       });
@@ -537,28 +545,19 @@ const generatePayslipPDF = async (payslip) => {
           { width: colUnitsWidth, align: "center" }
         );
 
-        const rateText =
-          row.rate === "-"
-            ? "-"
-            : `₱${parseFloat(row.rate).toLocaleString("en-PH", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}`;
+        const rateText = row.rate === "-" ? "-" : formatPHP(row.rate);
 
         doc.text(rateText, colRate, currentY, {
           width: colRateWidth,
           align: "right",
         });
 
-        doc.font("Helvetica-Bold").text(
-          `₱${parseFloat(Math.abs(row.amount)).toLocaleString("en-PH", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}`,
-          colAmount,
-          currentY,
-          { width: colAmountWidth, align: "right" }
-        );
+        doc
+          .font("Helvetica-Bold")
+          .text(formatPHP(Math.abs(row.amount)), colAmount, currentY, {
+            width: colAmountWidth,
+            align: "right",
+          });
 
         doc.font("Helvetica");
         currentY += 16;
@@ -576,7 +575,7 @@ const generatePayslipPDF = async (payslip) => {
 
       currentY += 10;
 
-      // Gross Pay Total - FIXED ALIGNMENT
+      // Gross Pay Total
       const grossPayBoxX = leftMargin + 270;
       const grossPayBoxWidth = contentWidth - 270;
 
@@ -593,21 +592,22 @@ const generatePayslipPDF = async (payslip) => {
           align: "left",
         });
 
-      doc.fontSize(12).text(
-        `₱${parseFloat(payslip.summary.grossThisPay).toLocaleString("en-PH", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}`,
-        grossPayBoxX + 140,
-        currentY + 5,
-        { width: grossPayBoxWidth - 150, align: "right" }
-      );
+      doc
+        .fontSize(12)
+        .text(
+          formatPHP(payslip.summary.grossThisPay),
+          grossPayBoxX + 140,
+          currentY + 5,
+          { width: grossPayBoxWidth - 150, align: "right" }
+        );
 
       // ===== DEDUCTIONS SECTION =====
       currentY += 50;
 
       // Section header
-      doc.roundedRect(leftMargin, currentY, contentWidth, 28, 4).fill(redColor);
+      doc
+        .roundedRect(leftMargin, currentY, contentWidth, 28, 4)
+        .fill(primaryBlue);
 
       doc
         .fontSize(12)
@@ -617,12 +617,15 @@ const generatePayslipPDF = async (payslip) => {
 
       currentY += 38;
 
-      // Table header - FIXED ALIGNMENT
+      // Table header
+      const colDeductAmount = leftMargin + 425;
+      const colDeductAmountWidth = 70;
+
       doc.fontSize(8).font("Helvetica-Bold").fillColor(textLight);
 
       doc.text("DESCRIPTION", colDesc, currentY);
-      doc.text("AMOUNT", colAmount, currentY, {
-        width: colAmountWidth,
+      doc.text("AMOUNT (PHP)", colDeductAmount, currentY, {
+        width: colDeductAmountWidth,
         align: "right",
       });
 
@@ -661,27 +664,22 @@ const generatePayslipPDF = async (payslip) => {
       deductionsData.forEach((row, index) => {
         // Alternating row background
         if (index % 2 === 1) {
-          doc.rect(leftMargin, currentY - 4, contentWidth, 16).fill("#fee2e2");
+          doc.rect(leftMargin, currentY - 4, contentWidth, 16).fill(lightBlue);
         }
 
         // Description
         doc
           .fillColor(textDark)
-          .text(row.desc, colDesc, currentY, { width: contentWidth - 120 });
+          .text(row.desc, colDesc, currentY, { width: 360 });
 
-        // Amount - FIXED ALIGNMENT
+        // Amount
         doc
           .font("Helvetica-Bold")
-          .fillColor(redColor)
-          .text(
-            `₱${parseFloat(row.amount).toLocaleString("en-PH", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}`,
-            colAmount,
-            currentY,
-            { width: colAmountWidth, align: "right" }
-          );
+          .fillColor(textDark)
+          .text(formatPHP(row.amount), colDeductAmount, currentY, {
+            width: colDeductAmountWidth,
+            align: "right",
+          });
 
         doc.font("Helvetica");
         currentY += 16;
@@ -699,58 +697,51 @@ const generatePayslipPDF = async (payslip) => {
 
       currentY += 10;
 
-      // Total Deductions - FIXED ALIGNMENT
+      // Total Deductions
       const totalBoxX = leftMargin + 270;
       const totalBoxWidth = contentWidth - 270;
 
       doc
         .roundedRect(totalBoxX, currentY - 4, totalBoxWidth, 26, 4)
-        .fill(redColor);
+        .fill(primaryBlue);
 
       doc
         .fontSize(11)
         .font("Helvetica-Bold")
         .fillColor("#ffffff")
-        .text("TOTAL:", totalBoxX + 10, currentY + 5, {
+        .text("TOTAL DEDUCTIONS:", totalBoxX + 10, currentY + 5, {
           width: 130,
           align: "left",
         });
 
-      doc.fontSize(12).text(
-        `₱${parseFloat(payslip.summary.totalDeductionsThisPay).toLocaleString(
-          "en-PH",
-          {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }
-        )}`,
-        totalBoxX + 140,
-        currentY + 5,
-        { width: totalBoxWidth - 150, align: "right" }
-      );
+      doc
+        .fontSize(12)
+        .text(
+          formatPHP(payslip.summary.totalDeductionsThisPay),
+          totalBoxX + 140,
+          currentY + 5,
+          { width: totalBoxWidth - 150, align: "right" }
+        );
 
       // ===== NET PAY HIGHLIGHT =====
       currentY += 50;
 
-      doc
-        .roundedRect(leftMargin, currentY, contentWidth, 50, 6)
-        .fill(accentGreen);
+      doc.roundedRect(leftMargin, currentY, contentWidth, 50, 6).fill(darkBlue);
 
       doc
         .fontSize(16)
         .font("Helvetica-Bold")
         .fillColor("#ffffff")
-        .text("NET PAY:", leftMargin + 20, currentY + 16);
+        .text("NET PAY (PHP):", leftMargin + 20, currentY + 16);
 
-      doc.fontSize(24).text(
-        `₱${parseFloat(payslip.summary.netPayThisPay).toLocaleString("en-PH", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}`,
-        leftMargin + 130,
-        currentY + 13,
-        { width: contentWidth - 150, align: "right" }
-      );
+      doc
+        .fontSize(24)
+        .text(
+          formatPHP(payslip.summary.netPayThisPay),
+          leftMargin + 180,
+          currentY + 13,
+          { width: contentWidth - 200, align: "right" }
+        );
 
       // ===== FOOTER =====
       const footerY = doc.page.height - 70;
@@ -812,7 +803,6 @@ const generatePayslipPDF = async (payslip) => {
     }
   });
 };
-
 // ==================== EDIT/UPDATE PAYSLIP ====================
 
 /**
