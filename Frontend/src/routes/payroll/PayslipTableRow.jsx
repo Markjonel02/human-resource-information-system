@@ -90,7 +90,7 @@ const PayslipTableRow = ({
             size="sm"
             aria-label="Actions"
           />
-          <MenuList>
+          <MenuList maxHeight="200px" overflowY="auto">
             <MenuItem icon={<ViewIcon />} onClick={() => onView(payslip._id)}>
               View PDF
             </MenuItem>

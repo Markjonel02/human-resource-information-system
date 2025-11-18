@@ -61,7 +61,7 @@ const PayslipTable = ({
         </Box>
       )}
 
-      <Box overflowX="auto">
+      <Box overflowX="auto" minH={300}>
         <Table variant="simple">
           <Thead bg="gray.50">
             <Tr>
