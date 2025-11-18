@@ -681,13 +681,6 @@ export default function PayslipAdminSystem() {
               >
                 <CreatePayslipComponent
                   onPayslipCreated={(payslip) => {
-                    toast({
-                      title: "Success",
-                      description: "Payslip created successfully!",
-                      status: "success",
-                      duration: 3000,
-                      isClosable: true,
-                    });
                     setActiveTab(0);
                     fetchPayslips();
                   }}
