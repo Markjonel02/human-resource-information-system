@@ -432,8 +432,8 @@ export default function PayslipAdminSystem() {
                 gap={4}
               >
                 <Box>
-                  <Heading size="xl" color="gray.800" mb={2}>
-                    💼 Payslip Management
+                  <Heading size="lg" color="gray.800" mb={2}>
+                    Payslip Management
                   </Heading>
                   <Text color="gray.600" fontSize="lg">
                     Admin Dashboard

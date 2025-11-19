@@ -21,7 +21,7 @@ const Calendar = lazy(() => import("./routes/Calendar"));
 const Request = lazy(() => import("./routes/request/Request"));
 const Payroll = lazy(() => import("./routes/payroll/Payroll"));
 const Documents = lazy(() => import("./routes/Documents"));
-const Monitoring = lazy(() => import("./routes/Monitoring"));
+const Monitoring = lazy(() => import("./routes/monitoring/Monitoring"));
 const TimeIn = lazy(() => import("./routes/user/TimeIn"));
 const Settings = lazy(() => import("./routes/user/Settings"));
 const LoginPage = lazy(() => import("./pages/auth/Login"));
