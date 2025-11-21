@@ -60,11 +60,10 @@ const Monitoring = () => {
     <Box
       bgGradient="linear(to-br, blue.50, indigo.100)"
       minH="100vh"
-      p={{ base: 4, md: 8 }}
       fontFamily="Inter, sans-serif"
     >
-      <VStack spacing={6} textAlign="center" mb={10}>
-        <Heading fontSize={{ base: "3xl", md: "5xl" }} color="blue.800">
+      <VStack spacing={6} mb={10} pt={8} textAlign="left">
+        <Heading fontSize={{ md: "2xl" }} color="blue.800">
           Employee Monitoring Dashboard
         </Heading>
         <Text fontSize={{ base: "md", md: "xl" }} color="gray.600" maxW="2xl">

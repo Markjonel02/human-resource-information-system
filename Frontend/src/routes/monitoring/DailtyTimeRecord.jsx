@@ -15,11 +15,15 @@ import {
   Button,
   Grid,
   GridItem,
-  Badge,
   useToast,
   Spinner,
   Center,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription,
 } from "@chakra-ui/react";
+import axiosInstance from "../../lib/axiosInstance";
 
 const DailyTimeRecord = () => {
   const [year, setYear] = useState(new Date().getFullYear());
@@ -27,30 +31,67 @@ const DailyTimeRecord = () => {
   const [loading, setLoading] = useState(false);
   const [attendanceData, setAttendanceData] = useState([]);
   const [employeeInfo, setEmployeeInfo] = useState(null);
+  const [error, setError] = useState(null);
   const toast = useToast();
 
-  // Mock data - replace with actual API calls
+  // Fetch real data from API
   useEffect(() => {
     fetchAttendanceData();
   }, [year, month]);
 
   const fetchAttendanceData = async () => {
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      // Mock employee info
-      setEmployeeInfo({
-        name: "RELLES, MARK JONEL DAEP",
-        idNumber: "1240606",
-        position: "JUNIOR WEB DEVELOPER",
-        employmentStatus: "REGULAR",
+    setError(null);
+
+    try {
+      // Adjust the endpoint to match your axiosInstance baseURL (this assumes baseURL includes /api)
+      const resp = await axiosInstance.get("/Dtr/my-dtr", {
+        params: { year, month },
       });
 
-      // Mock attendance data
-      const mockData = generateMockData();
-      setAttendanceData(mockData);
+      // Try to extract employee and attendance from common response shapes
+      const data = resp.data || {};
+      const emp =
+        data.employeeInfo ||
+        data.employee ||
+        data.user ||
+        (data.meta && data.meta.employeeInfo) ||
+        null;
+      const records =
+        data.attendance ||
+        data.records ||
+        data.data ||
+        (Array.isArray(data) ? data : null) ||
+        [];
+
+      if (emp) setEmployeeInfo(emp);
+      if (Array.isArray(records) && records.length > 0) {
+        setAttendanceData(records);
+      } else if (Array.isArray(data) && data.length > 0) {
+        // response was directly an array
+        setAttendanceData(data);
+      } else {
+        // fallback to mock data if API returned nothing useful
+        setAttendanceData(generateMockData());
+        toast({
+          title: "No attendance data from server, using mock data.",
+          status: "info",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    } catch (err) {
+      console.error("fetchAttendanceData error:", err);
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to load attendance data."
+      );
+      // fallback to mock so UI remains usable
+      setAttendanceData(generateMockData());
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   const generateMockData = () => {
@@ -154,13 +195,6 @@ const DailyTimeRecord = () => {
 
   const handleUpdate = () => {
     fetchAttendanceData();
-    toast({
-      title: "Data Updated",
-      description: "Daily time record has been refreshed",
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
   };
 
   const handleRefresh = () => {
@@ -168,15 +202,10 @@ const DailyTimeRecord = () => {
   };
 
   const getRowColor = (record) => {
-    if (record.isAbsent) return "red.500";
-    if (record.isWeekend) {
-      return record.day === "Sun" ? "yellow.400" : "red.500";
-    }
-    return "white";
+    return "blue.50";
   };
 
   const getTextColor = (record) => {
-    if (record.isAbsent || record.isWeekend) return "white";
     return "gray.800";
   };
 
@@ -193,6 +222,15 @@ const DailyTimeRecord = () => {
 
   return (
     <Box p={6} bg="white">
+      {/* Error Alert */}
+      {error && (
+        <Alert status="error" mb={4} borderRadius="md">
+          <AlertIcon />
+          <AlertTitle>Error!</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Header Section */}
       <VStack align="stretch" spacing={4} mb={6}>
         <Heading size="lg" color="blue.800">
@@ -311,7 +349,7 @@ const DailyTimeRecord = () => {
         borderRadius="md"
       >
         <Table variant="simple" size="sm">
-          <Thead bg="red.600">
+          <Thead bg="blue.400">
             <Tr>
               <Th color="white" fontSize="xs" textAlign="center">
                 DATE
@@ -329,59 +367,35 @@ const DailyTimeRecord = () => {
               >
                 SCHEDULE
               </Th>
-              <Th
-                color="white"
-                fontSize="xs"
-                textAlign="center"
-                colSpan={2}
-                bg="blue.600"
-              >
+              <Th color="white" fontSize="xs" textAlign="center" colSpan={2}>
                 DATA
               </Th>
-              <Th color="white" fontSize="xs" textAlign="center" bg="green.500">
+              <Th color="white" fontSize="xs" textAlign="center">
                 HOURS
               </Th>
-              <Th
-                color="white"
-                fontSize="xs"
-                textAlign="center"
-                colSpan={3}
-                bg="orange.400"
-              >
+              <Th color="white" fontSize="xs" textAlign="center" colSpan={3}>
                 TARDINES
               </Th>
-              <Th
-                color="white"
-                fontSize="xs"
-                textAlign="center"
-                colSpan={5}
-                bg="red.400"
-              >
+              <Th color="white" fontSize="xs" textAlign="center" colSpan={5}>
                 LEAVE
               </Th>
-              <Th
-                color="white"
-                fontSize="xs"
-                textAlign="center"
-                colSpan={5}
-                bg="purple.500"
-              >
+              <Th color="white" fontSize="xs" textAlign="center" colSpan={5}>
                 TIME RECORD
               </Th>
             </Tr>
             <Tr>
               <Th color="white" fontSize="xs"></Th>
               <Th color="white" fontSize="xs"></Th>
-              <Th color="white" fontSize="xs" textAlign="center" bg="blue.600">
+              <Th color="white" fontSize="xs" textAlign="center">
                 IN
               </Th>
-              <Th color="white" fontSize="xs" textAlign="center" bg="blue.600">
+              <Th color="white" fontSize="xs" textAlign="center">
                 OUT
               </Th>
-              <Th color="white" fontSize="xs" textAlign="center" bg="green.500">
+              <Th color="white" fontSize="xs" textAlign="center">
                 IN
               </Th>
-              <Th color="white" fontSize="xs" textAlign="center" bg="green.500">
+              <Th color="white" fontSize="xs" textAlign="center">
                 OUT
               </Th>
               <Th color="white" fontSize="xs"></Th>
@@ -442,32 +456,16 @@ const DailyTimeRecord = () => {
                 <Td fontSize="xs" textAlign="center">
                   {record.day}
                 </Td>
-                <Td
-                  fontSize="xs"
-                  textAlign="center"
-                  bg={record.isWeekend ? getRowColor(record) : "blue.100"}
-                >
+                <Td fontSize="xs" textAlign="center" bg="blue.50">
                   {record.scheduleIn}
                 </Td>
-                <Td
-                  fontSize="xs"
-                  textAlign="center"
-                  bg={record.isWeekend ? getRowColor(record) : "blue.100"}
-                >
+                <Td fontSize="xs" textAlign="center" bg="blue.50">
                   {record.scheduleOut}
                 </Td>
-                <Td
-                  fontSize="xs"
-                  textAlign="center"
-                  bg={record.isWeekend ? getRowColor(record) : "green.100"}
-                >
+                <Td fontSize="xs" textAlign="center" bg="blue.50">
                   {record.dataIn || "."}
                 </Td>
-                <Td
-                  fontSize="xs"
-                  textAlign="center"
-                  bg={record.isWeekend ? getRowColor(record) : "green.100"}
-                >
+                <Td fontSize="xs" textAlign="center" bg="blue.50">
                   {record.dataOut || "."}
                 </Td>
                 <Td fontSize="xs" textAlign="center">

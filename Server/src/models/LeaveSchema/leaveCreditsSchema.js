@@ -34,6 +34,17 @@ const LeaveCreditsSchema = new mongoose.Schema(
         used: { type: Number, default: 0 },
         remaining: { type: Number, default: 5 },
       },
+      FL: {
+        total: { type: Number, default: 5 },
+        used: { type: Number, default: 0 },
+        remaining: { type: Number, default: 5 },
+      },
+
+      MLPL: {
+        total: { type: Number, default: 5 },
+        used: { type: Number, default: 0 },
+        remaining: { type: Number, default: 5 },
+      },
       CL: {
         total: { type: Number, default: 5 },
         used: { type: Number, default: 0 },
@@ -56,7 +67,7 @@ LeaveCreditsSchema.index({ employee: 1, year: 1 }, { unique: true });
 // Method to reset credits annually
 LeaveCreditsSchema.methods.resetCredits = function () {
   // Only include the remaining leave types
-  const leaveTypes = ["VL", "SL", "LWOP", "BL", "CL"];
+  const leaveTypes = ["VL", "SL", "LWOP", "BL","FL","MLPL", "CL"];
   leaveTypes.forEach((type) => {
     this.credits[type].used = 0;
     this.credits[type].remaining = this.credits[type].total;
