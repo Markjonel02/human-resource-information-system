@@ -53,7 +53,7 @@ const ScheduleCalendar = () => {
     setError(null);
 
     try {
-      // Adjust this endpoint based on your backend schedule routes
+      // Replace with your actual schedule endpoint
       const resp = await axiosInstance.get("/Dtr/my-schedule", {
         params: { year, month },
       });
@@ -68,21 +68,43 @@ const ScheduleCalendar = () => {
 
       // Convert schedules into FullCalendar events
       const formatted = schedules.map((schedule) => {
-        // Extract time from schedule (assuming scheduleIn and scheduleOut are time strings)
+        // Extract time from schedule
         const timeIn = schedule.scheduleIn || "00:00";
         const timeOut = schedule.scheduleOut || "00:00";
 
+        // Determine display text and color
+        let title, backgroundColor, textColor;
+
+        if (schedule.holiday) {
+          // Holiday
+          title = schedule.holiday.name;
+          backgroundColor = "#dc2626"; // Red for holidays
+          textColor = "white";
+        } else if (schedule.isRestDay || schedule.isWeekend) {
+          // Rest day or weekend
+          title = schedule.isWeekend ? "Weekend" : "Rest Day";
+          backgroundColor = "#94a3b8"; // Gray
+          textColor = "white";
+        } else {
+          // Regular working day
+          title = `${timeIn} - ${timeOut}`;
+          backgroundColor = "#3b82f6"; // Blue
+          textColor = "white";
+        }
+
         return {
-          title: `${timeIn} - ${timeOut}`,
+          title: title,
           date: schedule.date,
-          backgroundColor: schedule.isRestDay ? "#94a3b8" : "#3b82f6",
-          borderColor: "#1e40af",
-          textColor: "white",
+          backgroundColor: backgroundColor,
+          borderColor: backgroundColor === "#dc2626" ? "#991b1b" : "#1e40af",
+          textColor: textColor,
           extendedProps: {
             scheduleIn: timeIn,
             scheduleOut: timeOut,
             isRestDay: schedule.isRestDay || false,
+            isWeekend: schedule.isWeekend || false,
             shiftType: schedule.shiftType || "Regular",
+            holiday: schedule.holiday || null,
           },
         };
       });
