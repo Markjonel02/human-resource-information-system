@@ -76,7 +76,7 @@ const Monitoring = () => {
         bg="white"
         rounded="2xl"
         shadow="xl"
-        maxW="7xl"
+        maxW="5xl"
         mx="auto"
         borderWidth={1}
         borderColor="gray.200"
