@@ -3,12 +3,13 @@ const express = require("express");
 const router = express.Router();
 const {
   getMyDTR,
-  getMyLeaveCredits,
+  /*   getMyLeaveCredits, */
   getMyAttendanceByDate,
   getMyDTRRange,
-} = require("../../controllers/Dtr/DtrController");
+  getMyOvertime, // added
+} = require("../../controllers/Dtr/DtrController.js");
 const verifyJWT = require("../../middlewares/verifyJWT");
-const authorizeRoles = require("../../middlewares/authorizeRole");
+
 router.use(verifyJWT);
 
 // Apply authentication middleware to all routes
@@ -35,6 +36,11 @@ router.get("/my-dtr/:date", getMyAttendanceByDate);
 // @desc    Get current user's leave balances and history
 // @access  Private
 // @query   status (optional), year (optional)
-router.get("/my-leave-credits", getMyLeaveCredits);
+/* router.get("/my-leave-credits", getMyLeaveCredits); */
+
+// @route   GET /api/attendance/my-overtime
+// @desc    Get current user's overtime requests
+// @access  Private
+router.get("/my-overtime", getMyOvertime);
 
 module.exports = router;

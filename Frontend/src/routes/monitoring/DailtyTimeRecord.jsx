@@ -34,7 +34,6 @@ const DailyTimeRecord = () => {
   const [error, setError] = useState(null);
   const toast = useToast();
 
-  // Fetch real data from API
   useEffect(() => {
     fetchAttendanceData();
   }, [year, month]);
@@ -44,153 +43,78 @@ const DailyTimeRecord = () => {
     setError(null);
 
     try {
-      // Adjust the endpoint to match your axiosInstance baseURL (this assumes baseURL includes /api)
+      // call server route as defined in Server routes: /api/attendance/my-dtr
       const resp = await axiosInstance.get("/Dtr/my-dtr", {
         params: { year, month },
       });
 
-      // Try to extract employee and attendance from common response shapes
-      const data = resp.data || {};
-      const emp =
-        data.employeeInfo ||
-        data.employee ||
-        data.user ||
-        (data.meta && data.meta.employeeInfo) ||
-        null;
-      const records =
-        data.attendance ||
-        data.records ||
-        data.data ||
-        (Array.isArray(data) ? data : null) ||
-        [];
+      // server returns { success: true, data: { year, month, records, summary } }
+      const payload = resp?.data;
+      if (!payload) {
+        setAttendanceData([]);
+        setError("Empty response from server.");
+        return;
+      }
 
-      if (emp) setEmployeeInfo(emp);
-      if (Array.isArray(records) && records.length > 0) {
-        setAttendanceData(records);
-      } else if (Array.isArray(data) && data.length > 0) {
-        // response was directly an array
-        setAttendanceData(data);
-      } else {
-        // fallback to mock data if API returned nothing useful
-        setAttendanceData(generateMockData());
-        toast({
-          title: "No attendance data from server, using mock data.",
-          status: "info",
-          duration: 3000,
-          isClosable: true,
-        });
+      if (payload.success === false) {
+        setAttendanceData([]);
+        setError(payload.message || "Failed to load DTR.");
+        return;
+      }
+
+      const data = payload.data || {};
+      const records = Array.isArray(data.records) ? data.records : [];
+
+      // map server record shape to the UI fields used in the table
+      const normalize = (rec) => {
+        const def = (v) => (v === null || v === undefined ? "." : v);
+        return {
+          date: def(rec.date),
+          day: def(rec.day),
+          scheduleIn: def(rec.scheduleIn) === "." ? "." : def(rec.scheduleIn),
+          scheduleOut:
+            def(rec.scheduleOut) === "." ? "." : def(rec.scheduleOut),
+          dataIn: def(rec.checkIn || rec.check_in),
+          dataOut: def(rec.checkOut || rec.check_out),
+          hours: def(
+            rec.totalHours ||
+              rec.total_hours ||
+              rec.totalHoursRendered ||
+              rec.hours
+          ),
+          late: def(rec.late),
+          ut: def(rec.ut),
+          absent: rec.isAbsent ? "1" : def(rec.absent),
+          vl: def(rec.vl),
+          sl: def(rec.sl),
+          fl: def(rec.fl),
+          mlpl: def(rec.mlpl),
+          lwop: def(rec.lwop),
+          reg: def(rec.reg),
+          nd: def(rec.nd),
+          ot: def(rec.ot),
+          otNd: def(rec.otNd),
+          sus: def(rec.sus),
+        };
+      };
+
+      setAttendanceData(records.map(normalize));
+
+      // if employee info is included in response, set it
+      if (data.employeeInfo) {
+        setEmployeeInfo(data.employeeInfo);
       }
     } catch (err) {
       console.error("fetchAttendanceData error:", err);
+      setAttendanceData([]);
       setError(
         err.response?.data?.message ||
           err.message ||
           "Failed to load attendance data."
       );
-      // fallback to mock so UI remains usable
-      setAttendanceData(generateMockData());
     } finally {
       setLoading(false);
     }
-  };
-
-  const generateMockData = () => {
-    const daysInMonth = new Date(year, month, 0).getDate();
-    const data = [];
-    const monthNames = [
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December",
-    ];
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month - 1, day);
-      const dayOfWeek = date.toLocaleDateString("en-US", { weekday: "short" });
-      const isWeekend = dayOfWeek === "Sat" || dayOfWeek === "Sun";
-
-      let record = {
-        date: `${monthNames[month - 1].substring(0, 3)}-${String(day).padStart(
-          2,
-          "0"
-        )}-${String(year).substring(2)}`,
-        day: dayOfWeek,
-        scheduleIn: isWeekend
-          ? dayOfWeek === "Sat"
-            ? "08:00"
-            : "00:00"
-          : "08:00",
-        scheduleOut: isWeekend
-          ? dayOfWeek === "Sat"
-            ? "12:00"
-            : "00:00"
-          : "17:00",
-        dataIn: null,
-        dataOut: null,
-        hours: null,
-        late: null,
-        ut: null,
-        absent: null,
-        vl: null,
-        sl: null,
-        fl: null,
-        mlpl: null,
-        lwop: null,
-        reg: null,
-        nd: null,
-        ot: null,
-        otNd: null,
-        sus: null,
-        isWeekend: isWeekend,
-        isAbsent: false,
-      };
-
-      // Add some sample data for working days
-      if (!isWeekend && day <= 18 && ![6, 7, 8, 10, 13, 15].includes(day)) {
-        const inTime = new Date(date);
-        inTime.setHours(7, 30 + Math.floor(Math.random() * 60), 0);
-        const outTime = new Date(date);
-        outTime.setHours(17, Math.floor(Math.random() * 5), 0);
-
-        record.dataIn = inTime.toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        });
-        record.dataOut = outTime.toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        });
-
-        const totalMinutes = Math.floor((outTime - inTime) / 60000) - 60; // minus lunch break
-        record.hours = `${String(Math.floor(totalMinutes / 60)).padStart(
-          2,
-          "0"
-        )}:${String(totalMinutes % 60).padStart(2, "0")}`;
-
-        if (inTime.getHours() === 8 && inTime.getMinutes() > 0) {
-          record.late = `00:${String(inTime.getMinutes()).padStart(2, "0")}`;
-        }
-
-        record.reg = "08:00";
-      } else if ([6, 7, 8, 10, 13, 15].includes(day) && !isWeekend) {
-        record.isAbsent = true;
-        record.absent = "1";
-      }
-
-      data.push(record);
-    }
-
-    return data;
   };
 
   const handleUpdate = () => {
@@ -457,10 +381,10 @@ const DailyTimeRecord = () => {
                   {record.day}
                 </Td>
                 <Td fontSize="xs" textAlign="center" bg="blue.50">
-                  {record.scheduleIn}
+                  {record.scheduleIn || "."}
                 </Td>
                 <Td fontSize="xs" textAlign="center" bg="blue.50">
-                  {record.scheduleOut}
+                  {record.scheduleOut || "."}
                 </Td>
                 <Td fontSize="xs" textAlign="center" bg="blue.50">
                   {record.dataIn || "."}
@@ -515,6 +439,15 @@ const DailyTimeRecord = () => {
                 </Td>
               </Tr>
             ))}
+            {attendanceData.length === 0 && (
+              <Tr>
+                <Td colSpan={21} textAlign="center" py={6}>
+                  <Text color="gray.600">
+                    No records for selected month/year.
+                  </Text>
+                </Td>
+              </Tr>
+            )}
           </Tbody>
         </Table>
       </Box>
