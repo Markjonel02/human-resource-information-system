@@ -3,11 +3,17 @@ const express = require("express");
 const router = express.Router();
 const {
   getMyDTR,
-/*   getMyLeaveCredits, */
+  /*   getMyLeaveCredits, */
   getMyAttendanceByDate,
   getMyDTRRange,
   getMyOvertime, // added
+  getMyRawTime,
 } = require("../../controllers/Dtr/DtrController.js");
+const {
+  getMySchedule,
+  getMyScheduleByDate,
+  getMyScheduleRange,
+} = require("../../controllers/Dtr/scheduleController.js");
 const verifyJWT = require("../../middlewares/verifyJWT");
 
 router.use(verifyJWT);
@@ -42,5 +48,11 @@ router.get("/my-dtr/:date", getMyAttendanceByDate);
 // @desc    Get current user's overtime requests
 // @access  Private
 router.get("/my-overtime", getMyOvertime);
+
+router.get("/my-rawtime", getMyRawTime);
+//shdedule routes
+router.get("/my-schedule", getMySchedule);
+router.get("/my-schedule/:date", getMyScheduleByDate);
+router.get("/my-schedule-range", getMyScheduleRange);
 
 module.exports = router;
