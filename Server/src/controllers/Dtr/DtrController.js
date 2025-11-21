@@ -52,12 +52,10 @@ exports.getMyDTR = async (req, res) => {
     const targetMonth = month ? parseInt(month, 10) : new Date().getMonth() + 1;
 
     if (isNaN(targetMonth) || targetMonth < 1 || targetMonth > 12) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Invalid month. Must be between 1 and 12",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid month. Must be between 1 and 12",
+      });
     }
 
     const startDate = new Date(targetYear, targetMonth - 1, 1);
@@ -212,12 +210,10 @@ exports.getMyAttendanceByDate = async (req, res) => {
     const { date } = req.params;
     const targetDate = new Date(date);
     if (isNaN(targetDate.getTime()))
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Invalid date format. Use YYYY-MM-DD",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid date format. Use YYYY-MM-DD",
+      });
 
     const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
     const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
@@ -230,12 +226,10 @@ exports.getMyAttendanceByDate = async (req, res) => {
       .lean();
 
     if (!attendance)
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "No attendance record found for this date",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "No attendance record found for this date",
+      });
 
     const scheduleInStr =
       attendance.scheduleIn || attendance.schedule?.in || "08:00";
@@ -286,29 +280,23 @@ exports.getMyDTRRange = async (req, res) => {
     const userId = req.user.id;
     const { startDate, endDate } = req.query;
     if (!startDate || !endDate)
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Both startDate and endDate are required",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Both startDate and endDate are required",
+      });
 
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (isNaN(start.getTime()) || isNaN(end.getTime()))
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Invalid date format. Use YYYY-MM-DD",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid date format. Use YYYY-MM-DD",
+      });
     if (start > end)
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Start date must be before or equal to end date",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Start date must be before or equal to end date",
+      });
 
     start.setHours(0, 0, 0, 0);
     end.setHours(23, 59, 59, 999);
@@ -388,6 +376,67 @@ exports.getMyDTRRange = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error fetching date range records",
+      error: error.message,
+    });
+  }
+};
+
+exports.getMyRawTime = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { year, month } = req.query;
+
+    const targetYear = year ? parseInt(year, 10) : new Date().getFullYear();
+    const targetMonth = month ? parseInt(month, 10) : new Date().getMonth() + 1;
+
+    if (isNaN(targetMonth) || targetMonth < 1 || targetMonth > 12) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid month. Must be between 1 and 12",
+      });
+    }
+
+    // Build date range of the month
+    const startDate = new Date(targetYear, targetMonth - 1, 1);
+    const endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
+
+    // Query attendance logs
+    const records = await Attendance.find({
+      employee: userId,
+      date: { $gte: startDate, $lte: endDate },
+    })
+      .sort({ date: 1 })
+      .lean();
+
+    // Format helper
+    const formatAMPM = (dateObj) => {
+      if (!dateObj) return null;
+      const date = new Date(dateObj);
+      let hours = date.getHours();
+      let minutes = date.getMinutes();
+      const amPm = hours >= 12 ? "PM" : "AM";
+      hours = hours % 12 || 12;
+      minutes = minutes.toString().padStart(2, "0");
+      return `${hours}:${minutes} ${amPm}`;
+    };
+
+    const formatted = records.map((r) => ({
+      date: r.date.toISOString().split("T")[0], // YYYY-MM-DD
+      rawIn: formatAMPM(r.checkIn),
+      rawOut: formatAMPM(r.checkOut),
+    }));
+
+    return res.status(200).json({
+      success: true,
+      year: targetYear,
+      month: targetMonth,
+      data: formatted,
+    });
+  } catch (error) {
+    console.error("Error fetching raw logs:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching raw time logs",
       error: error.message,
     });
   }
