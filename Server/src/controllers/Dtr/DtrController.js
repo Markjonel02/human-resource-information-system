@@ -6,7 +6,7 @@ const LeaveCredits = require("../../models/LeaveSchema/leaveCreditsSchema");
 
 // helper to format minutes -> "HH:MM"
 const formatMinutes = (minutes = 0) => {
-  if (!minutes || minutes <= 0) return null;
+  if (minutes === null || minutes === undefined || minutes <= 0) return null;
   const hrs = String(Math.floor(minutes / 60)).padStart(2, "0");
   const mins = String(minutes % 60).padStart(2, "0");
   return `${hrs}:${mins}`;
@@ -61,13 +61,45 @@ exports.getMyDTR = async (req, res) => {
     const startDate = new Date(targetYear, targetMonth - 1, 1);
     const endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
 
+    // Fetch attendance records for the month
     const attendanceRecords = await Attendance.find({
       employee: userId,
       date: { $gte: startDate, $lte: endDate },
     })
-      .populate("leaveRequest", "leaveType")
+      .populate({
+        path: "leaveRequest",
+        select: "leaveType leaveStatus dateFrom dateTo",
+      })
       .sort({ date: 1 })
       .lean();
+
+    // Fetch approved leave records overlapping the month
+    // NOTE: use direct AND condition for overlapping interval
+    const leaveRecords = await Leave.find({
+      employee: userId,
+      dateFrom: { $lte: endDate },
+      dateTo: { $gte: startDate },
+      leaveStatus: "approved", // only approved leaves to mark days
+    })
+      .select("leaveType dateFrom dateTo totalLeaveDays leaveStatus")
+      .lean();
+
+    // Fetch leave credits for the year
+    const leaveCredits = await LeaveCredits.findOne({
+      employee: userId,
+      year: targetYear,
+    }).lean();
+
+    // helper to find a leave that covers a specific attendance date
+    const findLeaveForDate = (d) => {
+      const dayStart = new Date(d);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(d);
+      dayEnd.setHours(23, 59, 59, 999);
+      return leaveRecords.find(
+        (l) => new Date(l.dateFrom) <= dayEnd && new Date(l.dateTo) >= dayStart
+      );
+    };
 
     const formattedRecords = attendanceRecords.map((record) => {
       const dateOnly = new Date(record.date);
@@ -75,7 +107,7 @@ exports.getMyDTR = async (req, res) => {
         weekday: "short",
       });
 
-      // determine scheduled in-time (from record if present, else default 08:00)
+      // scheduled in-time (from record if present, else default 08:00)
       const scheduleInStr = record.scheduleIn || record.schedule?.in || "08:00";
       const scheduledInDate = buildScheduledDate(record.date, scheduleInStr);
 
@@ -90,6 +122,12 @@ exports.getMyDTR = async (req, res) => {
         ? formatMinutes(record.hoursRendered)
         : null;
 
+      // see if this date is covered by an approved leave
+      const leaveForDay = findLeaveForDate(record.date);
+      const isOnLeave = !!leaveForDay || record.status === "on_leave";
+      const leaveType =
+        leaveForDay?.leaveType || record.leaveRequest?.leaveType || null;
+
       return {
         date: dateOnly.toISOString().split("T")[0], // YYYY-MM-DD
         day: dayOfWeek,
@@ -103,11 +141,18 @@ exports.getMyDTR = async (req, res) => {
         late: lateFormatted, // "HH:MM" or null -> frontend shows value and uses truthiness for '*'
         isLate: tardinessMinutes > 0,
         isAbsent: record.status === "absent",
-        isOnLeave: record.status === "on_leave",
-        leaveType: record.leaveRequest?.leaveType || null,
+        isOnLeave,
+        leaveType,
+        // set leave indicators per requested UI format
+        vl: leaveType === "VL" && isOnLeave ? "1" : null,
+        sl: leaveType === "SL" && isOnLeave ? "1" : null,
+        fl: leaveType === "FL" && isOnLeave ? "1" : null,
+        mlpl: leaveType === "MLPL" && isOnLeave ? "1" : null,
+        lwop: leaveType === "LWOP" && isOnLeave ? "1" : null,
       };
     });
 
+    // Calculate summary
     const summary = {
       totalDays: formattedRecords.length,
       presentDays: formattedRecords.filter(
@@ -115,6 +160,7 @@ exports.getMyDTR = async (req, res) => {
       ).length,
       absentDays: formattedRecords.filter((r) => r.isAbsent).length,
       lateDays: formattedRecords.filter((r) => r.isLate).length,
+      leaveDays: formattedRecords.filter((r) => r.isOnLeave).length,
       totalMinutesWorked: formattedRecords.reduce((sum, r) => {
         if (!r.totalHours) return sum;
         const [h = "0", m = "0"] = r.totalHours.split(":");
@@ -133,6 +179,19 @@ exports.getMyDTR = async (req, res) => {
       ? Math.min(...tardyValues)
       : 0;
 
+    // Map leaveCredits nested structure to simple fields expected by frontend
+    const mappedLeaveCredits = leaveCredits
+      ? {
+          vacationLeave: leaveCredits.credits?.VL?.remaining ?? 0,
+          sickLeave: leaveCredits.credits?.SL?.remaining ?? 0,
+          birthdayLeave: leaveCredits.credits?.BL?.remaining ?? 0,
+          lwop: leaveCredits.credits?.LWOP?.remaining ?? 0,
+          forceLeave: leaveCredits.credits?.FL?.remaining ?? 0,
+          mlpl: leaveCredits.credits?.MLPL?.remaining ?? 0,
+          compensatory: leaveCredits.credits?.CL?.remaining ?? 0,
+        }
+      : null;
+
     res.status(200).json({
       success: true,
       data: {
@@ -142,6 +201,14 @@ exports.getMyDTR = async (req, res) => {
         summary,
         minTardinessMinutes,
         minTardinessFormatted: formatMinutes(minTardinessMinutes),
+        leaveRecords: leaveRecords.map((leave) => ({
+          leaveType: leave.leaveType,
+          dateFrom: leave.dateFrom,
+          dateTo: leave.dateTo,
+          leaveStatus: leave.leaveStatus,
+          totalLeaveDays: leave.totalLeaveDays,
+        })),
+        leaveCredits: mappedLeaveCredits,
       },
     });
   } catch (error) {

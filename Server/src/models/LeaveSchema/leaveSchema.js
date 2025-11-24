@@ -10,7 +10,7 @@ const LeaveSchema = new Schema(
     },
     leaveType: {
       type: String,
-      enum: ["VL", "SL", "LWOP", "BL", "CL"],
+      enum: ["VL", "SL", "LWOP", "BL", "CL", "MLPL", "FL"],
       required: true,
     },
     dateFrom: {
