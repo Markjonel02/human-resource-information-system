@@ -424,6 +424,7 @@ const EmployeeLeave = () => {
                   <option value="LWOP">Leave Without Pay</option>
                   <option value="BL">Bereavement Leave</option>
                   <option value="CL">Calamity Leave</option>
+                  <option value="MLPL">Maternity Leave</option>
                 </Select>
               </FormControl>
               <HStack w="100%">
