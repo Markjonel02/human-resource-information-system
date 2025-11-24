@@ -402,16 +402,7 @@ const DailyTimeRecord = () => {
                 REG
               </Th>
               <Th color="white" fontSize="xs" textAlign="center">
-                ND
-              </Th>
-              <Th color="white" fontSize="xs" textAlign="center">
                 OT
-              </Th>
-              <Th color="white" fontSize="xs" textAlign="center">
-                OT/ND
-              </Th>
-              <Th color="white" fontSize="xs" textAlign="center">
-                SUS
               </Th>
             </Tr>
           </Thead>
@@ -473,17 +464,9 @@ const DailyTimeRecord = () => {
                 <Td fontSize="xs" textAlign="center">
                   {record.reg || "."}
                 </Td>
-                <Td fontSize="xs" textAlign="center">
-                  {record.nd || "."}
-                </Td>
+
                 <Td fontSize="xs" textAlign="center">
                   {record.ot || "."}
-                </Td>
-                <Td fontSize="xs" textAlign="center">
-                  {record.otNd || "."}
-                </Td>
-                <Td fontSize="xs" textAlign="center">
-                  {record.sus || "."}
                 </Td>
               </Tr>
             ))}

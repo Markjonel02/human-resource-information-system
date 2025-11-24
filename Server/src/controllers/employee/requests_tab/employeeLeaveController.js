@@ -3,7 +3,7 @@
 
 const LeaveCredits = require("../../../models/LeaveSchema/leaveCreditsSchema");
 const Leave = require("../../../models/LeaveSchema/leaveSchema");
-const Attendances = require("../../../models/Attendance");
+const Attendance = require("../../../models/Attendance");
 const LeaveLogs = require("../../../models/Logs/leaveSchemaLogs");
 // Create date range for attendance check
 function normalizeDateRange(dateFrom, dateTo) {
@@ -33,7 +33,7 @@ const addLeave = async (req, res) => {
     }
 
     // Step 2: Validate leave type
-    const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "CL"];
+    const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "CL", "MLPL", "FL"];
     if (!validLeaveTypes.includes(leaveType)) {
       return res.status(400).json({ message: "Invalid leave type." });
     }
@@ -88,14 +88,23 @@ const addLeave = async (req, res) => {
       });
     }
 
+    const normalizeDateRange = (from, to) => {
+      const start = new Date(from);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(to);
+      end.setHours(23, 59, 59, 999);
+      return { start, end };
+    };
+
     const { start, end } = normalizeDateRange(dateFrom, dateTo);
-    //checking if there are attendance records before filing leave request
-    const attendanceRecords = await Attendances.find({
+
+    // Check if there are attendance records before filing leave request
+    const attendanceRecords = await Attendance.find({
       employee: employeeId,
       date: { $gte: start, $lte: end },
     });
 
-    // Step 5: Check for attendance records during the leave period
+    // Step 6: Check for attendance records during the leave period
     if (attendanceRecords.length > 0) {
       return res.status(400).json({
         message:
@@ -104,7 +113,7 @@ const addLeave = async (req, res) => {
       });
     }
 
-    // Step 6: Create and save leave request
+    // Step 7: Create and save leave request
     const newLeaveRequest = new Leave({
       employee: employeeId,
       leaveType,
@@ -116,6 +125,40 @@ const addLeave = async (req, res) => {
     });
 
     await newLeaveRequest.save();
+
+    // Step 8: Create attendance records for each day of the leave
+    const attendanceRecordsToCreate = [];
+    const currentDate = new Date(start);
+
+    while (currentDate <= end) {
+      const dayOfWeek = currentDate.getDay();
+
+      // Skip weekends (optional - adjust based on your business logic)
+      // Remove this if condition if you want to create records for weekends too
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        attendanceRecordsToCreate.push({
+          employee: employeeId,
+          date: new Date(currentDate),
+          status: "on_leave",
+          leaveRequest: newLeaveRequest._id,
+          checkIn: null,
+          checkOut: null,
+          hoursRendered: 0,
+          scheduleIn: "08:00", // Default schedule
+          scheduleOut: "17:00", // Default schedule
+        });
+      }
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Bulk insert attendance records
+    if (attendanceRecordsToCreate.length > 0) {
+      await Attendance.insertMany(attendanceRecordsToCreate);
+      console.log(
+        `Created ${attendanceRecordsToCreate.length} attendance records for leave ${newLeaveRequest._id}`
+      );
+    }
 
     // Log the leave request creation
     await LeaveLogs.create({
@@ -129,6 +172,7 @@ const addLeave = async (req, res) => {
         dateFrom,
         dateTo,
         totalLeaveDays,
+        attendanceRecordsCreated: attendanceRecordsToCreate.length,
       },
       metadata: { role: req.user.role },
       ipAddress: req.ip || "N/A",
@@ -138,10 +182,68 @@ const addLeave = async (req, res) => {
     res.status(201).json({
       message: "Leave request filed successfully.",
       leaveRequest: newLeaveRequest,
+      attendanceRecordsCreated: attendanceRecordsToCreate.length,
     });
   } catch (error) {
     console.error("Error in addLeave:", error);
     res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+// Function to get attendance with leave information
+const getMyAttendance = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Fetch attendance records with leave information
+    const records = await Attendance.find({ employee: userId })
+      .populate("employee", "firstname lastname employeeId department role")
+      .populate({
+        path: "leaveRequest",
+        select: "leaveType leaveStatus dateFrom dateTo totalLeaveDays notes",
+      })
+      .sort({ date: -1 });
+
+    // Format records to show leave information and replace check-in/out with "-"
+    const formattedRecords = records.map((record) => {
+      const isOnLeave = record.status === "on_leave";
+      const leaveInfo = record.leaveRequest;
+
+      return {
+        _id: record._id,
+        employee: record.employee,
+        date: record.date,
+        status: record.status,
+        // Show "-" for check-in/out when on leave, otherwise show actual times
+        checkIn: isOnLeave ? "-" : record.checkIn || null,
+        checkOut: isOnLeave ? "-" : record.checkOut || null,
+        hoursRendered: isOnLeave ? "-" : record.hoursRendered || 0,
+        // Leave information
+        isOnLeave,
+        leaveType: leaveInfo?.leaveType || null,
+        leaveStatus: leaveInfo?.leaveStatus || null,
+        leaveNotes: leaveInfo?.notes || null,
+        leaveDateFrom: leaveInfo?.dateFrom || null,
+        leaveDateTo: leaveInfo?.dateTo || null,
+        totalLeaveDays: leaveInfo?.totalLeaveDays || null,
+        // Original fields
+        schedule: record.schedule,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+      };
+    });
+
+    res.json({
+      success: true,
+      data: formattedRecords,
+    });
+  } catch (error) {
+    console.error("Error fetching attendance:", error);
+    res.status(500).json({
+      success: false,
       message: "Internal server error",
       error: error.message,
     });
