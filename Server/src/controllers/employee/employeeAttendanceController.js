@@ -42,57 +42,14 @@ const parseTimeToDate = (timeStr, baseDate) => {
 // Employee: Get own attendance records
 const getMyAttendance = async (req, res) => {
   try {
-    const userId = req.user._id;
-
-    // Fetch attendance records with leave information
-    const records = await Attendance.find({ employee: userId })
+    const records = await Attendance.find({ employee: req.user._id })
       .populate("employee", "firstname lastname employeeId department role")
-      .populate({
-        path: "leaveRequest",
-        select: "leaveType leaveStatus dateFrom dateTo totalLeaveDays notes",
-      })
       .sort({ date: -1 });
-
-    // Format records to show leave information and replace check-in/out with "-"
-    const formattedRecords = records.map((record) => {
-      const isOnLeave = record.status === "on_leave";
-      const leaveInfo = record.leaveRequest;
-
-      return {
-        _id: record._id,
-        employee: record.employee,
-        date: record.date,
-        status: record.status,
-        // Show "-" for check-in/out when on leave, otherwise show actual times
-        checkIn: isOnLeave ? "-" : record.checkIn || null,
-        checkOut: isOnLeave ? "-" : record.checkOut || null,
-        hoursRendered: isOnLeave ? "-" : record.hoursRendered || 0,
-        // Leave information
-        isOnLeave,
-        leaveType: leaveInfo?.leaveType || null,
-        leaveStatus: leaveInfo?.leaveStatus || null,
-        leaveNotes: leaveInfo?.notes || null,
-        leaveDateFrom: leaveInfo?.dateFrom || null,
-        leaveDateTo: leaveInfo?.dateTo || null,
-        totalLeaveDays: leaveInfo?.totalLeaveDays || null,
-        // Original fields
-        schedule: record.schedule,
-        createdAt: record.createdAt,
-        updatedAt: record.updatedAt,
-      };
-    });
-
-    res.json({
-      success: true,
-      data: formattedRecords,
-    });
+    res.json(records);
   } catch (error) {
-    console.error("Error fetching attendance:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
   }
 };
 

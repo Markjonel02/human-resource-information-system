@@ -22,6 +22,7 @@ import {
   AlertIcon,
   AlertTitle,
   AlertDescription,
+  Badge,
 } from "@chakra-ui/react";
 import axiosInstance from "../../lib/axiosInstance";
 
@@ -47,8 +48,6 @@ const DailyTimeRecord = () => {
     if (isNaN(d.getTime())) return String(isoOrDate);
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
-    const yy = String(d.getFullYear()).slice(-2);
-    // match previous UI style like "Jan-01-25" if desired; here use YYYY-MM-DD
     return `${d.getFullYear()}-${mm}-${dd}`;
   };
 
@@ -64,11 +63,12 @@ const DailyTimeRecord = () => {
     setError(null);
 
     try {
-      const resp = await axiosInstance.get("/Dtr/my-dtr", {
+      // Fetch DTR data
+      const dtrResp = await axiosInstance.get("/Dtr/my-dtr", {
         params: { year, month },
       });
 
-      const payload = resp?.data?.data ?? resp?.data ?? null;
+      const payload = dtrResp?.data?.data ?? dtrResp?.data ?? null;
       if (!payload) {
         setAttendanceData([]);
         setEmployeeInfo(null);
@@ -79,29 +79,30 @@ const DailyTimeRecord = () => {
         return;
       }
 
-      // get raw records list (server uses data.records)
+      // Get raw records list
       const rawRecords = Array.isArray(payload.records) ? payload.records : [];
 
-      // normalize records: ensure date/day/leave flags/late are populated
+      // Normalize records
       const normalized = rawRecords.map((r) => {
-        // derive date and day if missing
-        const dateIso = r.date || r._id || r.checkIn || null; // fallback options
+        const dateIso = r.date || r._id || r.checkIn || null;
         const date =
           r.date ||
-          (r.date && r.date.split ? r.date.split("T")[0] : null) ||
+          (dateIso && dateIso.split ? dateIso.split("T")[0] : null) ||
           dateIso;
         const day =
           r.day || getWeekdayShort(r.date) || getWeekdayShort(r.checkIn);
 
-        // ensure leave flags if backend provided leaveType
+        // Leave flags
         const leaveType = r.leaveType || null;
-        const vl = r.vl || (leaveType === "VL" ? "1" : null);
-        const sl = r.sl || (leaveType === "SL" ? "1" : null);
-        const fl = r.fl || (leaveType === "FL" ? "1" : null);
-        const mlpl = r.mlpl || (leaveType === "MLPL" ? "1" : null);
-        const lwop = r.lwop || (leaveType === "LWOP" ? "1" : null);
+        const isOnLeave = r.isOnLeave || r.status === "on_leave";
 
-        // late field: backend returns "late" as "HH:MM" or null; keep that
+        const vl = r.vl || (leaveType === "VL" && isOnLeave ? "1" : null);
+        const sl = r.sl || (leaveType === "SL" && isOnLeave ? "1" : null);
+        const fl = r.fl || (leaveType === "FL" && isOnLeave ? "1" : null);
+        const mlpl = r.mlpl || (leaveType === "MLPL" && isOnLeave ? "1" : null);
+        const lwop = r.lwop || (leaveType === "LWOP" && isOnLeave ? "1" : null);
+
+        // Late field
         const late =
           r.late ||
           (r.tardinessMinutes
@@ -114,26 +115,38 @@ const DailyTimeRecord = () => {
               })()
             : null);
 
+        // For leave days, show "-" instead of actual times
+        const checkIn = isOnLeave
+          ? "-"
+          : r.checkIn || r.dataIn || r.check_in || null;
+        const checkOut = isOnLeave
+          ? "-"
+          : r.checkOut || r.dataOut || r.check_out || null;
+        const hours = isOnLeave
+          ? "-"
+          : r.totalHours ||
+            r.hours ||
+            r.hoursRendered ||
+            r.hours_rendered ||
+            null;
+
         return {
           ...r,
           date: formatDateReadable(r.date) || r.date || ".",
           day: day || ".",
           scheduleIn: r.scheduleIn || r.schedule?.in || "08:00",
-          scheduleOut: r.scheduleOut || r.schedule?.out || null,
-          dataIn: r.checkIn || r.dataIn || r.check_in || null,
-          dataOut: r.checkOut || r.dataOut || r.check_out || null,
-          hours:
-            r.totalHours ||
-            r.hours ||
-            r.hoursRendered ||
-            r.hours_rendered ||
-            null,
-          late,
+          scheduleOut: r.scheduleOut || r.schedule?.out || "17:00",
+          dataIn: checkIn,
+          dataOut: checkOut,
+          hours: hours,
+          late: isOnLeave ? null : late,
           vl,
           sl,
           fl,
           mlpl,
           lwop,
+          isOnLeave,
+          leaveType,
         };
       });
 
@@ -142,7 +155,6 @@ const DailyTimeRecord = () => {
       setLeaveCredits(payload.leaveCredits || null);
       setSummary(payload.summary || null);
 
-      // small user feedback if no records
       if (!normalized.length) {
         toast({
           title: "No records",
@@ -177,7 +189,11 @@ const DailyTimeRecord = () => {
     fetchAttendanceData();
   };
 
-  const getRowColor = (record) => "blue.50";
+  const getRowColor = (record) => {
+    if (record.isOnLeave) return "yellow.50";
+    return "white";
+  };
+
   const getTextColor = (record) => "gray.800";
 
   if (loading) {
@@ -221,13 +237,31 @@ const DailyTimeRecord = () => {
               <Text fontSize="sm">
                 {employeeInfo.name ||
                   employeeInfo.fullName ||
-                  employeeInfo.username}
+                  employeeInfo.username ||
+                  "-"}
               </Text>
             </GridItem>
             <GridItem textAlign="right">
               <Text fontSize="sm" fontWeight="bold">
                 LEGEND:
               </Text>
+              <HStack spacing={2} justify="flex-end" mt={1} flexWrap="wrap">
+                <Badge colorScheme="blue" fontSize="xs">
+                  VL - Vacation Leave
+                </Badge>
+                <Badge colorScheme="green" fontSize="xs">
+                  SL - Sick Leave
+                </Badge>
+                <Badge colorScheme="purple" fontSize="xs">
+                  FL - Force Leave
+                </Badge>
+                <Badge colorScheme="pink" fontSize="xs">
+                  MLPL - Maternity/Paternity
+                </Badge>
+                <Badge colorScheme="orange" fontSize="xs">
+                  LWOP - No Pay
+                </Badge>
+              </HStack>
             </GridItem>
             <GridItem>
               <Text fontSize="sm" fontWeight="bold">
@@ -252,6 +286,55 @@ const DailyTimeRecord = () => {
               <Text fontSize="sm">{employeeInfo.employmentStatus || "-"}</Text>
             </GridItem>
           </Grid>
+        )}
+
+        {/* Leave Credits Display */}
+        {leaveCredits && (
+          <Box
+            p={4}
+            bg="blue.50"
+            borderRadius="md"
+            border="1px"
+            borderColor="blue.200"
+          >
+            <Text fontSize="sm" fontWeight="bold" mb={2}>
+              Leave Credits Available
+            </Text>
+            <Grid templateColumns="repeat(4, 1fr)" gap={3}>
+              <VStack spacing={0} align="center">
+                <Text fontSize="xs" color="gray.600">
+                  Vacation
+                </Text>
+                <Text fontSize="lg" fontWeight="bold" color="blue.600">
+                  {leaveCredits.vacationLeave || 0}
+                </Text>
+              </VStack>
+              <VStack spacing={0} align="center">
+                <Text fontSize="xs" color="gray.600">
+                  Sick
+                </Text>
+                <Text fontSize="lg" fontWeight="bold" color="green.600">
+                  {leaveCredits.sickLeave || 0}
+                </Text>
+              </VStack>
+              <VStack spacing={0} align="center">
+                <Text fontSize="xs" color="gray.600">
+                  Birthday
+                </Text>
+                <Text fontSize="lg" fontWeight="bold" color="purple.600">
+                  {leaveCredits.birthdayLeave || 0}
+                </Text>
+              </VStack>
+              <VStack spacing={0} align="center">
+                <Text fontSize="xs" color="gray.600">
+                  Force
+                </Text>
+                <Text fontSize="lg" fontWeight="bold" color="orange.600">
+                  {leaveCredits.forceLeave || 0}
+                </Text>
+              </VStack>
+            </Grid>
+          </Box>
         )}
 
         <HStack spacing={4} justify="space-between">
@@ -346,12 +429,12 @@ const DailyTimeRecord = () => {
                 HOURS
               </Th>
               <Th color="white" fontSize="xs" textAlign="center" colSpan={3}>
-                TARDINES
+                TARDINESS
               </Th>
               <Th color="white" fontSize="xs" textAlign="center" colSpan={5}>
                 LEAVE
               </Th>
-              <Th color="white" fontSize="xs" textAlign="center" colSpan={5}>
+              <Th color="white" fontSize="xs" textAlign="center" colSpan={2}>
                 TIME RECORD
               </Th>
             </Tr>
@@ -426,10 +509,10 @@ const DailyTimeRecord = () => {
                   {record.scheduleOut || "."}
                 </Td>
                 <Td fontSize="xs" textAlign="center" bg="blue.50">
-                  {record.dataIn || record.checkIn || "."}
+                  {record.dataIn || "."}
                 </Td>
                 <Td fontSize="xs" textAlign="center" bg="blue.50">
-                  {record.dataOut || record.checkOut || "."}
+                  {record.dataOut || "."}
                 </Td>
                 <Td fontSize="xs" textAlign="center">
                   {record.hours || "."}
@@ -438,7 +521,7 @@ const DailyTimeRecord = () => {
                   {record.late || "."}
                 </Td>
                 <Td fontSize="xs" textAlign="center">
-                  {record.late ? "1" : "."}
+                  {record.late && record.late !== "." ? "1" : "."}
                 </Td>
                 <Td fontSize="xs" textAlign="center">
                   {record.ut || "."}
@@ -446,25 +529,75 @@ const DailyTimeRecord = () => {
                 <Td fontSize="xs" textAlign="center">
                   {record.absent || (record.isAbsent ? "1" : ".")}
                 </Td>
-                <Td fontSize="xs" textAlign="center">
+                <Td
+                  fontSize="xs"
+                  textAlign="center"
+                  bg={
+                    record.vl && record.vl !== "." ? "blue.100" : "transparent"
+                  }
+                  fontWeight={
+                    record.vl && record.vl !== "." ? "bold" : "normal"
+                  }
+                >
                   {record.vl || "."}
                 </Td>
-                <Td fontSize="xs" textAlign="center">
+                <Td
+                  fontSize="xs"
+                  textAlign="center"
+                  bg={
+                    record.sl && record.sl !== "." ? "green.100" : "transparent"
+                  }
+                  fontWeight={
+                    record.sl && record.sl !== "." ? "bold" : "normal"
+                  }
+                >
                   {record.sl || "."}
                 </Td>
-                <Td fontSize="xs" textAlign="center">
+                <Td
+                  fontSize="xs"
+                  textAlign="center"
+                  bg={
+                    record.fl && record.fl !== "."
+                      ? "purple.100"
+                      : "transparent"
+                  }
+                  fontWeight={
+                    record.fl && record.fl !== "." ? "bold" : "normal"
+                  }
+                >
                   {record.fl || "."}
                 </Td>
-                <Td fontSize="xs" textAlign="center">
+                <Td
+                  fontSize="xs"
+                  textAlign="center"
+                  bg={
+                    record.mlpl && record.mlpl !== "."
+                      ? "pink.100"
+                      : "transparent"
+                  }
+                  fontWeight={
+                    record.mlpl && record.mlpl !== "." ? "bold" : "normal"
+                  }
+                >
                   {record.mlpl || "."}
                 </Td>
-                <Td fontSize="xs" textAlign="center">
+                <Td
+                  fontSize="xs"
+                  textAlign="center"
+                  bg={
+                    record.lwop && record.lwop !== "."
+                      ? "orange.100"
+                      : "transparent"
+                  }
+                  fontWeight={
+                    record.lwop && record.lwop !== "." ? "bold" : "normal"
+                  }
+                >
                   {record.lwop || "."}
                 </Td>
                 <Td fontSize="xs" textAlign="center">
                   {record.reg || "."}
                 </Td>
-
                 <Td fontSize="xs" textAlign="center">
                   {record.ot || "."}
                 </Td>
@@ -472,7 +605,7 @@ const DailyTimeRecord = () => {
             ))}
             {attendanceData.length === 0 && (
               <Tr>
-                <Td colSpan={21} textAlign="center" py={6}>
+                <Td colSpan={19} textAlign="center" py={6}>
                   <Text color="gray.600">
                     No records for selected month/year.
                   </Text>
@@ -482,6 +615,57 @@ const DailyTimeRecord = () => {
           </Tbody>
         </Table>
       </Box>
+
+      {/* Summary Section */}
+      {summary && (
+        <Box mt={4} p={4} bg="gray.50" borderRadius="md">
+          <Heading size="sm" mb={3}>
+            Monthly Summary
+          </Heading>
+          <Grid templateColumns="repeat(5, 1fr)" gap={4}>
+            <GridItem>
+              <Text fontSize="xs" color="gray.600">
+                Total Days
+              </Text>
+              <Text fontSize="lg" fontWeight="bold">
+                {summary.totalDays || 0}
+              </Text>
+            </GridItem>
+            <GridItem>
+              <Text fontSize="xs" color="gray.600">
+                Present Days
+              </Text>
+              <Text fontSize="lg" fontWeight="bold" color="green.600">
+                {summary.presentDays || 0}
+              </Text>
+            </GridItem>
+            <GridItem>
+              <Text fontSize="xs" color="gray.600">
+                Leave Days
+              </Text>
+              <Text fontSize="lg" fontWeight="bold" color="blue.600">
+                {summary.leaveDays || 0}
+              </Text>
+            </GridItem>
+            <GridItem>
+              <Text fontSize="xs" color="gray.600">
+                Absent Days
+              </Text>
+              <Text fontSize="lg" fontWeight="bold" color="red.600">
+                {summary.absentDays || 0}
+              </Text>
+            </GridItem>
+            <GridItem>
+              <Text fontSize="xs" color="gray.600">
+                Late Days
+              </Text>
+              <Text fontSize="lg" fontWeight="bold" color="orange.600">
+                {summary.lateDays || 0}
+              </Text>
+            </GridItem>
+          </Grid>
+        </Box>
+      )}
     </Box>
   );
 };
