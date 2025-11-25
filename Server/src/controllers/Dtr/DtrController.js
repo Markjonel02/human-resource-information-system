@@ -220,6 +220,307 @@ exports.getMyDTR = async (req, res) => {
     });
   }
 };
+exports.getMySickLeave = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { year, month } = req.query;
+
+    // Build date filter
+    let dateFilter = {};
+    if (year && month) {
+      const targetYear = parseInt(year, 10);
+      const targetMonth = parseInt(month, 10);
+      const startDate = new Date(targetYear, targetMonth - 1, 1);
+      const endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
+      dateFilter = { $gte: startDate, $lte: endDate };
+    } else if (year) {
+      const targetYear = parseInt(year, 10);
+      const startDate = new Date(targetYear, 0, 1);
+      const endDate = new Date(targetYear, 11, 31, 23, 59, 59, 999);
+      dateFilter = { $gte: startDate, $lte: endDate };
+    }
+
+    // Fetch sick leave records
+    const sickLeaveRecords = await Leave.find({
+      employee: userId,
+      leaveType: "SL",
+      leaveStatus: "approved",
+      ...(Object.keys(dateFilter).length > 0 && {
+        dateFrom: dateFilter,
+      }),
+    })
+      .select(
+        "leaveType dateFrom dateTo totalLeaveDays notes leaveStatus approvedAt"
+      )
+      .sort({ dateFrom: -1 })
+      .lean();
+
+    // Fetch corresponding attendance records
+    const sickLeaveIds = sickLeaveRecords.map((leave) => leave._id);
+    const attendanceRecords = await Attendance.find({
+      employee: userId,
+      leaveRequest: { $in: sickLeaveIds },
+      status: "on_leave",
+    })
+      .select("date leaveRequest")
+      .sort({ date: 1 })
+      .lean();
+
+    // Format the response
+    const formattedSickLeaves = sickLeaveRecords.map((leave) => {
+      // Get all attendance dates for this leave
+      const leaveDates = attendanceRecords
+        .filter((att) => att.leaveRequest.toString() === leave._id.toString())
+        .map((att) => {
+          const date = new Date(att.date);
+          return {
+            date: date.toISOString().split("T")[0],
+            dayOfWeek: date.toLocaleDateString("en-US", { weekday: "short" }),
+            fullDate: date.toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            }),
+          };
+        });
+
+      return {
+        leaveId: leave._id,
+        leaveType: leave.leaveType,
+        dateFrom: leave.dateFrom,
+        dateTo: leave.dateTo,
+        totalDays: leave.totalLeaveDays,
+        notes: leave.notes,
+        status: leave.leaveStatus,
+        approvedAt: leave.approvedAt,
+        // Detailed dates covered by this leave
+        dates: leaveDates,
+        // Summary
+        dateRange: `${new Date(leave.dateFrom).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })} - ${new Date(leave.dateTo).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })}`,
+      };
+    });
+
+    // Get sick leave credits
+    const currentYear = year ? parseInt(year, 10) : new Date().getFullYear();
+    const leaveCredits = await LeaveCredits.findOne({
+      employee: userId,
+      year: currentYear,
+    }).lean();
+
+    const sickLeaveCredits = leaveCredits?.credits?.SL || null;
+
+    // Calculate summary
+    const summary = {
+      totalSickLeavesTaken: sickLeaveRecords.length,
+      totalDaysUsed: sickLeaveRecords.reduce(
+        (sum, leave) => sum + leave.totalLeaveDays,
+        0
+      ),
+      remainingCredits: sickLeaveCredits?.remaining ?? 0,
+      totalCredits: sickLeaveCredits?.total ?? 0,
+      usedCredits: sickLeaveCredits?.used ?? 0,
+    };
+
+    res.status(200).json({
+      success: true,
+      data: {
+        sickLeaves: formattedSickLeaves,
+        summary,
+        year: currentYear,
+        month: month ? parseInt(month, 10) : null,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching sick leave:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching sick leave records",
+      error: error.message,
+    });
+  }
+};
+
+// Get sick leave days for a specific month (for DTR display)
+exports.getSickLeaveDaysForMonth = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { year, month } = req.query;
+
+    if (!year || !month) {
+      return res.status(400).json({
+        success: false,
+        message: "Year and month are required",
+      });
+    }
+
+    const targetYear = parseInt(year, 10);
+    const targetMonth = parseInt(month, 10);
+    const startDate = new Date(targetYear, targetMonth - 1, 1);
+    const endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
+
+    // Fetch sick leave records that overlap with the month
+    const sickLeaveRecords = await Leave.find({
+      employee: userId,
+      leaveType: "SL",
+      leaveStatus: "approved",
+      dateFrom: { $lte: endDate },
+      dateTo: { $gte: startDate },
+    })
+      .select("leaveType dateFrom dateTo totalLeaveDays notes")
+      .lean();
+
+    // Get all dates covered by sick leaves in this month
+    const sickLeaveDates = [];
+    sickLeaveRecords.forEach((leave) => {
+      const leaveStart = new Date(
+        Math.max(new Date(leave.dateFrom).getTime(), startDate.getTime())
+      );
+      const leaveEnd = new Date(
+        Math.min(new Date(leave.dateTo).getTime(), endDate.getTime())
+      );
+
+      let currentDate = new Date(leaveStart);
+      while (currentDate <= leaveEnd) {
+        const dateStr = currentDate.toISOString().split("T")[0];
+        sickLeaveDates.push({
+          date: dateStr,
+          dayOfWeek: currentDate.toLocaleDateString("en-US", {
+            weekday: "short",
+          }),
+          leaveId: leave._id,
+          notes: leave.notes,
+        });
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        year: targetYear,
+        month: targetMonth,
+        sickLeaveDays: sickLeaveDates,
+        totalSickLeaveDays: sickLeaveDates.length,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching sick leave days:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching sick leave days",
+      error: error.message,
+    });
+  }
+};
+
+// Get all leave types with dates (not just sick leave)
+exports.getMyLeavesByType = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { year, month, leaveType } = req.query;
+
+    // Build date filter
+    let dateFilter = {};
+    if (year && month) {
+      const targetYear = parseInt(year, 10);
+      const targetMonth = parseInt(month, 10);
+      const startDate = new Date(targetYear, targetMonth - 1, 1);
+      const endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
+      dateFilter = { $gte: startDate, $lte: endDate };
+    } else if (year) {
+      const targetYear = parseInt(year, 10);
+      const startDate = new Date(targetYear, 0, 1);
+      const endDate = new Date(targetYear, 11, 31, 23, 59, 59, 999);
+      dateFilter = { $gte: startDate, $lte: endDate };
+    }
+
+    // Build query
+    const query = {
+      employee: userId,
+      leaveStatus: "approved",
+      ...(Object.keys(dateFilter).length > 0 && {
+        dateFrom: dateFilter,
+      }),
+    };
+
+    // Add leave type filter if provided
+    if (leaveType) {
+      query.leaveType = leaveType;
+    }
+
+    // Fetch leave records
+    const leaveRecords = await Leave.find(query)
+      .select(
+        "leaveType dateFrom dateTo totalLeaveDays notes leaveStatus approvedAt"
+      )
+      .sort({ dateFrom: -1 })
+      .lean();
+
+    // Group by leave type
+    const leavesByType = leaveRecords.reduce((acc, leave) => {
+      const type = leave.leaveType;
+      if (!acc[type]) {
+        acc[type] = [];
+      }
+
+      acc[type].push({
+        leaveId: leave._id,
+        dateFrom: leave.dateFrom,
+        dateTo: leave.dateTo,
+        totalDays: leave.totalLeaveDays,
+        notes: leave.notes,
+        status: leave.leaveStatus,
+        approvedAt: leave.approvedAt,
+        dateRange: `${new Date(leave.dateFrom).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })} - ${new Date(leave.dateTo).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })}`,
+      });
+
+      return acc;
+    }, {});
+
+    // Calculate totals by type
+    const summary = Object.keys(leavesByType).map((type) => ({
+      leaveType: type,
+      totalLeaves: leavesByType[type].length,
+      totalDays: leavesByType[type].reduce(
+        (sum, leave) => sum + leave.totalDays,
+        0
+      ),
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        leavesByType,
+        summary,
+        year: year ? parseInt(year, 10) : null,
+        month: month ? parseInt(month, 10) : null,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching leaves by type:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching leave records",
+      error: error.message,
+    });
+  }
+};
 
 // GET overtime for current user
 exports.getMyOvertime = async (req, res) => {

@@ -8,6 +8,9 @@ const {
   getMyDTRRange,
   getMyOvertime, // added
   getMyRawTime,
+  getMySickLeave,
+  getSickLeaveDaysForMonth,
+  getMyLeavesByType,
 } = require("../../controllers/Dtr/DtrController.js");
 const {
   getMySchedule,
@@ -55,4 +58,7 @@ router.get("/my-schedule", getMySchedule);
 router.get("/my-schedule/:date", getMyScheduleByDate);
 router.get("/my-schedule-range", getMyScheduleRange);
 
+router.get("/my-sick-leave", getMySickLeave);
+router.get("/sick-leave-days", getSickLeaveDaysForMonth);
+router.get("/by-type", getMyLeavesByType);
 module.exports = router;
