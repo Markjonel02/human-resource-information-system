@@ -30,6 +30,7 @@ const Announcement = require("./routes/admin&hr/announcements/announcementsRoute
 const payrollRoutes = require("./routes/payrollRoutes/payrollRoutes.js");
 const employeePayrollRoutes = require("./routes/payrollRoutes/employeePayrollRoutes.js");
 const Dtr = require("./routes/DtrRoutes/DtrRoutes.js");
+const SettngsRoutes = require("./routes/settings/settingsRoutes.js");
 // =======================
 //   INITIALIZATION
 // =======================
@@ -96,6 +97,7 @@ app.use("/api/announcements", Announcement);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/payroll/employee", employeePayrollRoutes);
 app.use("/api/Dtr", Dtr);
+app.use("/api/settings", SettngsRoutes);
 
 // =======================
 //   ERROR HANDLING
