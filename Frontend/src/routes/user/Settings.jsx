@@ -20,9 +20,10 @@ import {
 } from "react-icons/md";
 
 // Placeholder content components
-const MyDetails = () => <Text>My Details Content</Text>;
+import Details from "./Details";
+import Password from "./ChangePassword";
 const Profile = () => <Text>Profile Content</Text>;
-const Password = () => <Text>Password Content</Text>;
+
 const Team = () => <Text>Team Content</Text>;
 const Plan = () => <Text>Plan Content</Text>;
 const Billing = () => <Text>Billing Content</Text>;
@@ -88,7 +89,7 @@ const Settings = () => {
 
       <Box p={4}>
         <Routes>
-          <Route path="my-details" element={<MyDetails />} />
+          <Route index path="my-details" element={<Details />} />
           <Route path="profile" element={<Profile />} />
           <Route path="password" element={<Password />} />
           <Route path="team" element={<Team />} />

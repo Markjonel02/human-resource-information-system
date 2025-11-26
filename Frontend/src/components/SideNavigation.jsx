@@ -414,7 +414,7 @@ const SideNavigation = () => {
       {isMobile ? (
         <Drawer isOpen={isOpen} placement="left" onClose={onClose}>
           <DrawerOverlay />
-          <DrawerContent p="4" bg="white" w="64">
+          <DrawerContent p="4" bg="white" w="64" overflowY="auto">
             <Flex
               align="center"
               justify="space-between"
