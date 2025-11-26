@@ -127,7 +127,7 @@ const getHolidayByDate = (dateString, year) => {
   return holidays.find((h) => h.date === dateString);
 };
 
-// Helper function to check if date is weekend
+// Helper function to check if date is weekend (Saturday or Sunday ONLY)
 const isWeekend = (date) => {
   const day = date.getDay();
   return day === 0 || day === 6; // 0 = Sunday, 6 = Saturday
@@ -141,14 +141,12 @@ const isWeekend = (date) => {
  */
 exports.getMySchedule = async (req, res) => {
   try {
-    const userId = req.user.id; // From JWT middleware
+    const userId = req.user.id;
     const { year, month } = req.query;
 
-    // Default to current year and month if not provided
     const targetYear = year ? parseInt(year) : new Date().getFullYear();
     const targetMonth = month ? parseInt(month) : new Date().getMonth() + 1;
 
-    // Validate month
     if (targetMonth < 1 || targetMonth > 12) {
       return res.status(400).json({
         success: false,
@@ -156,29 +154,22 @@ exports.getMySchedule = async (req, res) => {
       });
     }
 
-    // Calculate start and end dates for the month
     const startDate = new Date(targetYear, targetMonth - 1, 1);
     const endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
 
-    // Fetch schedule records for the specified month
     const scheduleRecords = await Schedule.find({
       employee: userId,
-      date: {
-        $gte: startDate,
-        $lte: endDate,
-      },
+      date: { $gte: startDate, $lte: endDate },
     })
       .sort({ date: 1 })
       .lean();
 
-    // Create a map of existing schedules by date
     const scheduleMap = {};
     scheduleRecords.forEach((schedule) => {
       const dateKey = new Date(schedule.date).toISOString().split("T")[0];
       scheduleMap[dateKey] = schedule;
     });
 
-    // Generate all days of the month with schedules
     const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
     const formattedSchedules = [];
 
@@ -187,13 +178,21 @@ exports.getMySchedule = async (req, res) => {
       const dateString = date.toISOString().split("T")[0];
       const dayOfWeek = date.toLocaleDateString("en-US", { weekday: "short" });
 
-      // Check if it's a weekend
-      const isWeekendDay = isWeekend(date);
+      // Get day number: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday
+      const dayNumber = date.getDay();
 
-      // Check if it's a holiday
+      // CRITICAL: Weekend is ONLY Saturday (6) and Sunday (0)
+      // Friday is 5, which is NOT a weekend day
+      const isWeekendDay = dayNumber === 0 || dayNumber === 6;
+
+      // Debug logging
+      console.log(
+        `Date: ${dateString}, Day: ${dayOfWeek}, DayNumber: ${dayNumber}, IsWeekend: ${isWeekendDay}`
+      );
+
+      // Check holiday
       const holiday = getHolidayByDate(dateString, targetYear);
 
-      // Get existing schedule or create default
       const existingSchedule = scheduleMap[dateString];
 
       let scheduleIn,
@@ -203,13 +202,26 @@ exports.getMySchedule = async (req, res) => {
         holidayInfo = null;
 
       if (existingSchedule) {
-        // Use existing schedule from database
         scheduleIn = existingSchedule.scheduleIn;
         scheduleOut = existingSchedule.scheduleOut;
         isRestDay = existingSchedule.isRestDay;
         shiftType = existingSchedule.shiftType;
 
-        // Format if Date objects
+        // Override if the database has wrong weekend flag
+        if (
+          isWeekendDay &&
+          shiftType !== "Weekend" &&
+          shiftType !== "Holiday"
+        ) {
+          shiftType = "Weekend";
+          isRestDay = true;
+        }
+        // If it's not a weekend but marked as such, correct it
+        if (!isWeekendDay && shiftType === "Weekend") {
+          shiftType = "Regular";
+          isRestDay = false;
+        }
+
         if (existingSchedule.scheduleIn instanceof Date) {
           scheduleIn = existingSchedule.scheduleIn.toLocaleTimeString("en-US", {
             hour: "2-digit",
@@ -228,13 +240,8 @@ exports.getMySchedule = async (req, res) => {
           );
         }
       } else {
-        // Generate default schedule
-        if (isWeekendDay) {
-          scheduleIn = "00:00";
-          scheduleOut = "00:00";
-          isRestDay = true;
-          shiftType = "Rest Day";
-        } else if (holiday) {
+        // Priority: Holiday > Weekend > Regular
+        if (holiday) {
           scheduleIn = "00:00";
           scheduleOut = "00:00";
           isRestDay = true;
@@ -243,8 +250,14 @@ exports.getMySchedule = async (req, res) => {
             name: holiday.name,
             type: holiday.type,
           };
+        } else if (isWeekendDay) {
+          // ONLY Saturday (6) and Sunday (0)
+          scheduleIn = "00:00";
+          scheduleOut = "00:00";
+          isRestDay = true;
+          shiftType = "Weekend";
         } else {
-          // Regular working day
+          // Regular working day (Monday=1, Tuesday=2, Wednesday=3, Thursday=4, Friday=5)
           scheduleIn = "08:00";
           scheduleOut = "17:00";
           isRestDay = false;
@@ -252,7 +265,7 @@ exports.getMySchedule = async (req, res) => {
         }
       }
 
-      // Add holiday info if it exists
+      // Add holiday info even if not rest day
       if (holiday && !holidayInfo) {
         holidayInfo = {
           name: holiday.name,
@@ -263,19 +276,21 @@ exports.getMySchedule = async (req, res) => {
       formattedSchedules.push({
         date: dateString,
         day: dayOfWeek,
+        dayNumber: dayNumber, // Add day number for debugging
         scheduleIn: scheduleIn || "00:00",
         scheduleOut: scheduleOut || "00:00",
         isRestDay: isRestDay || false,
         shiftType: shiftType || "Regular",
-        isWeekend: isWeekendDay,
+        isWeekend: isWeekendDay, // CRITICAL: This should be false for Friday (day 5)
         holiday: holidayInfo,
       });
     }
 
-    // Calculate summary statistics
     const summary = {
       totalDays: formattedSchedules.length,
-      workDays: formattedSchedules.filter((s) => !s.isRestDay).length,
+      workDays: formattedSchedules.filter(
+        (s) => !s.isRestDay && !s.holiday && !s.isWeekend
+      ).length,
       restDays: formattedSchedules.filter((s) => s.isRestDay).length,
       holidays: formattedSchedules.filter((s) => s.holiday !== null).length,
       weekends: formattedSchedules.filter((s) => s.isWeekend).length,
@@ -302,15 +317,12 @@ exports.getMySchedule = async (req, res) => {
 
 /**
  * Get schedule for a specific date
- * @route GET /api/schedule/my-schedule/:date
- * @param {string} date - Date in YYYY-MM-DD format
  */
 exports.getMyScheduleByDate = async (req, res) => {
   try {
     const userId = req.user.id;
     const { date } = req.params;
 
-    // Parse the date
     const targetDate = new Date(date);
     if (isNaN(targetDate.getTime())) {
       return res.status(400).json({
@@ -319,16 +331,12 @@ exports.getMyScheduleByDate = async (req, res) => {
       });
     }
 
-    // Set time to start and end of day
     const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
     const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
 
     const schedule = await Schedule.findOne({
       employee: userId,
-      date: {
-        $gte: startOfDay,
-        $lte: endOfDay,
-      },
+      date: { $gte: startOfDay, $lte: endOfDay },
     }).lean();
 
     if (!schedule) {
@@ -338,7 +346,6 @@ exports.getMyScheduleByDate = async (req, res) => {
       });
     }
 
-    // Format schedule times
     let scheduleIn = schedule.scheduleIn;
     let scheduleOut = schedule.scheduleOut;
 
@@ -384,9 +391,6 @@ exports.getMyScheduleByDate = async (req, res) => {
 
 /**
  * Get schedule for a date range
- * @route GET /api/schedule/my-schedule-range
- * @query {string} startDate - Start date (YYYY-MM-DD)
- * @query {string} endDate - End date (YYYY-MM-DD)
  */
 exports.getMyScheduleRange = async (req, res) => {
   try {
@@ -417,21 +421,16 @@ exports.getMyScheduleRange = async (req, res) => {
       });
     }
 
-    // Set time boundaries
     start.setHours(0, 0, 0, 0);
     end.setHours(23, 59, 59, 999);
 
     const scheduleRecords = await Schedule.find({
       employee: userId,
-      date: {
-        $gte: start,
-        $lte: end,
-      },
+      date: { $gte: start, $lte: end },
     })
       .sort({ date: 1 })
       .lean();
 
-    // Format records
     const formattedSchedules = scheduleRecords.map((schedule) => {
       const date = new Date(schedule.date);
       const dayOfWeek = date.toLocaleDateString("en-US", { weekday: "short" });
@@ -464,7 +463,6 @@ exports.getMyScheduleRange = async (req, res) => {
       };
     });
 
-    // Calculate summary
     const summary = {
       dateRange: {
         from: startDate,
