@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -44,7 +44,11 @@ const ScheduleCalendar = () => {
 
   const toast = useToast();
 
+  // Prevent duplicate toasts (Strict Mode double mount)
+  const toastRef = useRef(false);
+
   useEffect(() => {
+    toastRef.current = false; // reset toast guard when filters change
     fetchScheduleData();
   }, [year, month]);
 
@@ -60,6 +64,19 @@ const ScheduleCalendar = () => {
       if (!resp.data || resp.data.success === false) {
         setError(resp.data?.message || "Failed to load schedule data.");
         setEvents([]);
+
+        if (!toastRef.current) {
+          toastRef.current = true;
+          toast({
+            title: "Error",
+            description: resp.data?.message || "Failed to load schedule data.",
+            status: "error",
+            duration: 5000,
+            position: "top",
+            isClosable: true,
+          });
+        }
+
         return;
       }
 
@@ -71,56 +88,36 @@ const ScheduleCalendar = () => {
         const timeIn = schedule.scheduleIn || "00:00";
         const timeOut = schedule.scheduleOut || "00:00";
 
-        // Parse the date to check day of week
-        const scheduleDate = new Date(schedule.date + "T00:00:00"); // Force local timezone
-        const dayOfWeek = scheduleDate.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+        const scheduleDate = new Date(schedule.date + "T00:00:00");
+        const dayOfWeek = scheduleDate.getDay();
 
-        // CRITICAL: Only Saturday (6) and Sunday (0) are weekends
-        // Monday=1, Tuesday=2, Wednesday=3, Thursday=4, Friday=5 are ALL work days
         const isActualWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-        console.log(
-          `📅 Date: ${
-            schedule.date
-          }, DayOfWeek: ${dayOfWeek}, IsWeekend: ${isActualWeekend}, Holiday: ${
-            schedule.holiday?.name || "None"
-          }`
-        );
 
         let title, backgroundColor, textColor, borderColor;
 
-        // PRIORITY ORDER:
-        // 1. Holiday (highest priority - overrides everything)
-        // 2. Weekend (Saturday/Sunday ONLY)
-        // 3. Regular work day (Monday-Friday)
-
         if (schedule.holiday) {
-          // Holiday - RED (even if it falls on a weekday like Friday)
           title = `🎉 ${schedule.holiday.name}`;
-          backgroundColor = "#dc2626"; // Red
-          borderColor = "#991b1b"; // Dark red
+          backgroundColor = "#dc2626";
+          borderColor = "#991b1b";
           textColor = "white";
         } else if (isActualWeekend) {
-          // Weekend (ONLY Saturday=6 or Sunday=0) - GRAY
           title = `Weekend`;
-          backgroundColor = "#94a3b8"; // Gray
-          borderColor = "#64748b"; // Dark gray
+          backgroundColor = "#94a3b8";
+          borderColor = "#64748b";
           textColor = "white";
         } else {
-          // Regular working day (Monday=1 to Friday=5) - BLUE with time
-          // This includes ALL Fridays that are NOT holidays
           title = `${timeIn} - ${timeOut}`;
-          backgroundColor = "#3b82f6"; // Blue
-          borderColor = "#1e40af"; // Dark blue
+          backgroundColor = "#3b82f6";
+          borderColor = "#1e40af";
           textColor = "white";
         }
 
         return {
-          title: title,
+          title,
           date: schedule.date,
-          backgroundColor: backgroundColor,
-          borderColor: borderColor,
-          textColor: textColor,
+          backgroundColor,
+          borderColor,
+          textColor,
           extendedProps: {
             scheduleIn: timeIn,
             scheduleOut: timeOut,
@@ -135,31 +132,39 @@ const ScheduleCalendar = () => {
 
       setEvents(formatted);
 
-      toast({
-        title: "Schedule Loaded",
-        description: `Loaded ${formatted.length} days`,
-        status: "success",
-        duration: 2000,
-        isClosable: true,
-      });
+      if (!toastRef.current) {
+        toastRef.current = true;
+        toast({
+          title: "Schedule Loaded",
+          description: `Loaded ${formatted.length} days`,
+          status: "success",
+          duration: 2000,
+          isClosable: true,
+        });
+      }
     } catch (err) {
       console.error("Error fetching schedule:", err);
       setError(err.response?.data?.message || "Unable to fetch schedule data.");
       setEvents([]);
-      toast({
-        title: "Error",
-        description:
-          err.response?.data?.message || "Unable to fetch schedule data.",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+
+      if (!toastRef.current) {
+        toastRef.current = true;
+        toast({
+          title: "Error",
+          description:
+            err.response?.data?.message || "Unable to fetch schedule data.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleRefresh = () => {
+    toastRef.current = false; // allow toast again on manual refresh
     fetchScheduleData();
   };
 
@@ -251,7 +256,7 @@ const ScheduleCalendar = () => {
           </HStack>
         </HStack>
 
-        {/* Summary Stats */}
+        {/* Summary */}
         {summary && (
           <HStack spacing={6} p={4} bg="white" borderRadius="md" shadow="sm">
             <VStack spacing={0} align="center">
@@ -319,7 +324,7 @@ const ScheduleCalendar = () => {
               const isHoliday = eventInfo.event.extendedProps.holiday !== null;
               return (
                 <Box
-                  fontSize={isHoliday ? "xs" : "xs"}
+                  fontSize="xs"
                   fontWeight="semibold"
                   p={1}
                   textAlign="center"
