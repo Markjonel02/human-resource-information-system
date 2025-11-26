@@ -32,6 +32,7 @@ const LoadingFallback = () => (
 
 const Monitoring = () => {
   const [activeTab, setActiveTab] = useState(0);
+  const [loadedTabs, setLoadedTabs] = useState([0]); // Track which tabs have been loaded
 
   const tabData = [
     {
@@ -55,6 +56,14 @@ const Monitoring = () => {
       component: ScheduleCalendar,
     },
   ];
+
+  const handleTabChange = (index) => {
+    setActiveTab(index);
+    // Mark this tab as loaded if it hasn't been loaded yet
+    if (!loadedTabs.includes(index)) {
+      setLoadedTabs([...loadedTabs, index]);
+    }
+  };
 
   return (
     <Box
@@ -85,7 +94,7 @@ const Monitoring = () => {
           isFitted
           variant="enclosed"
           index={activeTab}
-          onChange={(index) => setActiveTab(index)}
+          onChange={handleTabChange}
           colorScheme="blue"
         >
           <TabList bg="blue.100" roundedTop="2xl">
@@ -112,11 +121,16 @@ const Monitoring = () => {
           <TabPanels>
             {tabData.map((tab, index) => {
               const TabComponent = tab.component;
+              // Only render the component if this tab has been loaded/visited
+              const shouldRender = loadedTabs.includes(index);
+
               return (
                 <TabPanel key={index} p={0}>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <TabComponent />
-                  </Suspense>
+                  {shouldRender ? (
+                    <Suspense fallback={<LoadingFallback />}>
+                      <TabComponent />
+                    </Suspense>
+                  ) : null}
                 </TabPanel>
               );
             })}

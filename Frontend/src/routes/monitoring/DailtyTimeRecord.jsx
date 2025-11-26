@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Heading,
@@ -36,6 +36,7 @@ const DailyTimeRecord = () => {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState(null);
   const toast = useToast();
+  const toastTriggered = useRef(false);
 
   useEffect(() => {
     fetchAttendanceData();
@@ -155,12 +156,14 @@ const DailyTimeRecord = () => {
       setLeaveCredits(payload.leaveCredits || null);
       setSummary(payload.summary || null);
 
-      if (!normalized.length) {
+      if (!normalized.length && !toastTriggered.current) {
+        toastTriggered.current = true;
         toast({
           title: "No records",
           description:
             "No attendance records found for the selected month/year.",
           status: "info",
+          position: "top",
           duration: 3000,
           isClosable: true,
         });
