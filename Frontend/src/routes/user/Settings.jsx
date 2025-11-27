@@ -18,23 +18,16 @@ import {
   MdEmail,
   MdNotificationsNone,
 } from "react-icons/md";
-
+import { Navigate } from "react-router-dom";
 // Placeholder content components
 import Details from "./Details";
 import Password from "./ChangePassword";
 const Profile = () => <Text>Profile Content</Text>;
 
-const Team = () => <Text>Team Content</Text>;
-const Plan = () => <Text>Plan Content</Text>;
-const Billing = () => <Text>Billing Content</Text>;
-const Email = () => <Text>Email Content</Text>;
-const Notifications = () => <Text>Notifications Content</Text>;
-
 // Tabs with Material Design icons
 const tabs = [
   { label: "My Details", path: "my-details", icon: MdPersonOutline },
   { label: "Password", path: "password", icon: MdLockOutline },
-  { label: "Notifications", path: "notifications", icon: MdNotificationsNone },
 ];
 
 const Settings = () => {
@@ -89,14 +82,10 @@ const Settings = () => {
 
       <Box p={4}>
         <Routes>
-          <Route index path="my-details" element={<Details />} />
+          <Route index element={<Navigate to="my-details" replace />} />
+          <Route path="my-details" element={<Details />} />
           <Route path="profile" element={<Profile />} />
           <Route path="password" element={<Password />} />
-          <Route path="team" element={<Team />} />
-          <Route path="plan" element={<Plan />} />
-          <Route path="billing" element={<Billing />} />
-          <Route path="email" element={<Email />} />
-          <Route path="notifications" element={<Notifications />} />
         </Routes>
       </Box>
     </Box>
