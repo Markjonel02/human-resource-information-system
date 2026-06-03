@@ -41,7 +41,7 @@ const AttendanceSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // This crucial index ensures one attendance record per employee per day.

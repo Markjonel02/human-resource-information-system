@@ -1,6 +1,6 @@
 // Approve leave (Admin only)
 
-const Attendance = require("../models/Attendance");
+const Attendance = require("../models/attendance");
 const User = require("../models/user"); // Assuming you have a User model
 const AttendanceLog = require("../models/attendanceLogSchema"); // New model for logs
 const LeaveCredits = require("../models/LeaveSchema/leaveCreditsSchema");
@@ -63,7 +63,7 @@ exports.createAttendanceLog = async (data) => {
 
     await logEntry.save();
     console.log(
-      `Attendance log created: ${data.action} for employee ${data.employeeId}`
+      `Attendance log created: ${data.action} for employee ${data.employeeId}`,
     );
   } catch (error) {
     console.error("Error creating attendance log:", error); // Don't throw error to prevent breaking main functionality
@@ -230,7 +230,7 @@ const addAttendance = async (req, res) => {
         if (attendanceData.checkIn && checkOutDate) {
           attendanceData.hoursRendered = calculateHoursInMinutes(
             attendanceData.checkIn,
-            checkOutDate
+            checkOutDate,
           );
         }
       }
@@ -284,10 +284,10 @@ const addAttendance = async (req, res) => {
     }
 
     const populatedAttendance = await Attendance.findById(
-      newAttendance._id
+      newAttendance._id,
     ).populate(
       "employee",
-      "firstname lastname employeeId department role employmentType"
+      "firstname lastname employeeId department role employmentType",
     );
 
     res.status(201).json({
@@ -375,7 +375,7 @@ const getAttendance = async (req, res) => {
     const attendanceRecords = await Attendance.find(attendanceQuery)
       .populate(
         "employee",
-        "firstname lastname employeeId department role employmentType"
+        "firstname lastname employeeId department role employmentType",
       )
       .populate("leaveRequest", "leaveType reason")
       .sort({ date: -1 })
@@ -461,7 +461,7 @@ const getAttendance = async (req, res) => {
               : record.notes || ""),
           isOfficialBusiness: isOfficialBusiness,
         };
-      })
+      }),
     );
 
     // Log access
@@ -552,7 +552,7 @@ const getWeeklyPresentAttendance = async (req, res) => {
     const attendanceRecords = await Attendance.find(attendanceQuery)
       .populate(
         "employee",
-        "firstname lastname employeeId department role employmentType"
+        "firstname lastname employeeId department role employmentType",
       )
       .populate("leaveRequest", "leaveType reason")
       .sort({ date: -1, checkIn: 1 });
@@ -653,7 +653,7 @@ const getWeeklyPresentAttendance = async (req, res) => {
           isOfficialBusiness: isOfficialBusiness,
           employmentType,
         };
-      })
+      }),
     );
 
     // Format chart data for all 5 weekdays
@@ -821,7 +821,7 @@ const updateAttendance = async (req, res) => {
           if (attendance.checkIn && checkOutDate) {
             attendance.hoursRendered = calculateHoursInMinutes(
               attendance.checkIn,
-              checkOutDate
+              checkOutDate,
             );
           }
         }
@@ -926,7 +926,7 @@ const updateAttendance = async (req, res) => {
     // Return populated record
     const updatedRecord = await Attendance.findById(id).populate(
       "employee",
-      "firstname lastname employeeId department role employmentType"
+      "firstname lastname employeeId department role employmentType",
     );
 
     res.json({
