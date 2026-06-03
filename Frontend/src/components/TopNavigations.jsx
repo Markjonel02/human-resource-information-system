@@ -12,7 +12,7 @@ import {
 } from "@chakra-ui/react";
 import { SearchIcon, CalendarIcon } from "@chakra-ui/icons";
 // FIX: Ensure this import name matches exactly what you use below
-import AddemployeeButton from "./AddemployeeButton";
+import AddemployeeButton from "./addemployeeButton";
 import { useAuth } from "../context/AuthContext";
 import AddingAttendanceButton from "./AddingAttendanceButton";
 
