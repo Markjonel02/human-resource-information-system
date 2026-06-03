@@ -264,7 +264,7 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       console.log("Employee creation successful:", response.data);
@@ -291,7 +291,7 @@ const AddEmployeeButton = ({ onEmployeeAdded }) => {
     } catch (error) {
       console.error(
         "Error creating employee:",
-        error.response?.data || error.message
+        error.response?.data || error.message,
       );
 
       let errorMessage = "Failed to add employee. Please try again.";

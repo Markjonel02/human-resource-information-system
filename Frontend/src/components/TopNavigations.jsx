@@ -11,7 +11,7 @@ import {
   Tooltip,
 } from "@chakra-ui/react";
 import { SearchIcon, CalendarIcon } from "@chakra-ui/icons";
-import AddEmployeeButton from "./AddemployeeButton";
+import AddemployeeButton from "./AddemployeeButton";
 import { useAuth } from "../context/AuthContext"; // Correct path to Auth context
 import AddingAttendanceButton from "./AddingAttendanceButton";
 
