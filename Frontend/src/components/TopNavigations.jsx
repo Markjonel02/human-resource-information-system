@@ -11,18 +11,19 @@ import {
   Tooltip,
 } from "@chakra-ui/react";
 import { SearchIcon, CalendarIcon } from "@chakra-ui/icons";
+// FIX: Ensure this import name matches exactly what you use below
 import AddemployeeButton from "./AddemployeeButton";
-import { useAuth } from "../context/AuthContext"; // Correct path to Auth context
+import { useAuth } from "../context/AuthContext";
 import AddingAttendanceButton from "./AddingAttendanceButton";
 
 const TopNavigations = () => {
   const bgColor = useColorModeValue("white", "gray.800");
   const textColor = useColorModeValue("gray.700", "white");
 
-  // Correctly access authState, then user from authState
   const { authState } = useAuth();
-  const userFirstName = authState?.user?.firstname || "Guest"; // Safely access firstname
-  const role = authState?.user?.role || "User"; // Safely access role
+  const userFirstName = authState?.user?.firstname || "Guest";
+  const role = authState?.user?.role || "User";
+
   return (
     <Box
       bg={bgColor}
@@ -51,7 +52,6 @@ const TopNavigations = () => {
               textAlign={{ base: "center", md: "left" }}
             >
               {userFirstName}{" "}
-              {/* This will now correctly display the first name */}
             </Text>
           </Text>
           <Text
@@ -77,21 +77,15 @@ const TopNavigations = () => {
             <Input type="text" placeholder="Search..." borderRadius="md" />
           </InputGroup>
 
-          {/*    <Tooltip label="Attendance" openDelay={500}>
-            <Box display="block">
-              <AddingAttendanceButton />
-            </Box>
-          </Tooltip> */}
           {/* Add Employee Button */}
           {(role === "admin" || role === "hr") && (
             <Tooltip label="Add Employee" openDelay={500}>
               <Box display="block">
-                <AddEmployeeButton />
+                {/* FIX: Changed to a lowercase 'e' to match the import */}
+                <AddemployeeButton />
               </Box>
             </Tooltip>
           )}
-
-          {/* Calendar Icon */}
         </Flex>
       </Flex>
     </Box>
