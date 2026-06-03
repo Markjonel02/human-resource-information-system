@@ -90,7 +90,7 @@ import {
   FaTransgender,
 } from "react-icons/fa";
 import axiosInstance from "../lib/axiosInstance";
-import AddEmployeeButton from "../components/AddEmployeeButton";
+import AddEmployeeButton from "../components/AddempButton";
 import useDebounce from "../hooks/useDebounce";
 import { useAuth } from "../context/AuthContext";
 
@@ -342,7 +342,7 @@ const Employees = () => {
     // Compare fields to check for changes (exclude sensitive fields from client-side comparison)
     const fieldsToCheck = Object.keys(updates).filter(
       (field) =>
-        field !== "password" && field !== "role" && field !== "salaryRate"
+        field !== "password" && field !== "role" && field !== "salaryRate",
     );
 
     const hasBasicChanges = fieldsToCheck.some((key) => {
@@ -460,7 +460,7 @@ const Employees = () => {
             "Content-Type": "application/json",
           },
           withCredentials: true,
-        }
+        },
       );
 
       toast({
@@ -509,7 +509,7 @@ const Employees = () => {
             `/employees/${selectedEmployee.id}`,
             {
               headers: { Authorization: `Bearer ${token}` },
-            }
+            },
           );
 
           const employeeData = response.data;
@@ -532,7 +532,7 @@ const Employees = () => {
           setBirthday(
             employeeData.birthday
               ? formatDateForInput(employeeData.birthday)
-              : ""
+              : "",
           );
           setNationality(employeeData.nationality || "");
           setCivilStatus(employeeData.civilStatus || "");
@@ -565,7 +565,7 @@ const Employees = () => {
           setDependantBirthdate(
             employeeData.dependentbirthDate
               ? formatDateForInput(employeeData.dependentbirthDate)
-              : ""
+              : "",
           );
           setEmployerName(employeeData.employerName || "");
           setEmployerAddress(employeeData.employeeAddress || "");
@@ -748,7 +748,7 @@ const Employees = () => {
       employee.department
         .toLowerCase()
         .includes(debouncedSearchTerm.toLowerCase()) ||
-      employee.role.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+      employee.role.toLowerCase().includes(debouncedSearchTerm.toLowerCase()),
   );
 
   const renderPagination = () => (
@@ -877,7 +877,7 @@ const Employees = () => {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          }
+          },
         );
 
         // Handle case where some admins were protected
@@ -953,7 +953,7 @@ const Employees = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       toast({
@@ -1338,7 +1338,7 @@ const Employees = () => {
                       value={middleInitial}
                       onChange={(e) =>
                         setMiddleInitial(
-                          e.target.value.toUpperCase().slice(0, 1)
+                          e.target.value.toUpperCase().slice(0, 1),
                         )
                       }
                       maxLength={1}
@@ -2140,7 +2140,7 @@ const Employees = () => {
                           >
                             {`${fullEmployeeDetails.department.substring(
                               0,
-                              10
+                              10,
                             )}...` || "N/A"}
                           </Tooltip>
                         </Text>
@@ -2234,7 +2234,7 @@ const Employees = () => {
                         <Text ml={2}>
                           {`${fullEmployeeDetails.philhealthNumber.substring(
                             0,
-                            5
+                            5,
                           )}...` || "N/A"}
                         </Text>
                       </Flex>
@@ -2255,7 +2255,7 @@ const Employees = () => {
                           >
                             {`${fullEmployeeDetails.presentAddress.substring(
                               0,
-                              10
+                              10,
                             )}...` || "N/A"}
                           </Tooltip>
                         </Text>
@@ -2289,7 +2289,7 @@ const Employees = () => {
                           >
                             {`${fullEmployeeDetails.corporaterank.substring(
                               0,
-                              10
+                              10,
                             )}...` || "N/A"}
                           </Tooltip>
                         </Text>
@@ -2304,7 +2304,7 @@ const Employees = () => {
                           >
                             {`${fullEmployeeDetails.religion.substring(
                               0,
-                              5
+                              5,
                             )}...` || "N/A"}
                           </Tooltip>
                         </Text>
@@ -2320,7 +2320,7 @@ const Employees = () => {
                             {fullEmployeeDetails.achievements
                               ? `${fullEmployeeDetails.achievements.substring(
                                   0,
-                                  5
+                                  5,
                                 )}...`
                               : "N/A"}
                           </Tooltip>
