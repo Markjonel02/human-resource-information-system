@@ -5,8 +5,12 @@ const {
   updateAnnouncement,
   deleteAnnouncement,
   bulkDeleteAnnouncements,
+
+  // Automatic Schedulers
   initializeAutomaticSchedulers,
-  triggerBirthdayCheck,
+  autoBirthdayCheck,
+  removeExpiredAnnouncements,
+  getTodaysBirthdays,
 } = require("../../../controllers/Admin/announcements/announcementsController");
 const express = require("express");
 const router = express.Router();
@@ -37,28 +41,28 @@ router.get("/get-announcement/:id", getAnnouncementById);
 router.post(
   "/create-announcements",
   authorizeRoles("admin"),
-  createAnnouncement
+  createAnnouncement,
 );
 
 // Update announcement (Admin only)
 router.put(
   "/update-announcement/:id",
   authorizeRoles("admin"),
-  updateAnnouncement
+  updateAnnouncement,
 );
 
 // Delete single announcement (Admin only)
 router.delete(
   "/delete-announcement/:id",
   authorizeRoles("admin"),
-  deleteAnnouncement
+  deleteAnnouncement,
 );
 
 // Bulk delete announcements (Admin only)
 router.post(
   "/bulk-delete-announcements",
   authorizeRoles("admin"),
-  bulkDeleteAnnouncements
+  bulkDeleteAnnouncements,
 );
 
 // =====================
@@ -69,7 +73,8 @@ router.post(
 router.post(
   "/trigger-birthday-check",
   authorizeRoles("admin"),
-  triggerBirthdayCheck
+  autoBirthdayCheck,
 );
 
+router.get("/birthdays/today", getTodaysBirthdays);
 module.exports = router;

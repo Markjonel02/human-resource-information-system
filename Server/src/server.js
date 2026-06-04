@@ -31,6 +31,9 @@ const payrollRoutes = require("./routes/payrollRoutes/payrollRoutes.js");
 const employeePayrollRoutes = require("./routes/payrollRoutes/employeePayrollRoutes.js");
 const Dtr = require("./routes/DtrRoutes/DtrRoutes.js");
 const SettngsRoutes = require("./routes/settings/settingsRoutes.js");
+const {
+  initializeAutomaticSchedulers,
+} = require("./controllers/Admin/announcements/announcementsController");
 // =======================
 //   INITIALIZATION
 // =======================
@@ -61,13 +64,13 @@ app.use(
   (req, res, next) => {
     res.header(
       "Access-Control-Allow-Origin",
-      process.env.CLIENT_ORIGIN || "http://localhost:5173"
+      process.env.CLIENT_ORIGIN || "http://localhost:5173",
     );
     res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
     next();
   },
-  express.static(global.uploadsDir)
+  express.static(global.uploadsDir),
 );
 
 // =======================
@@ -123,6 +126,8 @@ connectDB()
       console.log(`✅ Server running on port ${port}`);
       console.log(`✅ Database connected successfully.`);
       console.log(`✅ Uploads directory: ${global.uploadsDir}`);
+      //automatically send birthday announcements emails at 8:00 AM server
+      initializeAutomaticSchedulers();
     });
   })
   .catch((err) => {
