@@ -12,9 +12,6 @@ const createAnnouncement = async (req, res) => {
   try {
     const { title, content, type, expiresAt, priority } = req.body;
 
-    console.log("DEBUG: req.user =", req.user);
-    console.log("DEBUG: req.body =", req.body);
-
     if (!title || !title.trim()) {
       return res.status(400).json({
         success: false,
@@ -64,7 +61,6 @@ const createAnnouncement = async (req, res) => {
     }
 
     if (!req.user || !req.user._id) {
-      console.error("ERROR: Authentication failed - req.user is:", req.user);
       return res.status(401).json({
         success: false,
         message:
@@ -102,6 +98,15 @@ const createAnnouncement = async (req, res) => {
 // Get All Announcements
 const getAnnouncements = async (req, res) => {
   try {
+    // 🌟 AUTO-DETECT TRIGGER:
+    // Silently check and create birthdays right before we fetch the list.
+    // This removes the need for ANY frontend trigger button.
+    try {
+      await autoBirthdayCheck();
+    } catch (autoErr) {
+      console.error("Auto birthday check failed during fetch:", autoErr);
+    }
+
     const { type, isActive } = req.query;
     const filter = {};
 
@@ -142,7 +147,7 @@ const getAnnouncementById = async (req, res) => {
 
     const announcement = await Announcement.findById(id).populate(
       "postedBy",
-      "name email"
+      "name email",
     );
 
     if (!announcement) {
@@ -188,7 +193,7 @@ const updateAnnouncement = async (req, res) => {
         priority,
         isActive,
       },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     ).populate("postedBy", "name email");
 
     if (!announcement) {
@@ -266,8 +271,6 @@ const bulkDeleteAnnouncements = async (req, res) => {
       });
     }
 
-    console.log(`🗑️ Attempting to delete ${ids.length} announcements:`, ids);
-
     const result = await Announcement.deleteMany({
       _id: { $in: ids },
     });
@@ -279,8 +282,6 @@ const bulkDeleteAnnouncements = async (req, res) => {
       });
     }
 
-    console.log(`✅ Successfully deleted ${result.deletedCount} announcements`);
-
     res.status(200).json({
       success: true,
       message: `${result.deletedCount} announcement(s) deleted successfully`,
@@ -289,7 +290,6 @@ const bulkDeleteAnnouncements = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error bulk deleting announcements:", error);
     res.status(500).json({
       success: false,
       message: "Error deleting announcements",
@@ -299,7 +299,7 @@ const bulkDeleteAnnouncements = async (req, res) => {
 };
 
 // =====================
-// AUTOMATIC BIRTHDAY AUTOMATION (RUNS AUTOMATICALLY)
+// AUTOMATIC BIRTHDAY AUTOMATION
 // =====================
 
 // Nodemailer transporter
@@ -315,18 +315,15 @@ const transporter = nodemailer.createTransport({
 const removeExpiredAnnouncements = async () => {
   try {
     const now = new Date();
-
-    // Delete all announcements where expiresAt is in the past
     const result = await Announcement.deleteMany({
       expiresAt: { $lt: now },
     });
 
     if (result.deletedCount > 0) {
       console.log(
-        `✅ Auto-cleanup: Removed ${result.deletedCount} expired announcement(s)`
+        `✅ Auto-cleanup: Removed ${result.deletedCount} expired announcement(s)`,
       );
     }
-
     return result.deletedCount;
   } catch (error) {
     console.error("❌ Error removing expired announcements:", error);
@@ -339,7 +336,6 @@ const createBirthdayAnnouncement = async (employee) => {
     const fullName = `${employee.firstname} ${employee.lastname}`;
     const birthdayMessage = `🎉 Happy Birthday! 🎂\n\nWishing ${fullName} a wonderful birthday filled with joy, health, and success! We're grateful to have you as part of our team.`;
 
-    // Check if birthday announcement already exists today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -354,8 +350,9 @@ const createBirthdayAnnouncement = async (employee) => {
       },
     });
 
+    // If it exists, return it with isNew: false so we don't spam emails
     if (existingAnnouncement) {
-      return existingAnnouncement;
+      return { announcement: existingAnnouncement, isNew: false };
     }
 
     const announcement = new Announcement({
@@ -365,20 +362,19 @@ const createBirthdayAnnouncement = async (employee) => {
       postedBy: employee._id,
       priority: 1,
       isActive: true,
-      expiresAt: tomorrow, // Expires at end of today
+      expiresAt: tomorrow,
     });
 
     await announcement.save();
     await announcement.populate(
       "postedBy",
-      "firstname lastname employeeEmail role"
+      "firstname lastname employeeEmail role",
     );
 
-    console.log(`✅ Birthday announcement created for ${fullName}`);
-
-    return announcement;
+    return { announcement, isNew: true };
   } catch (error) {
     console.error("Error creating birthday announcement:", error);
+    return null;
   }
 };
 
@@ -386,21 +382,17 @@ const createBirthdayAnnouncement = async (employee) => {
 const sendBirthdayEmail = async (employee) => {
   try {
     const fullName = `${employee.firstname} ${employee.lastname}`;
-
     const htmlContent = `
       <html>
         <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">
           <div style="background-color: white; border-radius: 10px; padding: 30px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
             <h1 style="color: #ff6b6b; text-align: center; font-size: 32px;">🎉 Happy Birthday! 🎂</h1>
-            
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
               <p style="font-size: 18px; margin: 0;">Dear ${fullName},</p>
             </div>
-
             <p style="font-size: 16px; color: #555; line-height: 1.6; text-align: center;">
               We're thrilled to celebrate your special day today! 🥳
             </p>
-
             <p style="font-size: 16px; color: #555; line-height: 1.6;">
               Wishing you a wonderful birthday filled with:
             </p>
@@ -410,17 +402,14 @@ const sendBirthdayEmail = async (employee) => {
               <li>🎯 Success in all your endeavors</li>
               <li>❤️ Love and appreciation from your colleagues</li>
             </ul>
-
             <p style="font-size: 15px; color: #555; line-height: 1.6;">
               Thank you for being a valuable and wonderful member of our team!
             </p>
-
             <div style="background-color: #f0f8ff; border-left: 4px solid #667eea; padding: 15px; margin: 20px 0; border-radius: 4px;">
               <p style="font-size: 14px; color: #333; margin: 0;">
                 <strong>📢 Your Birthday Announcement</strong> has been posted to the announcements page!
               </p>
             </div>
-
             <hr style="border: none; border-top: 2px solid #ff6b6b; margin: 20px 0;">
             <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
               <strong>Your Company Name | HR Department</strong>
@@ -444,15 +433,13 @@ const sendBirthdayEmail = async (employee) => {
   }
 };
 
-// Automatic Birthday Check (Runs at 12:00 AM midnight every day)
+// Automatic Birthday Check
 const autoBirthdayCheck = async () => {
   try {
     const User = mongoose.model("user");
     const today = new Date();
     const month = String(today.getMonth() + 1).padStart(2, "0");
     const day = String(today.getDate()).padStart(2, "0");
-
-    console.log(`🎂 Checking for birthdays on ${day}/${month}...`);
 
     const employees = await User.find({
       $expr: {
@@ -464,26 +451,24 @@ const autoBirthdayCheck = async () => {
     });
 
     if (employees.length > 0) {
-      console.log(
-        `🎂 Auto-Birthday: Found ${employees.length} birthday(s) today!`
-      );
-
       for (const employee of employees) {
         try {
-          await createBirthdayAnnouncement(employee);
-          await sendBirthdayEmail(employee);
-          console.log(
-            `✅ Auto-Birthday: Birthday celebration sent to ${employee.firstname} ${employee.lastname}`
-          );
+          const result = await createBirthdayAnnouncement(employee);
+
+          // Safety Check: Only send the email if the announcement was just created right now
+          if (result && result.isNew) {
+            await sendBirthdayEmail(employee);
+            console.log(
+              `✅ Auto-Birthday: Celebration created & sent to ${employee.firstname} ${employee.lastname}`,
+            );
+          }
         } catch (error) {
           console.error(
             `❌ Auto-Birthday Error for ${employee.firstname}:`,
-            error
+            error,
           );
         }
       }
-    } else {
-      console.log("ℹ️ No birthdays today");
     }
   } catch (error) {
     console.error("❌ Auto-Birthday Check Error:", error);
@@ -492,7 +477,7 @@ const autoBirthdayCheck = async () => {
 
 // Initialize All Automatic Schedulers
 const initializeAutomaticSchedulers = () => {
-  // Check for birthdays every day at 12:00 AM (midnight)
+  // Check for birthdays every day at 12:00 AM (midnight) just in case nobody logs in to trigger it
   cron.schedule("0 0 * * *", () => {
     console.log("⏰ Auto Birthday Check: 12:00 AM (Midnight)");
     autoBirthdayCheck();
@@ -504,24 +489,35 @@ const initializeAutomaticSchedulers = () => {
     removeExpiredAnnouncements();
   });
 
-  console.log("✅ Automatic Schedulers Initialized:");
-  console.log("   🎂 Birthday Check: Every day at 12:00 AM (Midnight)");
-  console.log("   🗑️  Cleanup Expired: Every hour on the hour");
+  console.log("✅ Automatic Schedulers Initialized");
 };
 
-// Manual trigger endpoints (Optional - for admin testing only)
-const triggerBirthdayCheck = async (req, res) => {
+// Get Today's Birthdays (For Frontend Banner)
+const getTodaysBirthdays = async (req, res) => {
   try {
-    console.log("🔔 Manual birthday check triggered by admin");
-    await autoBirthdayCheck();
+    const User = mongoose.model("user");
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+
+    const birthdayCelebrants = await User.find({
+      $expr: {
+        $and: [
+          { $eq: [{ $month: "$birthday" }, parseInt(month)] },
+          { $eq: [{ $dayOfMonth: "$birthday" }, parseInt(day)] },
+        ],
+      },
+    }).select("firstname lastname employeeEmail role");
+
     res.status(200).json({
       success: true,
-      message: "Birthday check completed",
+      count: birthdayCelebrants.length,
+      data: birthdayCelebrants,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Error checking birthdays",
+      message: "Error fetching today's birthdays",
       error: error.message,
     });
   }
@@ -544,7 +540,5 @@ module.exports = {
   initializeAutomaticSchedulers,
   autoBirthdayCheck,
   removeExpiredAnnouncements,
-
-  // Manual Triggers (Optional)
-  triggerBirthdayCheck,
+  getTodaysBirthdays,
 };

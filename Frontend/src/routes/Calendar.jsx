@@ -17,7 +17,6 @@ import {
   useColorModeValue,
   Avatar,
   AvatarGroup,
-  Tooltip,
 } from "@chakra-ui/react";
 import { AddIcon } from "@chakra-ui/icons";
 import FullCalendar from "@fullcalendar/react";
@@ -38,6 +37,7 @@ const Calendar = () => {
   useEffect(() => {
     loadEvents();
   }, []);
+
   const headerBg = useColorModeValue("gray.100", "gray.700");
   const rowHover = useColorModeValue("gray.50", "gray.600");
 
@@ -47,8 +47,10 @@ const Calendar = () => {
 
       const mappedEvents = res.data.map((e) => {
         let bgColor = "#3182CE"; // default blue
-        if (e.priority === "high") bgColor = "#E53E3E"; // red
-        else if (e.priority === "medium") bgColor = "#DD6B20"; // orange
+        if (e.priority === "high")
+          bgColor = "#E53E3E"; // red
+        else if (e.priority === "medium")
+          bgColor = "#DD6B20"; // orange
         else if (e.priority === "low") bgColor = "#38A169"; // green
 
         return {
@@ -70,15 +72,26 @@ const Calendar = () => {
       setEvents(mappedEvents);
     } catch (err) {
       console.error("Load events error:", err);
-      /*  toast({ title: "Error loading events", status: "error" }); */
+      /* toast({ title: "Error loading events", status: "error" }); */
     }
   };
 
+  // Triggered when the "Add Event" button is clicked
   const handleAddClick = () => {
     setSelectedEvent(null);
     setIsModalOpen(true);
   };
 
+  // ✅ NEW: Triggered when an empty date block on the calendar is clicked
+  const handleDateClick = (info) => {
+    setSelectedEvent(null); // Clears any previously selected event so we get a blank form
+    setIsModalOpen(true);
+
+    // Note: If you want to auto-fill the date in your EventModal,
+    // you can pass `info.dateStr` into state and send it as a prop to your modal!
+  };
+
+  // Triggered when an EXISTING event is clicked on the calendar
   const handleEventClick = (info) => {
     setSelectedEvent(info.event);
     setIsModalOpen(true);
@@ -164,9 +177,12 @@ const Calendar = () => {
               right: "dayGridMonth,timeGridWeek,timeGridDay",
             }}
             initialView="dayGridMonth"
-            selectable
+            selectable={true}
             events={events}
-            eventClick={handleEventClick}
+            eventClick={handleEventClick} /* Handles clicking EXISTING events */
+            dateClick={
+              handleDateClick
+            } /* ✅ NEW: Handles clicking EMPTY dates */
             height="100vh"
           />
         </Box>
@@ -191,7 +207,7 @@ const Calendar = () => {
                 <Th>Type</Th>
                 <Th>Priority</Th>
                 <Th>Participants</Th>
-                <Th>Mark Done</Th> {/* ✅ New column */}
+                <Th>Mark Done</Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -217,10 +233,10 @@ const Calendar = () => {
                         e.extendedProps.type === "meeting"
                           ? "purple"
                           : e.extendedProps.type === "call"
-                          ? "blue"
-                          : e.extendedProps.type === "review"
-                          ? "orange"
-                          : "gray"
+                            ? "blue"
+                            : e.extendedProps.type === "review"
+                              ? "orange"
+                              : "gray"
                       }
                     >
                       {e.extendedProps.type}
@@ -235,8 +251,8 @@ const Calendar = () => {
                         e.extendedProps.priority === "high"
                           ? "red"
                           : e.extendedProps.priority === "medium"
-                          ? "yellow"
-                          : "green"
+                            ? "yellow"
+                            : "green"
                       }
                     >
                       {e.extendedProps.priority}
@@ -272,7 +288,7 @@ const Calendar = () => {
                         <Text fontSize="xs" color="gray.500">
                           {e.extendedProps.markDoneAt
                             ? new Date(
-                                e.extendedProps.markDoneAt
+                                e.extendedProps.markDoneAt,
                               ).toLocaleString()
                             : ""}
                         </Text>
@@ -284,7 +300,7 @@ const Calendar = () => {
                         onClick={async () => {
                           try {
                             await axiosInstance.put(
-                              `/calendar/mark-done/${e.id}`
+                              `/calendar/mark-done/${e.id}`,
                             );
                             toast({
                               title: "Event marked as done",

@@ -1,16 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
-  Card,
-  CardBody,
-  CardHeader,
   Heading,
   Text,
   Badge,
   HStack,
   VStack,
   Button,
-  Divider,
   Icon,
   AlertDialog,
   AlertDialogBody,
@@ -20,7 +16,6 @@ import {
   AlertDialogOverlay,
   useDisclosure,
   useToast,
-  Spinner,
   Checkbox,
   Menu,
   MenuButton,
@@ -36,6 +31,7 @@ import {
 } from "@chakra-ui/react";
 import { DeleteIcon, EditIcon, CalendarIcon } from "@chakra-ui/icons";
 import { MdCake } from "react-icons/md";
+import { BsThreeDotsVertical } from "react-icons/bs";
 import axiosInstance from "../../../lib/axiosInstance";
 import PartyPopper from "/partypopper.gif";
 
@@ -46,6 +42,7 @@ const AnnouncementCard = ({
   onDelete,
   isSelected,
   onSelectChange,
+  todaysBirthdays = [], // NEW: Accepts the array of everyone who has a birthday today
 }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -56,7 +53,33 @@ const AnnouncementCard = ({
   const modalBg = useColorModeValue("white", "gray.700");
   const textColor = useColorModeValue("gray.800", "white");
 
-  // Get color based on type
+  if (!announcement) return null;
+
+  const isBirthday = announcement.type === "birthday";
+
+  useEffect(() => {
+    if (isBirthday) {
+      setShowBirthdayGreeting(true);
+    }
+  }, [isBirthday]);
+
+  // Dynamically format names for 1, 2, or 3+ people
+  const getCelebrantNames = () => {
+    if (isBirthday && todaysBirthdays.length > 0) {
+      const names = todaysBirthdays.map((b) => b.firstname);
+      if (names.length === 1) return names[0];
+      if (names.length === 2) return `${names[0]} & ${names[1]}`;
+      return `${names.slice(0, -1).join(", ")}, & ${names[names.length - 1]}`;
+    }
+
+    // Fallback if the array isn't provided
+    if (announcement.postedBy?.firstname) {
+      return announcement.postedBy.firstname;
+    }
+    const match = announcement.title.match(/Happy Birthday,\s*([^!]+)/i);
+    return match ? match[1].trim() : "Celebrant";
+  };
+
   const getTypeColor = (type) => {
     const colors = {
       birthday: "purple",
@@ -67,32 +90,28 @@ const AnnouncementCard = ({
     return colors[type] || "gray";
   };
 
-  // Get priority label
   const getPriorityLabel = (priority) => {
     const labels = { 1: "High", 2: "Medium", 3: "Low" };
     return labels[priority] || "Low";
   };
 
-  // Get priority color
   const getPriorityColor = (priority) => {
     const colors = { 1: "red", 2: "yellow", 3: "green" };
     return colors[priority] || "gray";
   };
 
-  // Format date
   const formatDate = (dateString) => {
+    if (!dateString) return "";
     const options = { year: "numeric", month: "short", day: "numeric" };
     return new Date(dateString).toLocaleDateString("en-US", options);
   };
 
-  // Handle delete confirmation
   const handleDeleteConfirm = async () => {
     setIsDeleting(true);
     try {
       await onDelete(announcement._id);
       onClose();
     } catch (error) {
-      console.error("Delete error:", error);
       toast({
         title: "Error",
         description: "Failed to delete announcement",
@@ -105,13 +124,11 @@ const AnnouncementCard = ({
     }
   };
 
-  // Handle delete birthday
   const handleDeleteBirthday = async () => {
     try {
       await axiosInstance.delete(
-        `/announcements/delete-announcement/${announcement._id}`
+        `/announcements/delete-announcement/${announcement._id}`,
       );
-
       toast({
         title: "✅ Birthday Announcement Removed",
         description: "The birthday announcement has been deleted.",
@@ -119,7 +136,6 @@ const AnnouncementCard = ({
         duration: 3,
         isClosable: true,
       });
-
       await onDelete(announcement._id);
       setShowBirthdayGreeting(false);
     } catch (error) {
@@ -132,8 +148,6 @@ const AnnouncementCard = ({
       });
     }
   };
-
-  const isBirthday = announcement.type === "birthday";
 
   return (
     <>
@@ -160,7 +174,6 @@ const AnnouncementCard = ({
               fontSize="xl"
               color={textColor}
             />
-
             <Flex
               direction="column"
               align="center"
@@ -169,10 +182,10 @@ const AnnouncementCard = ({
               px={8}
               position="relative"
             >
-              {/* Party Popper GIFs - Left */}
+              {/* Party Popper GIFs */}
               <Box
                 position="absolute"
-                left={-50}
+                left={-20}
                 top="50%"
                 transform="translateY(-50%)"
                 width="150px"
@@ -184,11 +197,9 @@ const AnnouncementCard = ({
                   opacity: 0.9,
                 }}
               />
-
-              {/* Party Popper GIFs - Right */}
               <Box
                 position="absolute"
-                right={-50}
+                right={-20}
                 top="50%"
                 transform="translateY(-50%)"
                 width="150px"
@@ -202,7 +213,6 @@ const AnnouncementCard = ({
                 }}
               />
 
-              {/* Content */}
               <VStack spacing={4} align="center" zIndex={1}>
                 <Heading
                   as="h1"
@@ -214,12 +224,24 @@ const AnnouncementCard = ({
                   🎉 Happy Birthday! 🎉
                 </Heading>
 
-                <Text fontSize="3xl" fontWeight="bold" color={textColor}>
-                  {announcement.postedBy?.firstname}
+                {/* Dynamically grouped names render here */}
+                <Text
+                  fontSize="3xl"
+                  fontWeight="bold"
+                  color={textColor}
+                  textAlign="center"
+                >
+                  {getCelebrantNames()}
                 </Text>
 
-                <Text fontSize="lg" color="gray.500" fontStyle="italic">
-                  Wishing you a wonderful day! 🎂
+                <Text
+                  fontSize="lg"
+                  color="gray.500"
+                  fontStyle="italic"
+                  textAlign="center"
+                  px={4}
+                >
+                  {announcement.content || "Wishing you a wonderful day! 🎂"}
                 </Text>
               </VStack>
             </Flex>
@@ -239,7 +261,6 @@ const AnnouncementCard = ({
             <AlertDialogHeader fontSize="lg" fontWeight="bold" color="red.600">
               🗑️ Delete Announcement
             </AlertDialogHeader>
-
             <AlertDialogBody color="gray.700">
               <VStack align="start" spacing={2}>
                 <Text fontWeight="600">
@@ -262,7 +283,6 @@ const AnnouncementCard = ({
                 </Text>
               </VStack>
             </AlertDialogBody>
-
             <AlertDialogFooter>
               <Button
                 ref={cancelRef}
@@ -286,7 +306,7 @@ const AnnouncementCard = ({
         </AlertDialogOverlay>
       </AlertDialog>
 
-      {/* Card */}
+      {/* Card Body */}
       <Box
         bg={useColorModeValue("white", "gray.600")}
         borderRadius="8px"
@@ -300,7 +320,6 @@ const AnnouncementCard = ({
         }}
         w="100%"
       >
-        {/* Top Section with Badges and Actions */}
         <HStack justify="space-between" mb={3} wrap="wrap" spacing={3}>
           <HStack spacing={3} wrap="wrap">
             {isAdmin && (
@@ -313,7 +332,6 @@ const AnnouncementCard = ({
                 size="lg"
               />
             )}
-
             <Badge
               colorScheme={getTypeColor(announcement.type)}
               variant="subtle"
@@ -337,20 +355,29 @@ const AnnouncementCard = ({
             </Badge>
           </HStack>
 
-          {/* Admin Actions */}
           {isAdmin && (
             <HStack spacing={2}>
               {isBirthday ? (
                 <Menu>
-                  <MenuButton as={IconButton} variant="ghost" size="sm" />
+                  <MenuButton
+                    as={IconButton}
+                    icon={<BsThreeDotsVertical />}
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Birthday options"
+                  />
                   <MenuList>
                     <MenuItem
                       icon={<MdCake />}
                       onClick={() => setShowBirthdayGreeting(true)}
                     >
-                      Birthday Greetings
+                      View Birthday Card
                     </MenuItem>
-                    <MenuItem onClick={handleDeleteBirthday} color="red.500">
+                    <MenuItem
+                      onClick={handleDeleteBirthday}
+                      color="red.500"
+                      icon={<DeleteIcon />}
+                    >
                       Remove Birthday
                     </MenuItem>
                   </MenuList>
@@ -365,10 +392,7 @@ const AnnouncementCard = ({
                     fontWeight="500"
                     leftIcon={<EditIcon />}
                     onClick={() => onEdit(announcement)}
-                    _hover={{
-                      bg: "transparent",
-                      color: "blue.600",
-                    }}
+                    _hover={{ bg: "transparent", color: "blue.600" }}
                   >
                     Edit
                   </Button>
@@ -380,10 +404,7 @@ const AnnouncementCard = ({
                     fontWeight="500"
                     leftIcon={<DeleteIcon />}
                     onClick={onOpen}
-                    _hover={{
-                      bg: "transparent",
-                      color: "red.600",
-                    }}
+                    _hover={{ bg: "transparent", color: "red.600" }}
                   >
                     Delete
                   </Button>
@@ -393,22 +414,20 @@ const AnnouncementCard = ({
           )}
         </HStack>
 
-        {/* Title */}
         <Heading size="sm" color={textColor} mb={2} fontWeight="700">
           {announcement.title}
         </Heading>
 
-        {/* Content */}
         <Text
           color={useColorModeValue("gray.700", "gray.300")}
           fontSize="sm"
           lineHeight="1.5"
           mb={4}
+          whiteSpace="pre-wrap"
         >
           {announcement.content}
         </Text>
 
-        {/* Expiration Info */}
         {announcement.expiresAt && (
           <VStack align="start" mb={3} spacing={1}>
             <Text
@@ -420,7 +439,6 @@ const AnnouncementCard = ({
           </VStack>
         )}
 
-        {/* Footer */}
         <HStack
           spacing={4}
           fontSize="xs"
@@ -436,7 +454,7 @@ const AnnouncementCard = ({
               {announcement.postedBy?.firstname &&
               announcement.postedBy?.lastname
                 ? `${announcement.postedBy.firstname} ${announcement.postedBy.lastname}`
-                : announcement.postedBy?.name || "Unknown"}
+                : announcement.postedBy?.name || "Automated System"}
               {announcement.postedBy?.role &&
                 ` (${announcement.postedBy.role})`}
             </Text>

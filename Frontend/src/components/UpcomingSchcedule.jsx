@@ -29,6 +29,7 @@ import {
   FaRegEye,
   FaCheck,
 } from "react-icons/fa";
+import { MdRefresh } from "react-icons/md";
 import axiosInstance from "../lib/axiosInstance";
 import ReusableModal from "./EmployeeCalendarModalView"; // View modal
 import MarkAsDoneButton from "./MarkAsDoneButton"; // Mark as done button
@@ -118,7 +119,7 @@ const UpcomingSchedule = () => {
     try {
       setLoading(true);
       const response = await axiosInstance.get(
-        "/employeeCalendar/employee-get-events"
+        "/employeeCalendar/employee-get-events",
       );
       if (!response || !response.data) {
         throw new Error("No data from server");
@@ -167,14 +168,13 @@ const UpcomingSchedule = () => {
         <Spacer />
         <HStack spacing={2}>
           <Button
-            leftIcon={<FaCalendarAlt />}
             size="sm"
             variant="outline"
             colorScheme="gray"
             fontSize="sm"
             onClick={getSchedules}
           >
-            Refresh
+            <MdRefresh />
           </Button>
         </HStack>
       </Flex>
@@ -237,7 +237,7 @@ const UpcomingSchedule = () => {
                 >
                   {getInitials(
                     schedule.createdBy?.firstName,
-                    schedule.createdBy?.lastName
+                    schedule.createdBy?.lastName,
                   )}
                 </Avatar>
 
@@ -267,7 +267,7 @@ const UpcomingSchedule = () => {
                       <Text>
                         {schedule.endDate
                           ? `${formatDate(schedule.date)} - ${formatDate(
-                              schedule.endDate
+                              schedule.endDate,
                             )}`
                           : formatDate(schedule.date)}
                       </Text>

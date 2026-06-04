@@ -17,29 +17,24 @@ import PartyPopper from "/partypopper.gif";
 
 const BirthdayPopup = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [birthdayEmployee, setBirthdayEmployee] = useState(null);
+  const [birthdayEmployees, setBirthdayEmployees] = useState([]); // Changed to an array
   const [hasShown, setHasShown] = useState(false);
 
   const modalBg = useColorModeValue("white", "gray.700");
   const textColor = useColorModeValue("gray.800", "white");
 
-  // Check for today's birthdays
+  // Fetch all of today's birthdays directly
   useEffect(() => {
     const checkTodayBirthday = async () => {
       try {
         const response = await axiosInstance.get(
-          "/announcements/get-announcements?type=birthday"
+          "/announcements/birthdays/today",
         );
 
-        const announcementsData = response.data.data || response.data || [];
-        const todayBirthday = announcementsData.find(
-          (ann) =>
-            ann.type === "birthday" &&
-            new Date(ann.createdAt).toDateString() === new Date().toDateString()
-        );
+        const birthdays = response.data.data || [];
 
-        if (todayBirthday && !hasShown) {
-          setBirthdayEmployee(todayBirthday);
+        if (birthdays.length > 0 && !hasShown) {
+          setBirthdayEmployees(birthdays);
           setHasShown(true);
           onOpen();
 
@@ -56,7 +51,16 @@ const BirthdayPopup = () => {
     checkTodayBirthday();
   }, [hasShown, onOpen, onClose]);
 
-  if (!birthdayEmployee) return null;
+  // If nobody has a birthday today, don't render the modal at all
+  if (birthdayEmployees.length === 0) return null;
+
+  // Dynamically format names for 1, 2, or 3+ people
+  const getCelebrantNames = () => {
+    const names = birthdayEmployees.map((emp) => emp.firstname);
+    if (names.length === 1) return names[0];
+    if (names.length === 2) return `${names[0]} & ${names[1]}`;
+    return `${names.slice(0, -1).join(", ")}, & ${names[names.length - 1]}`;
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="xl" isCentered>
@@ -130,11 +134,22 @@ const BirthdayPopup = () => {
               🎉 Happy Birthday! 🎉
             </Heading>
 
-            <Text fontSize="3xl" fontWeight="bold" color={textColor}>
-              {birthdayEmployee.postedBy?.firstname}
+            {/* Display formatted names dynamically */}
+            <Text
+              fontSize="4xl"
+              fontWeight="bold"
+              color={textColor}
+              textAlign="center"
+            >
+              {getCelebrantNames()}
             </Text>
 
-            <Text fontSize="lg" color="gray.500" fontStyle="italic">
+            <Text
+              fontSize="lg"
+              color="gray.500"
+              fontStyle="italic"
+              textAlign="center"
+            >
               Wishing you a wonderful day! 🎂
             </Text>
           </VStack>

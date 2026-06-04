@@ -34,6 +34,7 @@ import {
   AlertDialogOverlay,
 } from "@chakra-ui/react";
 import { AddIcon, BellIcon, SearchIcon, DeleteIcon } from "@chakra-ui/icons";
+import { MdCake } from "react-icons/md";
 import axiosInstance from "../../../lib/axiosInstance";
 import AnnouncementForm from "../../../components/Admin_components/announcements/AnnouncementForm";
 import AnnouncementCard from "../../../components/Admin_components/announcements/AnnouncementCard";
@@ -41,6 +42,7 @@ import AnnouncementCard from "../../../components/Admin_components/announcements
 const Announcements = () => {
   const [announcements, setAnnouncements] = useState([]);
   const [filteredAnnouncements, setFilteredAnnouncements] = useState([]);
+  const [todaysBirthdays, setTodaysBirthdays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -48,8 +50,7 @@ const Announcements = () => {
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const [isBirthdayCheckTriggered, setIsBirthdayCheckTriggered] =
-    useState(false);
+
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
@@ -59,17 +60,13 @@ const Announcements = () => {
   } = useDisclosure();
   const cancelRef = React.useRef();
 
+  // Fetch standard announcements
   const fetchAnnouncements = async () => {
     setLoading(true);
     try {
-      console.log("🔄 Fetching announcements...");
-
       const response = await axiosInstance.get(
-        "/announcements/get-announcements"
+        "/announcements/get-announcements",
       );
-
-      console.log("✅ Response:", response.data);
-
       const announcementsData = response.data.data || response.data || [];
 
       if (!Array.isArray(announcementsData)) {
@@ -79,12 +76,7 @@ const Announcements = () => {
       setAnnouncements(announcementsData);
       setFilteredAnnouncements(announcementsData);
       setSelectedIds(new Set());
-
-      console.log(
-        `✅ Successfully fetched ${announcementsData.length} announcements`
-      );
     } catch (error) {
-      console.error("❌ Fetch error:", error);
       toast({
         title: "Error fetching announcements",
         description: error.response?.data?.message || error.message,
@@ -97,22 +89,42 @@ const Announcements = () => {
     }
   };
 
+  // Fetch today's birthdays specifically for the top banner
+  const fetchTodaysBirthdays = async () => {
+    try {
+      const response = await axiosInstance.get(
+        "/announcements/birthdays/today",
+      );
+      if (response.data && response.data.success) {
+        setTodaysBirthdays(response.data.data || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch today's birthdays", error);
+    }
+  };
+
+  // Run initial fetches on load
   useEffect(() => {
-    fetchAnnouncements();
+    const initializePage = async () => {
+      await fetchTodaysBirthdays();
+      await fetchAnnouncements();
+    };
+    initializePage();
   }, []);
 
+  // Filter Logic
   useEffect(() => {
     let filtered = announcements;
 
     if (typeFilter !== "all") {
-      filtered = filtered.filter((ann) => ann.type === typeFilter);
+      filtered = filtered.filter((ann) => ann?.type === typeFilter);
     }
 
     if (searchTerm) {
       filtered = filtered.filter(
         (ann) =>
-          ann.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          ann.content.toLowerCase().includes(searchTerm.toLowerCase())
+          ann?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          ann?.content?.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
 
@@ -133,7 +145,9 @@ const Announcements = () => {
   // Handle select all
   const handleSelectAll = (isChecked) => {
     if (isChecked) {
-      const allIds = new Set(filteredAnnouncements.map((ann) => ann._id));
+      const allIds = new Set(
+        filteredAnnouncements.filter(Boolean).map((ann) => ann._id),
+      );
       setSelectedIds(allIds);
     } else {
       setSelectedIds(new Set());
@@ -156,11 +170,9 @@ const Announcements = () => {
         isClosable: true,
       });
 
-      // Refetch announcements
       await fetchAnnouncements();
       onBulkDeleteClose();
     } catch (error) {
-      console.error("Bulk delete error:", error);
       toast({
         title: "Error",
         description:
@@ -174,6 +186,7 @@ const Announcements = () => {
     }
   };
 
+  // Form Handlers
   const handleCreateAnnouncement = async (formData) => {
     try {
       await fetchAnnouncements();
@@ -257,45 +270,6 @@ const Announcements = () => {
     onOpen();
   };
 
-  // Trigger birthday check manually
-  const handleTriggerBirthdayCheck = async () => {
-    try {
-      toast({
-        title: "🎂 Checking birthdays...",
-        status: "loading",
-        duration: null,
-        isClosable: false,
-      });
-
-      const response = await axiosInstance.post(
-        "/announcements/trigger-birthday-check"
-      );
-
-      toast.closeAll();
-      toast({
-        title: "✅ Birthday Check Complete",
-        description:
-          response.data.message || "Birthday check has been triggered",
-        status: "success",
-        duration: 4,
-        isClosable: true,
-      });
-
-      // Refetch announcements to show any newly created birthday announcements
-      await fetchAnnouncements();
-    } catch (error) {
-      toast.closeAll();
-      toast({
-        title: "Error",
-        description:
-          error.response?.data?.message || "Failed to trigger birthday check",
-        status: "error",
-        duration: 4,
-        isClosable: true,
-      });
-    }
-  };
-
   const isAllSelected =
     filteredAnnouncements.length > 0 &&
     selectedIds.size === filteredAnnouncements.length;
@@ -338,33 +312,48 @@ const Announcements = () => {
                 </Button>
               )}
               {isAdmin && (
-                <>
-                  <Button
-                    colorScheme="purple"
-                    variant="outline"
-                    size="md"
-                    fontWeight="600"
-                    onClick={handleTriggerBirthdayCheck}
-                    isDisabled={isBirthdayCheckTriggered}
-                    opacity={isBirthdayCheckTriggered ? 0.6 : 1}
-                  >
-                    {isBirthdayCheckTriggered
-                      ? "✅ Birthday Check Done"
-                      : "🎂 Check Birthdays"}
-                  </Button>
-                  <Button
-                    leftIcon={<AddIcon />}
-                    colorScheme="blue"
-                    size="md"
-                    fontWeight="600"
-                    onClick={handleNewAnnouncement}
-                  >
-                    New Announcement
-                  </Button>
-                </>
+                <Button
+                  leftIcon={<AddIcon />}
+                  colorScheme="blue"
+                  size="md"
+                  fontWeight="600"
+                  onClick={handleNewAnnouncement}
+                >
+                  New Announcement
+                </Button>
               )}
             </HStack>
           </Flex>
+
+          {/* 🎂 TODAY'S BIRTHDAYS BANNER 🎂 */}
+          {todaysBirthdays.length > 0 && (
+            <Box
+              bgGradient="linear(to-r, purple.50, pink.50)"
+              p={5}
+              borderRadius="xl"
+              border="1px solid"
+              borderColor="purple.200"
+              boxShadow="sm"
+            >
+              <HStack spacing={4}>
+                <Center bg="white" p={3} borderRadius="full" boxShadow="sm">
+                  <Icon as={MdCake} w={6} h={6} color="purple.500" />
+                </Center>
+                <VStack align="start" spacing={0}>
+                  <Text fontSize="lg" fontWeight="bold" color="purple.800">
+                    🎉 Today's Birthdays!
+                  </Text>
+                  <Text fontSize="sm" color="purple.600" fontWeight="500">
+                    Happy birthday to:{" "}
+                    {todaysBirthdays
+                      .map((b) => `${b.firstname} ${b.lastname}`)
+                      .join(", ")}
+                    ! 🎂
+                  </Text>
+                </VStack>
+              </HStack>
+            </Box>
+          )}
 
           {/* Modal for Form */}
           <Modal isOpen={isOpen} onClose={handleCloseModal} size="2xl">
@@ -391,7 +380,7 @@ const Announcements = () => {
             </ModalContent>
           </Modal>
 
-          {/* Bulk Delete Confirmation Dialog */}
+          {/* Bulk Delete Dialog */}
           <AlertDialog
             isOpen={isBulkDeleteOpen}
             leastDestructiveRef={cancelRef}
@@ -407,46 +396,12 @@ const Announcements = () => {
                 >
                   🗑️ Delete Multiple Announcements
                 </AlertDialogHeader>
-
                 <AlertDialogBody color="gray.700">
-                  <VStack align="start" spacing={3}>
-                    <Text fontWeight="600">
-                      Are you sure you want to delete {selectedIds.size}{" "}
-                      announcement{selectedIds.size !== 1 ? "s" : ""}?
-                    </Text>
-                    <Box
-                      bg="gray.50"
-                      p={3}
-                      borderRadius="md"
-                      borderLeft="4px"
-                      borderColor="red.500"
-                      w="100%"
-                    >
-                      <Text fontSize="sm" color="gray.600">
-                        This will permanently remove the following
-                        announcements:
-                      </Text>
-                      <VStack align="start" mt={2} spacing={1}>
-                        {filteredAnnouncements
-                          .filter((ann) => selectedIds.has(ann._id))
-                          .map((ann) => (
-                            <Text
-                              key={ann._id}
-                              fontSize="sm"
-                              color="gray.900"
-                              fontWeight="500"
-                            >
-                              • {ann.title}
-                            </Text>
-                          ))}
-                      </VStack>
-                    </Box>
-                    <Text fontSize="sm" color="red.600" fontWeight="500">
-                      ⚠️ This action cannot be undone.
-                    </Text>
-                  </VStack>
+                  <Text fontWeight="600">
+                    Are you sure you want to delete {selectedIds.size}{" "}
+                    announcement(s)?
+                  </Text>
                 </AlertDialogBody>
-
                 <AlertDialogFooter>
                   <Button
                     ref={cancelRef}
@@ -461,7 +416,6 @@ const Announcements = () => {
                     onClick={handleBulkDelete}
                     ml={3}
                     isLoading={isBulkDeleting}
-                    loadingText="Deleting..."
                   >
                     Delete {selectedIds.size}
                   </Button>
@@ -477,7 +431,6 @@ const Announcements = () => {
               gap={4}
               w="100%"
             >
-              {/* Search Input */}
               <InputGroup>
                 <InputLeftElement pointerEvents="none">
                   <SearchIcon color="gray.400" />
@@ -488,29 +441,13 @@ const Announcements = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   size="md"
                   borderRadius="8px"
-                  border="1px solid"
-                  borderColor="gray.200"
-                  _focus={{
-                    borderColor: "blue.500",
-                    boxShadow: "0 0 0 3px rgba(66, 153, 225, 0.1)",
-                  }}
-                  fontSize="sm"
                 />
               </InputGroup>
-
-              {/* Type Filter */}
               <Select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
                 size="md"
                 borderRadius="8px"
-                border="1px solid"
-                borderColor="gray.200"
-                _focus={{
-                  borderColor: "blue.500",
-                  boxShadow: "0 0 0 3px rgba(66, 153, 225, 0.1)",
-                }}
-                fontSize="sm"
               >
                 <option value="all">All Types</option>
                 <option value="general">General</option>
@@ -540,6 +477,7 @@ const Announcements = () => {
           )}
 
           {/* Announcements List */}
+          {/* Announcements List */}
           {loading ? (
             <Center py={20}>
               <Spinner size="lg" color="gray.400" thickness="3px" />
@@ -557,17 +495,49 @@ const Announcements = () => {
             </Center>
           ) : (
             <VStack spacing={4}>
-              {filteredAnnouncements.map((announcement) => (
-                <AnnouncementCard
-                  key={announcement._id}
-                  announcement={announcement}
-                  isAdmin={isAdmin}
-                  onEdit={handleEditClick}
-                  onDelete={handleDeleteAnnouncement}
-                  isSelected={selectedIds.has(announcement._id)}
-                  onSelectChange={handleSelectChange}
-                />
-              ))}
+              {/* 1. RENDER ONE COMBINED BIRTHDAY CARD (if any exist) */}
+              {filteredAnnouncements.some((a) => a?.type === "birthday") &&
+                todaysBirthdays.length > 0 && (
+                  <AnnouncementCard
+                    // Pass a custom combined object to display them all together
+                    announcement={{
+                      _id: filteredAnnouncements.find(
+                        (a) => a?.type === "birthday",
+                      )._id, // Grabs the first ID so actions still work
+                      type: "birthday",
+                      title: "🎉 Today's Birthdays!",
+                      content: `Wishing a fantastic birthday to ${todaysBirthdays
+                        .map((b) => `${b.firstname} ${b.lastname}`)
+                        .join(
+                          ", ",
+                        )}! 🎂\n\nWe hope you have a wonderful day filled with joy and success.`,
+                      priority: 1,
+                      createdAt: new Date(),
+                    }}
+                    todaysBirthdays={todaysBirthdays}
+                    isAdmin={isAdmin}
+                    onEdit={handleEditClick}
+                    onDelete={handleDeleteAnnouncement}
+                    isSelected={false}
+                    onSelectChange={handleSelectChange}
+                  />
+                )}
+
+              {/* 2. RENDER ALL OTHER ANNOUNCEMENTS */}
+              {filteredAnnouncements
+                .filter(Boolean)
+                .filter((ann) => ann.type !== "birthday") // Filters out the duplicates
+                .map((announcement) => (
+                  <AnnouncementCard
+                    key={announcement._id}
+                    announcement={announcement}
+                    isAdmin={isAdmin}
+                    onEdit={handleEditClick}
+                    onDelete={handleDeleteAnnouncement}
+                    isSelected={selectedIds.has(announcement._id)}
+                    onSelectChange={handleSelectChange}
+                  />
+                ))}
             </VStack>
           )}
         </VStack>
