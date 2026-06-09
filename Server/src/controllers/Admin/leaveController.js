@@ -1,9 +1,12 @@
-
+const mongoose = require("mongoose");
+const cron = require("node-cron");
+const nodemailer = require("nodemailer");
 const LeaveCredits = require("../../models/LeaveSchema/leaveCreditsSchema");
 const Leave = require("../../models/LeaveSchema/leaveSchema");
 
-
-
+// =====================
+// LEAVE APPROVAL / REJECTION
+// =====================
 
 // Single Leave Approval Controller
 const approveLeave = async (req, res) => {
@@ -18,7 +21,6 @@ const approveLeave = async (req, res) => {
     const { id } = req.params;
 
     // 2. Find the leave record and populate the employee details.
-    // The .populate() method is crucial to access the employee's ID later.
     const leaveRecord = await Leave.findById(id).populate("employee");
 
     // 3. Handle case where the leave record is not found.
@@ -84,66 +86,12 @@ const approveLeave = async (req, res) => {
     // 13. Update the status of the leave request to 'approved'.
     leaveRecord.leaveStatus = "approved";
     leaveRecord.status = "on_leave";
+    leaveRecord.approvedBy = req.user._id;
 
     // 14. Save the updated leave record.
     await leaveRecord.save();
 
-    // 15. Log the approval action for audit trail purposes.
-    const rejectLeave = async (req, res) => {
-      if (req.user.role !== "admin" && req.user.role !== "hr") {
-        return res.status(403).json({
-          message: "Access denied. Only Admin users can reject leave requests.",
-        });
-      }
-
-      try {
-        const { id } = req.params;
-        const leaveRecord = await Leave.findById(id).populate("employee");
-
-        if (!leaveRecord) {
-          return res.status(404).json({ message: "Leave record not found" });
-        }
-
-        if (leaveRecord.leaveStatus !== "pending") {
-          return res.status(400).json({
-            message: "This leave request has already been processed.",
-          });
-        }
-
-        leaveRecord.leaveStatus = "rejected";
-        await leaveRecord.save();
-
-       /*  await createAttendanceLog({
-          employeeId: leaveRecord.employee._id,
-          attendanceId: leaveRecord._id,
-          action: "LEAVE_REJECTED",
-          description: `Leave rejected by admin (${req.user.firstname} ${req.user.lastname})`,
-          performedBy: req.user._id,
-          changes: {
-            leaveStatus: { from: "pending", to: "rejected" },
-          },
-          metadata: {
-            rejectedBy: `${req.user.firstname} ${req.user.lastname}`,
-            leaveType: leaveRecord.leaveType,
-            dateFrom: leaveRecord.dateFrom,
-            dateTo: leaveRecord.dateTo,
-          },
-        }); */
-
-        res.json({
-          message: "Leave rejected successfully.",
-          leaveRecord,
-        });
-      } catch (error) {
-        console.error("Error rejecting leave:", error);
-        res.status(500).json({
-          message: "Internal server error",
-          error: error.message,
-        });
-      }
-    };
-
-    // 16. Send a success response.
+    // 15. Send a success response.
     res.status(200).json({
       message: "Leave approved successfully and credits updated.",
       leaveRecord,
@@ -182,7 +130,7 @@ const approveLeaveBulk = async (req, res) => {
       try {
         const leaveRecord = await Leave.findById(id).populate(
           "employee",
-          "firstname lastname employeeId"
+          "firstname lastname employeeId",
         );
 
         if (!leaveRecord) {
@@ -247,7 +195,7 @@ const approveLeaveBulk = async (req, res) => {
         await leaveRecord.save();
         await leaveRecord.populate(
           "approvedBy",
-          "firstname lastname employeeId"
+          "firstname lastname employeeId",
         );
 
         approvedLeaves.push({
@@ -305,24 +253,6 @@ const rejectLeave = async (req, res) => {
 
     await leaveRecord.save();
     await leaveRecord.populate("rejectedBy", "firstname lastname employeeId");
-    // Log rejection in attendance
-    /*   await createAttendanceLog({
-      employeeId: leaveRecord.employee._id,
-      attendanceId: leaveRecord._id,
-      action: "LEAVE_REJECTED",
-      description: `Leave rejected by ${req.user.firstname} ${req.user.lastname}`,
-      performedBy: req.user._id,
-      changes: {
-        leaveStatus: { from: "pending", to: "rejected" },
-      },
-      metadata: {
-        rejectedBy: req.user.firstname + " " + req.user.lastname,
-        date: new Date(),
-        leaveType: leaveRecord.leaveType,
-        dateFrom: leaveRecord.dateFrom || "",
-        dateTo: leaveRecord.dateTo || "",
-      },
-    }); */
 
     res.json({
       success: true,
@@ -382,24 +312,6 @@ const rejectLeaveBulk = async (req, res) => {
           leaveRecord.rejectionReason = reason;
         }
         await leaveRecord.save();
-        await LeaveRecord.populate("rejectedBy firstname lastname employeeId");
-
-        // Log the action
-        /*   await createAttendanceLog({
-          employeeId: leaveRecord.employee._id,
-          attendanceId: leaveRecord._id,
-          action: "LEAVE_REJECTED_BULK",
-          description: `Leave bulk rejected by admin (${req.user.firstname} ${req.user.lastname})`,
-          performedBy: req.user._id,
-          changes: {
-            leaveStatus: { from: "pending", to: "rejected" },
-          },
-          metadata: {
-            rejectedBy: req.user.firstname + " " + req.user.lastname,
-            bulkOperation: true,
-            rejectionReason: reason || "No reason provided",
-          },
-        }); */
 
         rejectedLeaves.push({
           id,
@@ -423,6 +335,75 @@ const rejectLeaveBulk = async (req, res) => {
     });
   }
 };
+
+// =====================
+// LEAVE CREATION & RETRIEVAL
+// =====================
+
+// Create Leave (Admin creating leave for themselves or employees)
+const createLeave = async (req, res) => {
+  if (req.user.role !== "admin" && req.user.role !== "hr") {
+    return res.status(403).json({
+      message: "Access denied. Only Admin and HR can create leaves here.",
+    });
+  }
+
+  try {
+    const { employeeId, leaveType, dateFrom, dateTo, notes, leaveStatus } =
+      req.body;
+
+    if (!employeeId || !leaveType || !dateFrom || !dateTo) {
+      return res.status(400).json({
+        message: "Missing required fields.",
+      });
+    }
+
+    const User = mongoose.model("user"); // Grab the User model
+
+    // Find the employee by their Object _id OR their custom string employeeId
+    const employee = await User.findOne({
+      $or: [
+        { _id: mongoose.isValidObjectId(employeeId) ? employeeId : null },
+        { employeeId: employeeId },
+      ],
+    });
+
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found." });
+    }
+
+    // Calculate days
+    const start = new Date(dateFrom);
+    const end = new Date(dateTo);
+    const totalLeaveDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+    // Create the leave document
+    const newLeave = new Leave({
+      employee: employee._id,
+      leaveType,
+      dateFrom,
+      dateTo,
+      totalLeaveDays,
+      notes,
+      leaveStatus: leaveStatus || "pending",
+    });
+
+    await newLeave.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Leave request created successfully.",
+      leave: newLeave,
+    });
+  } catch (error) {
+    console.error("Error creating leave:", error);
+    res.status(500).json({
+      message: "Failed to create leave request",
+      error: error.message,
+    });
+  }
+};
+
 const getAllEmployeeLeave = async (req, res) => {
   if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res.status(403).json({
@@ -433,36 +414,30 @@ const getAllEmployeeLeave = async (req, res) => {
   try {
     const currentUser = req.user;
 
-    // Step 1: Validate authentication
     if (!currentUser || !currentUser._id) {
       return res
         .status(401)
         .json({ message: "Unauthorized: User not authenticated" });
     }
 
-    // Step 2: Validate role access
-    const allowedRoles = ["employee", "admin"];
+    const allowedRoles = ["employee", "admin", "hr"];
     if (!allowedRoles.includes(currentUser.role)) {
       return res
         .status(403)
         .json({ message: "Forbidden: Access denied for this role" });
     }
 
-    // Step 3: Build query based on role
     const query =
-      currentUser.role === "employee" ? { employee: currentUser._id } : {}; // Admins can view all leave records
+      currentUser.role === "employee" ? { employee: currentUser._id } : {};
 
-    // Step 4: Fetch leave records
     const leaveRecords = await Leave.find(query)
       .sort({ createdAt: -1 })
       .populate("employee", "firstname lastname employeeId department");
 
-    // Step 5: Handle empty results
     if (!Array.isArray(leaveRecords) || leaveRecords.length === 0) {
       return res.status(404).json({ message: "No leave records found." });
     }
 
-    // Step 6: Return results
     res.status(200).json(leaveRecords);
   } catch (error) {
     console.error("Error in getEmployeeLeave:", error);
@@ -481,10 +456,8 @@ const getLeaveBreakdown = async (req, res) => {
     });
   }
   try {
-    // Define all valid leave types
-    const validLeaveTypes = ["VL", "SL", "LWOP", "BL", "CL"];
+    const validLeaveTypes = ["BL", "SL", "CL", "VL", "MLPL", "LWOP"];
 
-    // Aggregate leave counts from the database
     const breakdown = await Leave.aggregate([
       {
         $group: {
@@ -494,16 +467,16 @@ const getLeaveBreakdown = async (req, res) => {
       },
     ]);
 
-    // Convert aggregation result to a map
     const aggregatedCounts = breakdown.reduce((acc, item) => {
       acc[item._id] = item.count;
       return acc;
     }, {});
 
-    // Ensure all leave types are represented
     const leaveCounts = {};
     validLeaveTypes.forEach((type) => {
-      leaveCounts[type] = aggregatedCounts[type] || 0;
+      // Map it to a cleaner name for the frontend UI boxes
+      const cleanType = type.replace(/ request/i, "").trim();
+      leaveCounts[cleanType] = aggregatedCounts[type] || 0;
     });
 
     res.status(200).json(leaveCounts);
@@ -512,6 +485,7 @@ const getLeaveBreakdown = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 const searchEmployees = async (req, res) => {
   if (req.user.role !== "admin" && req.user.role !== "hr") {
     return res
@@ -520,7 +494,7 @@ const searchEmployees = async (req, res) => {
   }
 
   try {
-    const { q } = req.query; // q is the search query
+    const { q } = req.query;
 
     if (!q || q.trim().length < 1) {
       return res.status(400).json({
@@ -532,19 +506,10 @@ const searchEmployees = async (req, res) => {
 
     // Create search conditions for name, employeeId, and email
     const searchConditions = [
-      // Search by first name
       { firstname: { $regex: searchTerm, $options: "i" } },
-
-      // Search by last name
       { lastname: { $regex: searchTerm, $options: "i" } },
-
-      // Search by email
       { email: { $regex: searchTerm, $options: "i" } },
-
-      // Search by employeeId (string match or partial)
       { employeeId: { $regex: searchTerm, $options: "i" } },
-
-      // Search by full name (firstname + lastname)
       {
         $expr: {
           $regexMatch: {
@@ -560,14 +525,14 @@ const searchEmployees = async (req, res) => {
 
     // If the search term looks like a MongoDB ObjectId or numeric ID
     if (searchTerm.match(/^[a-fA-F0-9]{24}$/) || searchTerm.match(/^\d+$/)) {
-      // Add exact ObjectId search
       if (searchTerm.match(/^[a-fA-F0-9]{24}$/)) {
         searchConditions.push({ _id: searchTerm });
       }
-
-      // Add exact employeeId search
       searchConditions.push({ employeeId: searchTerm });
     }
+
+    // FIX: Get User model properly here
+    const User = mongoose.model("user");
 
     // Execute search
     const employees = await User.find({
@@ -588,11 +553,12 @@ const searchEmployees = async (req, res) => {
 };
 
 module.exports = {
-    approveLeave,
-    approveLeaveBulk,
-    rejectLeave,
-    rejectLeaveBulk,
-    getAllEmployeeLeave,
-    getLeaveBreakdown,
-    searchEmployees,
+  createLeave, // <--- New Controller Added Here
+  approveLeave,
+  approveLeaveBulk,
+  rejectLeave,
+  rejectLeaveBulk,
+  getAllEmployeeLeave,
+  getLeaveBreakdown,
+  searchEmployees,
 };
