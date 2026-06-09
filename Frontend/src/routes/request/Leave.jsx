@@ -4,12 +4,9 @@ import {
   Box,
   Text,
   Flex,
-  Badge,
   Button,
-  Avatar,
   VStack,
   HStack,
-  Spacer,
   extendTheme,
   SimpleGrid,
   Select,
@@ -30,13 +27,8 @@ import {
   useToast,
   IconButton,
   Tooltip,
-  GridItem,
 } from "@chakra-ui/react";
 import {
-  CalendarIcon,
-  CheckIcon,
-  CloseIcon,
-  AddIcon,
   ArrowBackIcon,
   ArrowForwardIcon,
   ChevronLeftIcon,
@@ -45,9 +37,10 @@ import {
 } from "@chakra-ui/icons";
 import axiosInstance from "../../lib/axiosInstance";
 import { theme } from "../../constants/themeConstants";
-import { LeaveRequestCard } from "./LeaveRequestCard";
+import { LeaveRequestTable } from "./LeaveRequestTable"; // Ensure this path is correct
 import { useAuth } from "../../context/AuthContext";
 import AddLeaveModal from "../../components/Admin_components/AddLeaveModal";
+
 const Leave = () => {
   const { authState } = useAuth();
   const currentUser = authState?.user;
@@ -76,26 +69,6 @@ const Leave = () => {
 
   const [leaveRequests, setLeaveRequests] = useState([]);
 
-  useEffect(() => {
-    const fetchLeaveBreakdown = async () => {
-      try {
-        const response = await axiosInstance.get(
-          "/adminLeave/get-leave-breakdown"
-        );
-        setLeaveCounts(response.data);
-      } catch (error) {
-        console.error("Failed to fetch leave breakdown:", error);
-      }
-    };
-
-    fetchLeaveBreakdown();
-  }, []);
-
-  // Filter the requests based on the selected status
-  const filteredRequests = leaveRequests.filter(
-    (request) => filterStatus === "All" || request.status === filterStatus
-  );
-
   // Calculate days between two dates
   const calculateDays = (startDate, endDate) => {
     if (!startDate || !endDate) return 0;
@@ -106,6 +79,7 @@ const Leave = () => {
     return diffDays;
   };
 
+  // 1. FIRST: Define fetchLeaveRequests so it exists in memory
   const fetchLeaveRequests = useCallback(async () => {
     try {
       // Fetch all attendance records with leave status
@@ -120,10 +94,10 @@ const Leave = () => {
             item.totalLeaveDays && item.totalLeaveDays > 1
               ? `${item.totalLeaveDays} Days`
               : item.totalLeaveDays === 1
-              ? "1 Day"
-              : calculateDays(item.dateFrom, item.dateTo) > 1
-              ? `${calculateDays(item.dateFrom, item.dateTo)} Days`
-              : "1 Day",
+                ? "1 Day"
+                : calculateDays(item.dateFrom, item.dateTo) > 1
+                  ? `${calculateDays(item.dateFrom, item.dateTo)} Days`
+                  : "1 Day",
           startDate: item.dateFrom || "",
           endDate: item.dateTo || "",
           reason: item.notes || "",
@@ -139,32 +113,70 @@ const Leave = () => {
             item.leaveStatus === "approved"
               ? "Approved"
               : item.leaveStatus === "pending"
-              ? "Pending"
-              : item.leaveStatus === "rejected"
-              ? "Rejected"
-              : "Pending",
-        }))
+                ? "Pending"
+                : item.leaveStatus === "rejected"
+                  ? "Rejected"
+                  : "Pending",
+        })),
       );
     } catch (err) {
       console.error("Error fetching leave requests:", err);
     }
-  }, [toast]);
+  }, []);
 
+  // 2. SECOND: Call it when the component loads
   useEffect(() => {
     fetchLeaveRequests();
   }, [fetchLeaveRequests]);
+
+  // 3. THIRD: dynamically calculate Leave Breakdown (ONLY Approved leaves)
+  useEffect(() => {
+    // Step 1: Pre-fill the standard leave types so they ALWAYS show up on screen
+    const counts = {
+      SL: 0,
+      BL: 0,
+      LWOP: 0,
+      MLPL: 0,
+      VL: 0,
+    };
+
+    // Step 2: Initialize any *other* dynamic types that might exist in the database
+    leaveRequests.forEach((request) => {
+      const type = request.leaveType;
+      if (counts[type] === undefined) {
+        counts[type] = 0;
+      }
+    });
+
+    // Step 3: Only add 1 to the breakdown if the leave is explicitly "Approved"
+    leaveRequests.forEach((request) => {
+      if (request.status === "Approved") {
+        const type = request.leaveType;
+        if (counts[type] !== undefined) {
+          counts[type] += 1;
+        }
+      }
+    });
+
+    setLeaveCounts(counts);
+  }, [leaveRequests]);
+
+  // Filter the requests based on the selected status
+  const filteredRequests = leaveRequests.filter(
+    (request) => filterStatus === "All" || request.status === filterStatus,
+  );
 
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredRequests.slice(
     indexOfFirstItem,
-    indexOfLastItem
+    indexOfLastItem,
   );
 
   const totalPages = Math.max(
     1,
-    Math.ceil(filteredRequests.length / itemsPerPage)
+    Math.ceil(filteredRequests.length / itemsPerPage),
   ); // Ensure at least 1 page
 
   // Adjust current page if it's out of bounds after filtering or item count change
@@ -214,7 +226,7 @@ const Leave = () => {
   const handleReject = async (id) => {
     try {
       const response = await axiosInstance.post(
-        `/adminLeave/reject-leave/${id}`
+        `/adminLeave/reject-leave/${id}`,
       );
       const rejectedBy = response.data?.leaveRecord?.approvedBy;
 
@@ -234,11 +246,11 @@ const Leave = () => {
       console.error("Error rejecting leave:", err);
       setLeaveRequests((prevRequests) =>
         prevRequests.map((req) =>
-          req._id === id ? { ...req, status: "Rejected" } : req
-        )
+          req._id === id ? { ...req, status: "Rejected" } : req,
+        ),
       );
       setSelectedRequestIds((prev) =>
-        prev.filter((selectedId) => selectedId !== id)
+        prev.filter((selectedId) => selectedId !== id),
       );
       toast({
         title: "Rejection Failed",
@@ -281,7 +293,7 @@ const Leave = () => {
       // Calculate total leave days
       const totalLeaveDays = calculateDays(
         newLeaveData.dateFrom,
-        newLeaveData.dateTo
+        newLeaveData.dateTo,
       );
 
       // Prepare data for backend (leave only, no attendance)
@@ -347,7 +359,7 @@ const Leave = () => {
       const allPendingSelectedOnPage =
         pendingRequestIdsOnPage.length > 0 &&
         pendingRequestIdsOnPage.every((pendingId) =>
-          newSelected.includes(pendingId)
+          newSelected.includes(pendingId),
         );
 
       setIsSelectAllChecked(allPendingSelectedOnPage);
@@ -380,7 +392,7 @@ const Leave = () => {
         `/adminLeave/approve-leave-bulk`,
         {
           ids: selectedRequestIds,
-        }
+        },
       );
 
       const approved = response.data?.approved || [];
@@ -413,7 +425,6 @@ const Leave = () => {
 
   const handleRejectSelected = async () => {
     try {
-      // If bulk reject endpoint exists
       await axiosInstance.post(`/adminLeave/reject-leave-bulk`, {
         ids: selectedRequestIds,
       });
@@ -429,14 +440,6 @@ const Leave = () => {
       fetchLeaveRequests(); // Refresh the list after rejection
     } catch (err) {
       console.error("Error bulk rejecting leaves:", err);
-      // If no bulk reject endpoint exists, update locally
-      /*     setLeaveRequests((prevRequests) =>
-        prevRequests.map((req) =>
-          selectedRequestIds.includes(req.id)
-            ? { ...req, status: "Rejected" }
-            : req
-        )
-      ); */
       setSelectedRequestIds([]);
       setIsSelectAllChecked(false);
       toast({
@@ -471,7 +474,7 @@ const Leave = () => {
           gap={4}
         >
           <HStack spacing={4} wrap="wrap" justify="center">
-            <Button colorScheme="blue" onClick={() => setIsAddModalOpen(true)}>
+            <Button colorScheme="blue" onClick={() => onAddModalOpen()}>
               Add Leave
             </Button>
             <AddLeaveModal
@@ -542,8 +545,17 @@ const Leave = () => {
             </Select>
           </HStack>
         </Flex>
+
         {/* Leave Breakdown */}
-        <Box bg="white" p={4} borderRadius="lg" shadow="sm" mb={6} w="100%">
+        <Box
+          bg="white"
+          p={4}
+          borderRadius="lg"
+          shadow="sm"
+          mb={6}
+          w="100%"
+          maxW="1200px"
+        >
           <Heading size="md" mb={4} color="gray.700" textAlign="left">
             Leave Breakdown
           </Heading>
@@ -567,66 +579,46 @@ const Leave = () => {
           </SimpleGrid>
         </Box>
 
-        {/* Leave Request Cards */}
-
-        <SimpleGrid
-          columns={{ base: 1, md: 2, lg: 3 }}
-          spacing={{ base: 5, md: 8 }}
-          width="100%"
-          maxW="1200px"
-        >
+        {/* Leave Requests Display Area */}
+        <Box width="100%" maxW="1200px">
           {currentItems.length > 0 ? (
-            currentItems.map((request) => (
-              <LeaveRequestCard
-                key={request.id}
-                id={request.id}
-                {...request}
-                onApprove={() => handleApprove(request.id)}
-                onReject={() => handleReject(request.id)}
-                isSelected={
-                  request.status === "Pending"
-                    ? selectedRequestIds.includes(request.id)
-                    : false
-                }
-                onToggleSelect={handleToggleSelect}
-              />
-            ))
+            <LeaveRequestTable
+              requests={currentItems}
+              selectedIds={selectedRequestIds}
+              onToggleSelect={handleToggleSelect}
+              onToggleSelectAll={handleSelectAll}
+              onApprove={handleApprove}
+              onReject={handleReject}
+            />
           ) : (
-            <GridItem colSpan={{ base: 1, md: 2, lg: 3 }}>
-              <Flex
-                direction="column"
-                align="center"
-                justify="center"
-                py={20}
-                w="100%"
-                textAlign="center"
+            <Flex
+              direction="column"
+              align="center"
+              justify="center"
+              py={20}
+              w="100%"
+              textAlign="center"
+            >
+              <Box
+                bg="blue.50"
+                borderRadius="full"
+                p={4}
+                mb={4}
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
               >
-                <Box
-                  bg="blue.50"
-                  borderRadius="full"
-                  p={4}
-                  mb={4}
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                >
-                  <InfoOutlineIcon boxSize={10} color="blue.500" />
-                </Box>
-                <Text
-                  fontSize="lg"
-                  fontWeight="semibold"
-                  color="gray.700"
-                  mb={2}
-                >
-                  No leave requests found
-                </Text>
-                <Text fontSize="sm" color="gray.500">
-                  Try adjusting your filters or check back later
-                </Text>
-              </Flex>
-            </GridItem>
+                <InfoOutlineIcon boxSize={10} color="blue.500" />
+              </Box>
+              <Text fontSize="lg" fontWeight="semibold" color="gray.700" mb={2}>
+                No leave requests found
+              </Text>
+              <Text fontSize="sm" color="gray.500">
+                Try adjusting your filters or check back later
+              </Text>
+            </Flex>
           )}
-        </SimpleGrid>
+        </Box>
 
         {/* Pagination Controls */}
         <Flex
@@ -663,10 +655,10 @@ const Leave = () => {
               _hover={{ borderColor: "gray.400" }}
               _focus={{ borderColor: "lightBlue.500", boxShadow: "outline" }}
             >
-              <option value={3}>3</option>
-              <option value={6}>6</option>
-              <option value={9}>9</option>
-              <option value={12}>12</option>
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={15}>15</option>
+              <option value={20}>20</option>
             </Select>
           </HStack>
 
@@ -808,14 +800,11 @@ const Leave = () => {
                   onChange={handleNewLeaveChange}
                   borderRadius="md"
                 >
-                  <option value="Sick leave request">Sick Leave</option>
-                  <option value="Excuse Request">Excuse</option>
-                  <option value="Business Trip Request">Business Trip</option>
-                  <option value="M/P Leave Request">M/P Leave</option>
-                  <option value="Bereavement leave Request">
-                    Bereavement Leave
-                  </option>
-                  <option value="Vacation leave Request">Vacation Leave</option>
+                  <option value="SL">Sick Leave</option>
+                  <option value="BL">Bereavement Leave</option>
+                  <option value="LWOP">Leave without pay</option>
+                  <option value="MLPL">Maternity/Paternity Leave</option>
+                  <option value="VL">Vacation Leave</option>
                 </Select>
               </FormControl>
 

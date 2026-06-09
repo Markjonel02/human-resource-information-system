@@ -10,7 +10,7 @@ const LeaveSchema = new Schema(
     },
     leaveType: {
       type: String,
-      enum: ["VL", "SL", "LWOP", "BL", "CL", "MLPL", "FL"],
+      enum: ["VL", "SL", "LWOP", "BL", "CL", "MLPL"],
       required: true,
     },
     dateFrom: {
@@ -63,7 +63,7 @@ const LeaveSchema = new Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // This prevents an employee from submitting the exact same leave request twice

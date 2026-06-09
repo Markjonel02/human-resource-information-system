@@ -159,7 +159,7 @@ const EmployeeLeave = () => {
     try {
       await axiosInstance.put(
         `/employeeLeave/edit-leave/${editingLeave._id}`,
-        editingLeave
+        editingLeave,
       );
 
       toast({
@@ -212,7 +212,7 @@ const EmployeeLeave = () => {
     filterStatus === "all"
       ? leaveHistory
       : leaveHistory.filter(
-          (item) => (item.leaveStatus || "pending") === filterStatus
+          (item) => (item.leaveStatus || "pending") === filterStatus,
         );
 
   return (
@@ -343,7 +343,7 @@ const EmployeeLeave = () => {
                           ? Math.ceil(
                               (new Date(item.dateTo) -
                                 new Date(item.dateFrom)) /
-                                (1000 * 60 * 60 * 24)
+                                (1000 * 60 * 60 * 24),
                             ) + 1
                           : "-")}
                     </Td>

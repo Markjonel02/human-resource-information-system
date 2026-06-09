@@ -107,14 +107,12 @@ const AddLeaveModal = ({
                 onChange={handleNewLeaveChange}
                 borderRadius="md"
               >
-                <option value="Sick leave request">Sick Leave</option>
-                <option value="Excuse Request">Excuse</option>
-                <option value="Business Trip Request">Business Trip</option>
-                <option value="M/P Leave Request">M/P Leave</option>
-                <option value="Bereavement leave Request">
-                  Bereavement Leave
-                </option>
-                <option value="Vacation leave Request">Vacation Leave</option>
+                <option value="SL">Sick Leave</option>
+                <option value="MLPL">M/P Leave</option>
+                <option value="BL">Bereavement Leave</option>
+                <option value="LWOP">Leave Without Pay</option>
+                <option value="CL">Calamity Leave</option>
+                <option value="VL">Vacation Leave</option>
               </Select>
             </FormControl>
 
