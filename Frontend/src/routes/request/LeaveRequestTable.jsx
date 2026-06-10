@@ -27,28 +27,25 @@ export const LeaveRequestTable = ({
   onApprove,
   onReject,
 }) => {
+  // Normalize color keys to lowercase to match standard values safely
   const statusColor = {
-    Approved: "green",
-    Pending: "orange",
-    Rejected: "red",
+    approved: "green",
+    pending: "orange",
+    rejected: "red",
   };
 
   // Helper to assign a color scheme to the leave type badge
   const getLeaveTypeColor = (leaveType) => {
-    switch (leaveType) {
-      case "Sick leave request":
-        return "red";
-      case "Excuse request":
-        return "purple";
-      case "Business Trip Request":
-        return "blue";
-      case "Loan request":
-        return "teal";
-      case "Ticket Request":
-        return "cyan";
-      default:
-        return "gray";
-    }
+    if (!leaveType) return "gray";
+
+    // Using .toLowerCase() and .includes() to protect against minor string mismatches
+    const type = leaveType.toLowerCase();
+    if (type.includes("sick")) return "red";
+    if (type.includes("excuse")) return "purple";
+    if (type.includes("trip") || type.includes("business")) return "blue";
+    if (type.includes("loan")) return "teal";
+    if (type.includes("ticket")) return "cyan";
+    return "gray";
   };
 
   const formatDate = (dateString) => {
@@ -60,11 +57,15 @@ export const LeaveRequestTable = ({
     });
   };
 
+  // Safely find pending elements with case insensitivity
+  const pendingRequests = requests.filter(
+    (r) => r.status && r.status.toLowerCase() === "pending",
+  );
+
   const isAllSelected =
     requests.length > 0 &&
-    requests.filter((r) => r.status === "Pending").length > 0 &&
-    selectedIds.length ===
-      requests.filter((r) => r.status === "Pending").length;
+    pendingRequests.length > 0 &&
+    selectedIds.length === pendingRequests.length;
 
   return (
     <Box
@@ -116,7 +117,12 @@ export const LeaveRequestTable = ({
                 } = request;
 
                 const isSelected = selectedIds.includes(id);
-                const isPending = status === "Pending";
+
+                // 🟢 FIX: Case-insensitive check guarantees this will match "Pending" or "pending"
+                const normalizedStatusStr = status
+                  ? status.toLowerCase().trim()
+                  : "";
+                const isPending = normalizedStatusStr === "pending";
 
                 return (
                   <Tr
@@ -130,7 +136,7 @@ export const LeaveRequestTable = ({
                         isChecked={isSelected}
                         onChange={() => onToggleSelect(id)}
                         colorScheme="blue"
-                        isDisabled={!isPending} // Usually only allow selecting pending requests
+                        isDisabled={!isPending}
                       />
                     </Td>
 
@@ -168,7 +174,7 @@ export const LeaveRequestTable = ({
                     {/* Duration */}
                     <Td>
                       <Text fontSize="sm" fontWeight="bold" color="gray.700">
-                        {days} {days === 1 ? "Day" : "Days"}
+                        {days}
                       </Text>
                     </Td>
 
@@ -194,7 +200,7 @@ export const LeaveRequestTable = ({
                         px={3}
                         py={1}
                         borderRadius="full"
-                        colorScheme={statusColor[status]}
+                        colorScheme={statusColor[normalizedStatusStr] || "gray"}
                         textTransform="capitalize"
                         variant="solid"
                         fontSize="xs"

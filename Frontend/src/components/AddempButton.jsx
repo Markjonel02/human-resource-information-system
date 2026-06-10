@@ -29,7 +29,7 @@ import { useAuth } from "../context/AuthContext";
 
 const AddEmployeeButton = ({ onEmployeeAdded }) => {
   const { authState } = useAuth();
-  const currentUserRoles = authState?.user?.role; // ✅ Get role directly
+  const currentUserRoles = authState?.user?.role; // Get role directly
 
   const getAvailableRoles = () => {
     if (currentUserRoles === "admin") {
