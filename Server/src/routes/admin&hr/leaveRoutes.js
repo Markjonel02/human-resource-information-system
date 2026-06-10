@@ -55,6 +55,12 @@ router.post(
   authorizeRoles("admin", "hr"),
   Leave.createLeave,
 );
+
+router.get(
+  "/search-employees",
+  authorizeRoles("admin", "hr"),
+  Leave.searchEmployeesId,
+);
 // ============ END OF LEAVES ============
 
 module.exports = router;

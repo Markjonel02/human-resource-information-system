@@ -103,14 +103,14 @@ const register = async (req, res) => {
     let response = await checkDuplicate(
       "username",
       username,
-      "Username already exists!"
+      "Username already exists!",
     );
     if (response) return response;
 
     response = await checkDuplicate(
       "employeeEmail",
       employeeEmail,
-      "Employee email already exists!"
+      "Employee email already exists!",
     );
     if (response) return response;
 
@@ -144,6 +144,11 @@ const register = async (req, res) => {
     });
 
     await newUser.save();
+
+    await LeaveCredits.create({
+      employee: newUser._id,
+      year: new Date().getFullYear(),
+    });
 
     // 5. Generate tokens and set refresh token cookie
     const { accessToken, refreshToken } = generateTokens(newUser);

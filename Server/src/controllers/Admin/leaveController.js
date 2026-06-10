@@ -10,98 +10,84 @@ const Leave = require("../../models/LeaveSchema/leaveSchema");
 
 // Single Leave Approval Controller
 const approveLeave = async (req, res) => {
-  // 1. Authorization: Only allow admins to approve leave requests.
   if (req.user.role !== "admin" && req.user.role !== "hr") {
-    return res.status(403).json({
-      message: "Access denied. Only Admin users can approve leave requests.",
-    });
+    return res.status(403).json({ message: "Access denied." });
   }
-
   try {
     const { id } = req.params;
-
-    // 2. Find the leave record and populate the employee details.
     const leaveRecord = await Leave.findById(id).populate("employee");
 
-    // 3. Handle case where the leave record is not found.
-    if (!leaveRecord) {
+    if (!leaveRecord)
       return res.status(404).json({ message: "Leave record not found" });
-    }
 
-    // 4. Validate the leave status. We can only approve pending requests.
-    if (leaveRecord.leaveStatus !== "pending") {
-      return res.status(400).json({
-        message: "This leave request has already been processed.",
-      });
-    }
+    if (leaveRecord.leaveStatus !== "pending")
+      return res.status(400).json({ message: "Already processed." });
 
-    // 5. Calculate the total number of days to deduct from the credits.
-    let daysToDeduct = 0;
-    if (leaveRecord.totalLeaveDays) {
-      daysToDeduct = leaveRecord.totalLeaveDays;
-    } else if (leaveRecord.dateFrom && leaveRecord.dateTo) {
-      const dateFrom = new Date(leaveRecord.dateFrom);
-      const dateTo = new Date(leaveRecord.dateTo);
-      daysToDeduct = Math.ceil((dateTo - dateFrom) / (1000 * 60 * 60 * 24)) + 1;
-    } else {
-      return res.status(400).json({
-        message: "Cannot determine the number of leave days from the record.",
-      });
+    // Calculate days
+    let daysToDeduct = leaveRecord.totalLeaveDays;
+    if (!daysToDeduct && leaveRecord.dateFrom && leaveRecord.dateTo) {
+      const s = new Date(leaveRecord.dateFrom);
+      const e = new Date(leaveRecord.dateTo);
+      daysToDeduct = Math.ceil((e - s) / (1000 * 60 * 60 * 24)) + 1;
     }
+    if (!daysToDeduct)
+      return res.status(400).json({ message: "Cannot determine leave days." });
 
-    // 6. Find the employee's leave credit record.
+    // Credits check
     const employee = leaveRecord.employee;
-    const leaveCredit = await LeaveCredits.findOne({ employee: employee._id });
+    const leaveCredit = await LeaveCredits.findOneAndUpdate(
+      { employee: employee._id, year: new Date().getFullYear() },
+      {
+        $setOnInsert: {
+          employee: employee._id,
+          year: new Date().getFullYear(),
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
 
-    // 7. Handle case where the employee's credit record is not found.
-    if (!employee || !leaveCredit) {
-      return res.status(404).json({
-        message: "Employee or leave credit record not found.",
+    if (!leaveCredit) {
+      leaveCredit = await LeaveCredits.create({
+        employee: employee._id,
+        credits: {
+          VL: { total: 15, remaining: 15 },
+          SL: { total: 15, remaining: 15 },
+          BL: { total: 3, remaining: 3 },
+          MLPL: { total: 60, remaining: 60 },
+          LWOP: { total: 30, remaining: 30 },
+        },
       });
     }
 
-    // 8. Use standard bracket notation to check for the leave type.
-    if (!leaveCredit.credits[leaveRecord.leaveType]) {
-      return res.status(400).json({
-        message: "Leave type not found in employee's credits.",
-      });
-    }
+    const creditEntry = leaveCredit.credits[leaveRecord.leaveType];
+    if (!creditEntry)
+      return res
+        .status(400)
+        .json({ message: "Leave type not found in credits." });
 
-    // 9. Find the specific leave type (e.g., 'VL', 'SL') within the credits object.
-    const currentCredit = leaveCredit.credits[leaveRecord.leaveType];
+    if (creditEntry.remaining < daysToDeduct)
+      return res.status(400).json({ message: "Not enough credits." });
 
-    // 10. Check if the employee has enough remaining credits.
-    if (currentCredit.remaining < daysToDeduct) {
-      return res.status(400).json({
-        message: `Not enough ${leaveRecord.leaveType} credits to approve this request.`,
-      });
-    }
+    // Deduct + save
+    creditEntry.remaining -= daysToDeduct;
+    creditEntry.used += daysToDeduct;
 
-    // 11. Subtract the total days from the remaining credits.
-    leaveCredit.credits[leaveRecord.leaveType].remaining -= daysToDeduct;
-
-    // 12. Save the updated leave credit document to the database.
     await leaveCredit.save();
 
-    // 13. Update the status of the leave request to 'approved'.
     leaveRecord.leaveStatus = "approved";
-    leaveRecord.status = "on_leave";
     leaveRecord.approvedBy = req.user._id;
-
-    // 14. Save the updated leave record.
+    leaveRecord.approvedAt = new Date();
     await leaveRecord.save();
 
-    // 15. Send a success response.
-    res.status(200).json({
-      message: "Leave approved successfully and credits updated.",
+    return res.status(200).json({
+      message: "Leave approved successfully.",
       leaveRecord,
     });
   } catch (error) {
     console.error("Error approving leave:", error);
-    res.status(500).json({
-      message: "Internal server error",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
   }
 };
 
@@ -552,8 +538,41 @@ const searchEmployees = async (req, res) => {
   }
 };
 
+const searchEmployeesId = async (req, res) => {
+  try {
+    const { q } = req.query; // 🔎 Captures whatever is typed in the search bar
+
+    if (!q || q.trim().length < 3) {
+      return res
+        .status(400)
+        .json({ message: "Query must be at least 3 characters" });
+    }
+
+    const searchTerm = q.trim();
+    const User = mongoose.model("user");
+
+    // Searches across ID, First Name, Last Name, or Email
+    const employees = await User.find({
+      $or: [
+        { employeeId: { $regex: searchTerm, $options: "i" } },
+        { firstname: { $regex: searchTerm, $options: "i" } },
+        { lastname: { $regex: searchTerm, $options: "i" } },
+        { email: { $regex: searchTerm, $options: "i" } },
+      ],
+    })
+      .select("_id firstname lastname employeeId department email")
+      .limit(10);
+
+    res.status(200).json(employees);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error during search" });
+  }
+};
+
 module.exports = {
   createLeave, // <--- New Controller Added Here
+  searchEmployeesId,
   approveLeave,
   approveLeaveBulk,
   rejectLeave,
